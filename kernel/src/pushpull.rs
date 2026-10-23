@@ -197,7 +197,11 @@ impl Document {
     /// separate pieces.
     fn integrate_edges(&mut self, ctx: DefId, edges: &[EId]) -> Result<(), Error> {
         let mut verts: HashSet<VId> = HashSet::new();
+        let mut seen: HashSet<EId> = HashSet::new();
         for &e in edges {
+            if !seen.insert(e) {
+                continue;
+            }
             if let Some(ed) = self.edge(e).cloned() {
                 let new = self.insert_segment(ctx, self.pos(ed.v[0]), self.pos(ed.v[1]))?;
                 for ne in new {

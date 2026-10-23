@@ -35,8 +35,24 @@ impl Document {
         // Touch points along the new segment as (t, vertex).
         let mut cuts: Vec<(f64, VId)> = Vec::new();
 
+        // Only geometry whose bounding box touches the segment's can matter.
+        let t = tol::LENGTH;
+        let lo = V3::new(a.x.min(b.x) - t, a.y.min(b.y) - t, a.z.min(b.z) - t);
+        let hi = V3::new(a.x.max(b.x) + t, a.y.max(b.y) + t, a.z.max(b.z) + t);
+        let near = |p: V3, q: V3| {
+            p.x.min(q.x) <= hi.x
+                && p.x.max(q.x) >= lo.x
+                && p.y.min(q.y) <= hi.y
+                && p.y.max(q.y) >= lo.y
+                && p.z.min(q.z) <= hi.z
+                && p.z.max(q.z) >= lo.z
+        };
+
         // 1. Existing vertices lying on the segment.
         for (id, v) in self.vertices_in(ctx) {
+            if !near(v.pos, v.pos) {
+                continue;
+            }
             let (d, t) = point_segment(v.pos, a, b);
             if d <= tol::LENGTH {
                 cuts.push((t, id));
@@ -44,11 +60,16 @@ impl Document {
         }
 
         // 2. Existing edges the segment crosses: split both at the crossing.
-        let existing: Vec<EId> = self.edges_in(ctx).map(|(id, _)| id).collect();
+        let existing: Vec<(EId, V3, V3)> = self
+            .edges_in(ctx)
+            .map(|(id, e)| (id, self.pos(e.v[0]), self.pos(e.v[1])))
+            .filter(|&(_, p, q)| near(p, q))
+            .collect();
         let mut collinear: Vec<EId> = Vec::new();
-        for &e in &existing {
-            let Some(edge) = self.edge(e).cloned() else { continue };
-            let (p, q) = (self.pos(edge.v[0]), self.pos(edge.v[1]));
+        for (e, p, q) in existing {
+            if self.edge(e).is_none() {
+                continue;
+            }
             match segment_segment(a, b, p, q) {
                 Some((s, _, d)) if d <= tol::LENGTH => {
                     let w = self.split_edge(e, a + dir * s)?;
