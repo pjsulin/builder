@@ -1,0 +1,677 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Pushpull Modeler</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: drafting-table app. Thin toolbar rail on the left, model space as the main surface, status bar with a Measurements box like a CAD command line. */
+:root{
+  --bg:#e7eaed; --panel:#f7f8f9; --fg:#1b2129; --muted:#5a6573; --line:#cdd3da;
+  --accent:#2c5e8c; --accent-fg:#ffffff;
+  --sky-top:#c3d1de; --sky-bot:#eef1f3;
+  --face:#f3f4f5; --edge:#1a1e24; --sel:#8fb3dc; --hover:#2c5e8c;
+  --ax-x:#c4463c; --ax-y:#3a8746; --ax-z:#3c5fb5;
+  --snap-end:#2f9a46; --snap-mid:#1b98ab;
+  --f-ui:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-brand:"IBM Plex Sans Condensed","Arial Narrow",system-ui,sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,"SFMono-Regular",Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#14181d; --panel:#1c2128; --fg:#e2e6eb; --muted:#97a2ae; --line:#2d343d;
+  --accent:#7eaee3; --accent-fg:#0f1620;
+  --sky-top:#283340; --sky-bot:#161b21;
+  --face:#cdd2d8; --edge:#0d1014; --sel:#6e9bd0; --hover:#7eaee3;
+  --ax-x:#e0685e; --ax-y:#5db36b; --ax-z:#7392e3;
+  --snap-end:#4cc265; --snap-mid:#3cc0d2; color-scheme:dark;
+}}
+:root[data-theme="dark"]{
+  --bg:#14181d; --panel:#1c2128; --fg:#e2e6eb; --muted:#97a2ae; --line:#2d343d;
+  --accent:#7eaee3; --accent-fg:#0f1620;
+  --sky-top:#283340; --sky-bot:#161b21;
+  --face:#cdd2d8; --edge:#0d1014; --sel:#6e9bd0; --hover:#7eaee3;
+  --ax-x:#e0685e; --ax-y:#5db36b; --ax-z:#7392e3;
+  --snap-end:#4cc265; --snap-mid:#3cc0d2; color-scheme:dark;
+}
+html,body{height:100%}
+body{background:var(--bg);color:var(--fg);font-family:var(--f-ui);font-size:14px;overflow:hidden}
+.app{height:100%;box-sizing:border-box;display:grid;grid-template-rows:auto minmax(0,1fr) auto;gap:10px;
+  padding-block:10px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+header{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 16px}
+.brand{display:flex;align-items:baseline;gap:10px;min-width:0}
+.brand b{font-family:var(--f-brand);font-weight:600;font-size:19px;letter-spacing:.01em}
+.brand span{color:var(--muted);font-size:12.5px}
+.actions{display:flex;flex-wrap:wrap;gap:6px}
+.btn{font:500 12.5px var(--f-ui);color:var(--fg);background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:6px 10px;cursor:pointer;white-space:nowrap}
+.btn:hover{border-color:var(--muted)}
+.btn:disabled{opacity:.45;cursor:default}
+.btn:focus-visible,.tool:focus-visible,#vcb:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.main{display:grid;grid-template-columns:auto minmax(0,1fr);gap:10px;min-height:0}
+.tools{display:flex;flex-direction:column;gap:3px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:5px;align-self:start}
+.tool{display:grid;justify-items:center;gap:3px;width:58px;padding:8px 2px 6px;border:0;border-radius:7px;background:none;color:var(--muted);cursor:pointer;font:500 10.5px var(--f-ui)}
+.tool svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.tool:hover{color:var(--fg);background:color-mix(in srgb,var(--fg) 7%,transparent)}
+.tool[aria-pressed="true"]{background:var(--accent);color:var(--accent-fg)}
+.tool kbd{font:500 9.5px var(--f-mono);opacity:.7}
+.view{position:relative;min-width:0;min-height:0;border:1px solid var(--line);border-radius:10px;overflow:hidden;
+  background:linear-gradient(var(--sky-top),var(--sky-bot) 70%);touch-action:none}
+.view canvas{display:block;width:100%;height:100%;cursor:crosshair}
+.overlay{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+.ov{position:absolute;left:0;top:0;will-change:transform}
+.dim{font:500 12px var(--f-mono);font-variant-numeric:tabular-nums;background:var(--panel);color:var(--fg);border:1px solid var(--line);border-radius:4px;padding:2px 6px;white-space:nowrap}
+.tip{font:500 11.5px var(--f-ui);background:var(--fg);color:var(--bg);border-radius:4px;padding:2px 7px;white-space:nowrap}
+.marker{width:11px;height:11px;border-radius:50%;box-sizing:border-box;border:2.5px solid var(--snap-end);background:var(--panel)}
+.marker.mid{border-color:var(--snap-mid)}
+.badge{position:absolute;left:12px;top:10px;font-size:12px;color:var(--muted);background:color-mix(in srgb,var(--panel) 80%,transparent);border:1px solid var(--line);border-radius:5px;padding:3px 8px}
+.toast{position:absolute;left:50%;bottom:14px;transform:translateX(-50%);font:500 12.5px var(--f-ui);background:var(--fg);color:var(--bg);padding:5px 12px;border-radius:6px;opacity:0;transition:opacity .2s}
+.toast.show{opacity:1}
+footer{display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:center;gap:8px 18px}
+.hint{min-width:0}
+.hint p{margin:0;line-height:1.4}
+.hint .nav{color:var(--muted);font-size:12px}
+.perf{font:400 12px var(--f-mono);font-variant-numeric:tabular-nums;color:var(--muted);white-space:nowrap}
+.vcb{display:flex;align-items:center;gap:8px}
+.vcb span{font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+#vcb{font:500 13px var(--f-mono);width:15ch;padding:5px 8px;border:1px solid var(--line);border-radius:5px;background:var(--panel);color:var(--fg)}
+@media (max-width:680px){
+  .main{grid-template-columns:minmax(0,1fr);grid-template-rows:auto minmax(0,1fr)}
+  .tools{flex-direction:row;overflow-x:auto;align-self:stretch}
+  .tool{width:auto;min-width:50px;flex:1 0 auto}
+  footer{grid-template-columns:minmax(0,1fr) auto}
+  .perf{grid-row:2;grid-column:1}
+  .vcb{grid-row:2;grid-column:2}
+  .hint{grid-column:1/-1}
+  .brand span{display:none}
+}
+@media (prefers-reduced-motion:reduce){.toast{transition:none}}
+</style>
+<style>*,*::before,*::after{box-sizing:border-box}body{margin:0}[hidden]{display:none!important}</style>
+</head>
+<body>
+
+<div class="app">
+  <header>
+    <div class="brand"><b>Pushpull</b><span>Browser prototype · feet and inches</span></div>
+    <div class="actions">
+      <button class="btn" id="undoBtn" title="Undo (Ctrl+Z)">Undo</button>
+      <button class="btn" id="redoBtn" title="Redo (Ctrl+Y)">Redo</button>
+      <button class="btn" id="zoomBtn" title="Zoom extents (Shift+Z)">Zoom extents</button>
+      <button class="btn" id="stressBtn" title="Add a grid of 2,000 boxes to test how it handles load">Stress test: +2,000 boxes</button>
+      <button class="btn" id="resetBtn">Reset sample</button>
+    </div>
+  </header>
+
+  <div class="main">
+    <nav class="tools" aria-label="Tools">
+      <button class="tool" data-tool="select" title="Select (Space)"><svg viewBox="0 0 24 24"><path d="M6 3.5l12 7.2-5.6 1.4L9.6 18z"/></svg>Select<kbd>Space</kbd></button>
+      <button class="tool" data-tool="rect" title="Rectangle (R)"><svg viewBox="0 0 24 24"><rect x="4" y="6.5" width="16" height="11" rx=".5"/><circle cx="4" cy="17.5" r="1.4" fill="currentColor"/></svg>Rectangle<kbd>R</kbd></button>
+      <button class="tool" data-tool="pushpull" title="Push/Pull (P)"><svg viewBox="0 0 24 24"><path d="M3.5 15.5l8.5 4 8.5-4-8.5-4z"/><path d="M12 13V3.5M9 6.5l3-3 3 3"/></svg>Push/Pull<kbd>P</kbd></button>
+      <button class="tool" data-tool="orbit" title="Orbit (O)"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="12" rx="9" ry="4.5"/><path d="M17.5 5.5l2.6 2.2-3.2 1"/><circle cx="12" cy="12" r="1.6"/></svg>Orbit<kbd>O</kbd></button>
+      <button class="tool" data-tool="pan" title="Pan (H)"><svg viewBox="0 0 24 24"><path d="M12 3v18M3 12h18M12 3l-2.5 2.5M12 3l2.5 2.5M12 21l-2.5-2.5M12 21l2.5-2.5M3 12l2.5-2.5M3 12l2.5 2.5M21 12l-2.5-2.5M21 12l-2.5 2.5"/></svg>Pan<kbd>H</kbd></button>
+      <button class="tool" data-tool="erase" title="Eraser (E)"><svg viewBox="0 0 24 24"><path d="M14.5 4.5l5 5-9 9H6l-2.5-2.5z"/><path d="M9.5 9.5l5 5M10.5 18.5H20"/></svg>Eraser<kbd>E</kbd></button>
+    </nav>
+    <div class="view" id="view">
+      <div class="overlay" id="overlay">
+        <div class="badge" id="badge">Example model: 10' × 8' shed, door outline, flat pad</div>
+        <div class="ov marker" id="marker" hidden></div>
+        <div class="ov tip" id="tip" hidden></div>
+        <div class="ov dim" id="dimA" hidden></div>
+        <div class="ov dim" id="dimB" hidden></div>
+        <div class="toast" id="toast"></div>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    <div class="hint"><p id="hint"></p><p class="nav">Orbit: middle or right drag · Pan: Shift + drag · Zoom: scroll</p></div>
+    <div class="perf" id="perf">–</div>
+    <label class="vcb"><span id="vcbLabel">Measurements</span><input id="vcb" autocomplete="off" spellcheck="false" aria-label="Measurements"></label>
+  </footer>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(function(){
+"use strict";
+const V=(x,y,z)=>new THREE.Vector3(x,y,z);
+const $=id=>document.getElementById(id);
+const clone=o=>JSON.parse(JSON.stringify(o));
+const others=a=>[[1,2],[2,0],[0,1]][a];
+
+/* ---------- units ---------- */
+function fmt(inches){
+  const neg=inches<0; const v=Math.round(Math.abs(inches)*8)/8;
+  const ft=Math.floor(v/12+1e-9); const i=v-ft*12; const whole=Math.floor(i+1e-9);
+  let n=Math.round((i-whole)*8), d=8, fs='';
+  if(n){while(n%2===0){n/=2;d/=2;} fs=n+'/'+d;}
+  const ins=whole?(fs?whole+' '+fs:''+whole):(fs||'0');
+  return (neg?'-':'')+(ft?ft+"' "+ins+'"':ins+'"');
+}
+function num(x){
+  x=x.trim().replace(/^-/,'').trim(); if(!x) return 0;
+  const m=x.match(/^(\d+(?:\.\d+)?|\.\d+)?\s*(?:(\d+)\/(\d+))?$/);
+  if(!m||(m[1]===undefined&&m[2]===undefined)) return NaN;
+  let v=m[1]!==undefined?parseFloat(m[1]):0; if(m[2]) v+=(+m[2])/(+m[3]); return v;
+}
+function parseLen(s){
+  s=s.trim().toLowerCase(); if(!s) return NaN;
+  let neg=false; if(s[0]==='-'){neg=true;s=s.slice(1).trim();}
+  let v, m=s.match(/^([\d.]+)\s*(mm|cm|m)$/);
+  if(m){v=parseFloat(m[1])*({mm:1/25.4,cm:1/2.54,m:39.37008})[m[2]];}
+  else if(s.includes("'")){const p=s.split("'"); v=num(p[0])*12+num(p[1].replace(/"/g,'').replace(/^\s*-\s*/,''));}
+  else v=num(s.replace(/"/g,''));
+  return neg?-v:v;
+}
+
+/* ---------- scene ---------- */
+const view=$('view');
+const renderer=new THREE.WebGLRenderer({antialias:true,alpha:true});
+renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,2));
+view.insertBefore(renderer.domElement,$('overlay'));
+const canvas=renderer.domElement;
+const scene=new THREE.Scene();
+const camera=new THREE.PerspectiveCamera(35,1,1,100000); camera.up.set(0,0,1);
+const hemi=new THREE.HemisphereLight(0xffffff,0x80868f,0.78); hemi.position.set(0,0,1); scene.add(hemi);
+const sun=new THREE.DirectionalLight(0xffffff,0.5); sun.position.set(-0.5,-1,1.6); scene.add(sun);
+
+const faceMat=new THREE.MeshLambertMaterial({side:THREE.DoubleSide,polygonOffset:true,polygonOffsetFactor:1,polygonOffsetUnits:1});
+const rectMat=new THREE.MeshLambertMaterial({side:THREE.DoubleSide});
+const selMat=new THREE.MeshLambertMaterial({side:THREE.DoubleSide,polygonOffset:true,polygonOffsetFactor:1,polygonOffsetUnits:1});
+const edgeMat=new THREE.LineBasicMaterial();
+const hoverMat=new THREE.MeshBasicMaterial({transparent:true,opacity:.24,side:THREE.DoubleSide,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-2});
+const group=new THREE.Group(); scene.add(group);
+
+const hoverMesh=new THREE.Mesh(new THREE.BufferGeometry(),hoverMat); hoverMesh.visible=false; scene.add(hoverMesh);
+const prevFill=new THREE.Mesh(new THREE.BufferGeometry(),hoverMat); prevFill.visible=false; scene.add(prevFill);
+const prevLine=new THREE.LineSegments(new THREE.BufferGeometry(),edgeMat); prevLine.visible=false; scene.add(prevLine);
+
+const axes=[];
+[[1,0,0],[0,1,0],[0,0,1]].forEach((d,i)=>{
+  const L=60000, dir=V(...d);
+  const pos=new THREE.Line(new THREE.BufferGeometry().setFromPoints([V(0,0,0),dir.clone().multiplyScalar(L)]),new THREE.LineBasicMaterial());
+  const negGeo=new THREE.BufferGeometry().setFromPoints([V(0,0,0),dir.clone().multiplyScalar(-L)]);
+  const neg=new THREE.Line(negGeo,new THREE.LineDashedMaterial({dashSize:14,gapSize:10})); neg.computeLineDistances();
+  scene.add(pos,neg); axes.push([pos,neg]);
+});
+
+function readTheme(){
+  const cs=getComputedStyle(document.documentElement), g=k=>cs.getPropertyValue(k).trim();
+  faceMat.color.set(g('--face')); rectMat.color.set(g('--face')); selMat.color.set(g('--sel'));
+  edgeMat.color.set(g('--edge')); hoverMat.color.set(g('--hover'));
+  ['--ax-x','--ax-y','--ax-z'].forEach((k,i)=>{axes[i][0].material.color.set(g(k));axes[i][1].material.color.set(g(k));});
+  req();
+}
+
+/* ---------- model ---------- */
+const S={ents:[],nextId:1,tool:'rect',sel:null};
+let undoStack=[],redoStack=[],lastOp=null;
+const objs=new Map(); let meshes=[];
+const byId=id=>S.ents.find(e=>e.id===id);
+
+function sampleModel(){return [
+  {id:1,type:'box',min:[0,0,0],max:[120,96,96]},
+  {id:2,type:'rect',min:[42,0,0],max:[78,0,80],axis:1,sign:-1,onFace:true},
+  {id:3,type:'rect',min:[156,0,0],max:[228,72,0],axis:2,sign:1,onFace:false}
+];}
+
+function rectPts(e,off){
+  const a=e.axis,[u,v]=others(e.axis),c=e.min[a]+e.sign*off;
+  const p=(pu,pv)=>{const q=V(0,0,0);q.setComponent(a,c);q.setComponent(u,pu);q.setComponent(v,pv);return q;};
+  return [p(e.min[u],e.min[v]),p(e.max[u],e.min[v]),p(e.max[u],e.max[v]),p(e.min[u],e.max[v])];
+}
+function quadGeo(p){const g=new THREE.BufferGeometry().setFromPoints([p[0],p[1],p[2],p[0],p[2],p[3]]);g.computeVertexNormals();return g;}
+function loopGeo(p){return new THREE.BufferGeometry().setFromPoints([p[0],p[1],p[1],p[2],p[2],p[3],p[3],p[0]]);}
+
+function buildObj(e){
+  let mesh,edges; const sel=e.id===S.sel;
+  if(e.type==='box'){
+    const sz=[0,1,2].map(i=>Math.max(e.max[i]-e.min[i],0.001));
+    const g=new THREE.BoxGeometry(sz[0],sz[1],sz[2]);
+    mesh=new THREE.Mesh(g,sel?selMat:faceMat);
+    mesh.position.set((e.min[0]+e.max[0])/2,(e.min[1]+e.max[1])/2,(e.min[2]+e.max[2])/2);
+    edges=new THREE.LineSegments(new THREE.EdgesGeometry(g),edgeMat); edges.position.copy(mesh.position);
+  }else{
+    const p=rectPts(e,0.04); mesh=new THREE.Mesh(quadGeo(p),sel?selMat:rectMat);
+    edges=new THREE.LineSegments(loopGeo(p),edgeMat);
+  }
+  mesh.userData.id=e.id; return {mesh,edges};
+}
+function addObj(e){const o=buildObj(e);group.add(o.mesh,o.edges);objs.set(e.id,o);}
+function delObj(id){const o=objs.get(id);if(!o)return;group.remove(o.mesh,o.edges);o.mesh.geometry.dispose();o.edges.geometry.dispose();objs.delete(id);}
+function refreshMeshes(){meshes=[...objs.values()].map(o=>o.mesh);}
+function updateEnt(e){delObj(e.id);addObj(e);refreshMeshes();req();}
+function rebuildAll(){for(const id of [...objs.keys()])delObj(id);S.ents.forEach(addObj);refreshMeshes();updateStats();req();}
+function setEnt(e){const i=S.ents.findIndex(x=>x.id===e.id);if(i>=0)S.ents[i]=e;else S.ents.push(e);updateEnt(e);}
+function removeEnt(id){S.ents=S.ents.filter(e=>e.id!==id);delObj(id);refreshMeshes();if(S.sel===id)S.sel=null;updateStats();req();}
+
+function snapshot(){undoStack.push(JSON.stringify({ents:S.ents,nextId:S.nextId}));if(undoStack.length>200)undoStack.shift();redoStack=[];updateUndoBtns();}
+function restore(str){const o=JSON.parse(str);S.ents=o.ents;S.nextId=o.nextId;S.sel=null;lastOp=null;rebuildAll();}
+function doUndo(){cancelOp();if(!undoStack.length)return;redoStack.push(JSON.stringify({ents:S.ents,nextId:S.nextId}));restore(undoStack.pop());updateUndoBtns();flash('Undo');}
+function doRedo(){cancelOp();if(!redoStack.length)return;undoStack.push(JSON.stringify({ents:S.ents,nextId:S.nextId}));restore(redoStack.pop());updateUndoBtns();flash('Redo');}
+function updateUndoBtns(){$('undoBtn').disabled=!undoStack.length;$('redoBtn').disabled=!redoStack.length;}
+
+/* ---------- camera ---------- */
+const cam={target:V(100,40,30),dist:620,theta:-2.05,phi:1.15};
+let W=1,H=1;
+function applyCam(){
+  const sp=Math.sin(cam.phi);
+  camera.position.set(cam.target.x+cam.dist*sp*Math.cos(cam.theta),cam.target.y+cam.dist*sp*Math.sin(cam.theta),cam.target.z+cam.dist*Math.cos(cam.phi));
+  camera.lookAt(cam.target); camera.near=Math.max(0.5,cam.dist/800); camera.far=cam.dist*60+30000;
+  camera.updateProjectionMatrix(); camera.updateMatrixWorld(); refreshRay(); req();
+}
+function zoomExtents(){
+  if(!S.ents.length){cam.target.set(0,0,0);cam.dist=600;applyCam();return;}
+  const mn=[1e9,1e9,1e9],mx=[-1e9,-1e9,-1e9];
+  S.ents.forEach(e=>{for(let i=0;i<3;i++){mn[i]=Math.min(mn[i],e.min[i]);mx[i]=Math.max(mx[i],e.max[i]);}});
+  cam.target.set((mn[0]+mx[0])/2,(mn[1]+mx[1])/2,(mn[2]+mx[2])/2);
+  const r=Math.max(30,Math.hypot(mx[0]-mn[0],mx[1]-mn[1],mx[2]-mn[2])/2);
+  const vf=camera.fov*Math.PI/180, hf=2*Math.atan(Math.tan(vf/2)*camera.aspect);
+  cam.dist=r/Math.sin(Math.min(vf,hf)/2)*1.05; applyCam();
+}
+function resize(){const r=view.getBoundingClientRect();W=Math.max(1,r.width);H=Math.max(1,r.height);renderer.setSize(W,H,false);camera.aspect=W/H;camera.updateProjectionMatrix();applyCam();}
+new ResizeObserver(resize).observe(view);
+
+/* ---------- pointer / ray ---------- */
+const raycaster=new THREE.Raycaster(); const ndc=new THREE.Vector2(); let mx=0,my=0;
+function updateMouse(ev){const r=view.getBoundingClientRect();mx=ev.clientX-r.left;my=ev.clientY-r.top;ndc.set(mx/W*2-1,-(my/H)*2+1);refreshRay();}
+function refreshRay(){raycaster.setFromCamera(ndc,camera);}
+function pickFace(){
+  const hits=raycaster.intersectObjects(meshes,false); if(!hits.length) return null;
+  const hit=hits[0], e=byId(hit.object.userData.id); if(!e) return null;
+  let a,s;
+  if(e.type==='rect'){a=e.axis;s=e.sign;}
+  else{const n=hit.face.normal,ax=[Math.abs(n.x),Math.abs(n.y),Math.abs(n.z)];a=ax.indexOf(Math.max(...ax));s=Math.sign(n.getComponent(a))||1;}
+  return {e,a,s,point:hit.point.clone()};
+}
+function faceCoord(e,a,s){return e.type==='rect'?e.min[a]:(s>0?e.max[a]:e.min[a]);}
+function rayPlane(pl){
+  const o=raycaster.ray.origin,d=raycaster.ray.direction,da=d.getComponent(pl.a);
+  if(Math.abs(da)<1e-9) return null; const t=(pl.off-o.getComponent(pl.a))/da; if(t<0) return null;
+  const p=o.clone().addScaledVector(d,t); p.setComponent(pl.a,pl.off); return p;
+}
+function lineParam(P0,u){
+  const Q0=raycaster.ray.origin,v=raycaster.ray.direction,w0=P0.clone().sub(Q0);
+  const a=u.dot(u),b=u.dot(v),c=v.dot(v),d=u.dot(w0),e=v.dot(w0),den=a*c-b*b;
+  if(Math.abs(den)<1e-8) return null; return (b*e-c*d)/den;
+}
+function faceCorners(e,a,s){
+  const c=faceCoord(e,a,s),[u,v]=others(a);
+  const p=(pu,pv)=>{const q=V(0,0,0);q.setComponent(a,c);q.setComponent(u,pu);q.setComponent(v,pv);return q;};
+  return [p(e.min[u],e.min[v]),p(e.max[u],e.min[v]),p(e.max[u],e.max[v]),p(e.min[u],e.max[v])];
+}
+function showHover(e,a,s){hoverMesh.geometry.dispose();hoverMesh.geometry=quadGeo(faceCorners(e,a,s));hoverMesh.visible=true;req();}
+function hideHover(){if(hoverMesh.visible){hoverMesh.visible=false;req();}}
+
+/* ---------- inference ---------- */
+function forEachPoint(e,cb){
+  if(e.type==='box'){
+    const m=e.min,M=e.max,X=[m[0],M[0]],Y=[m[1],M[1]],Z=[m[2],M[2]];
+    const cx=(m[0]+M[0])/2,cy=(m[1]+M[1])/2,cz=(m[2]+M[2])/2;
+    for(const x of X)for(const y of Y)for(const z of Z)cb(x,y,z,'end');
+    for(const y of Y)for(const z of Z)cb(cx,y,z,'mid');
+    for(const x of X)for(const z of Z)cb(x,cy,z,'mid');
+    for(const x of X)for(const y of Y)cb(x,y,cz,'mid');
+  }else{
+    const a=e.axis,[u,v]=others(a),P=[0,0,0];P[a]=e.min[a];
+    const pt=(pu,pv,k)=>{P[u]=pu;P[v]=pv;cb(P[0],P[1],P[2],k);};
+    const us=[e.min[u],e.max[u]],vs=[e.min[v],e.max[v]],cu=(us[0]+us[1])/2,cv=(vs[0]+vs[1])/2;
+    for(const pu of us)for(const pv of vs)pt(pu,pv,'end');
+    for(const pv of vs)pt(cu,pv,'mid'); for(const pu of us)pt(pu,cv,'mid');
+  }
+}
+const _v=new THREE.Vector3();
+function findSnap(plane,excludeId){
+  let best=null,bestD=15*15; const P=[0,0,0];
+  const test=(x,y,z,kind)=>{
+    if(plane){P[0]=x;P[1]=y;P[2]=z;if(Math.abs(P[plane.a]-plane.off)>0.02)return;}
+    _v.set(x,y,z).project(camera); if(_v.z>1||_v.z<-1) return;
+    let d=((_v.x+1)/2*W-mx)**2+((1-_v.y)/2*H-my)**2; if(kind!=='end') d+=30;
+    if(d<bestD){bestD=d;best={p:[x,y,z],kind};}
+  };
+  test(0,0,0,'end');
+  for(const e of S.ents){if(e.id!==excludeId)forEachPoint(e,test);}
+  if(best) best.label=best.kind==='mid'?'Midpoint':(best.p[0]===0&&best.p[1]===0&&best.p[2]===0?'Origin':'Endpoint');
+  return best;
+}
+
+/* ---------- overlay ---------- */
+const ov={marker:null,tip:null,dimA:null,dimB:null};
+function clearOv(){ov.marker=ov.tip=ov.dimA=ov.dimB=null;req();}
+function toScreen(p){_v.copy(p).project(camera);if(_v.z>1)return null;return{x:(_v.x+1)/2*W,y:(1-_v.y)/2*H};}
+function positionOverlay(){
+  for(const k of ['marker','tip','dimA','dimB']){
+    const el=$(k),o=ov[k],s=o&&toScreen(o.pos);
+    if(!s){el.hidden=true;continue;}
+    el.hidden=false;
+    if(k==='marker'){el.classList.toggle('mid',o.kind==='mid');el.style.transform=`translate(${s.x-5.5}px,${s.y-5.5}px)`;}
+    else{if(el.textContent!==o.text)el.textContent=o.text;
+      el.style.transform=k==='tip'?`translate(${s.x+14}px,${s.y+12}px)`:`translate(${s.x}px,${s.y}px) translate(-50%,-50%)`;}
+  }
+}
+let toastT=0;
+function flash(msg){const t=$('toast');t.textContent=msg;t.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('show'),1500);}
+
+/* ---------- measurements box ---------- */
+const vcb=$('vcb'); let vcbTyping=false;
+function setVCB(text,label){if(label)$('vcbLabel').textContent=label;if(!vcbTyping)vcb.value=text;}
+
+/* ---------- rectangle tool ---------- */
+const rt={stage:0,plane:null,c0:null,c1:null,began:false,hover:null,hoverPlane:null};
+function rectMove(){
+  if(rt.stage===0){
+    const h=pickFace();
+    const pl=h?{a:h.a,off:faceCoord(h.e,h.a,h.s),sign:h.s,onFace:true}:{a:2,off:0,sign:1,onFace:false};
+    let p=rayPlane(pl); const sn=findSnap(pl,null);
+    if(sn)p=V(...sn.p);
+    rt.hover=p;rt.hoverPlane=pl;
+    ov.marker=sn?{pos:p,kind:sn.kind}:null;
+    ov.tip=sn?{pos:p,text:sn.label}:(h&&p?{pos:p,text:'On Face'}:null);
+    if(h)showHover(h.e,h.a,h.s);else hideHover();
+    setVCB('','Dimensions'); req(); return;
+  }
+  let p=rayPlane(rt.plane); const sn=findSnap(rt.plane,null); let label=null;
+  if(sn){p=V(...sn.p);label=sn.label;}
+  if(!p) return;
+  const [u,v]=others(rt.plane.a);
+  let w=p.getComponent(u)-rt.c0[u], h=p.getComponent(v)-rt.c0[v];
+  if(!sn){const aw=Math.abs(w),ah=Math.abs(h);if(aw>2&&Math.abs(aw-ah)<0.04*Math.max(aw,ah)){h=(Math.sign(h)||1)*aw;label='Square';}}
+  setRect(w,h);
+  ov.marker=sn?{pos:p,kind:sn.kind}:null;
+  ov.tip=label?{pos:V(...rt.c1),text:label}:null;
+}
+function setRect(w,h){
+  const a=rt.plane.a,[u,v]=others(a);
+  rt.c1=[...rt.c0];rt.c1[u]+=w;rt.c1[v]+=h;
+  const off=rt.plane.sign*0.08;
+  const q=(du,dv)=>{const p=V(...rt.c0);p.setComponent(a,rt.plane.off+off);p.setComponent(u,rt.c0[u]+du);p.setComponent(v,rt.c0[v]+dv);return p;};
+  const pts=[q(0,0),q(w,0),q(w,h),q(0,h)];
+  prevFill.geometry.dispose();prevFill.geometry=quadGeo(pts);prevFill.visible=true;
+  prevLine.geometry.dispose();prevLine.geometry=loopGeo(pts);prevLine.visible=true;
+  ov.dimA={pos:q(w/2,0),text:fmt(Math.abs(w))};
+  ov.dimB={pos:q(w,h/2),text:fmt(Math.abs(h))};
+  setVCB(fmt(Math.abs(w))+', '+fmt(Math.abs(h)),'Dimensions'); req();
+}
+function rectDown(){
+  if(rt.stage===0){
+    if(!rt.hover) return;
+    rt.stage=1;rt.plane=rt.hoverPlane;rt.c0=[rt.hover.x,rt.hover.y,rt.hover.z];rt.c1=[...rt.c0];rt.began=true;
+    hideHover();updateHint();rectMove();
+  }else rectCommit();
+}
+function rectCommit(){
+  const a=rt.plane.a,[u,v]=others(a);
+  const w=rt.c1[u]-rt.c0[u],h=rt.c1[v]-rt.c0[v];
+  endRectPreview();
+  if(Math.abs(w)<0.05||Math.abs(h)<0.05){flash('Rectangle too small');return;}
+  snapshot();
+  const e={id:S.nextId++,type:'rect',min:[0,0,0],max:[0,0,0],axis:a,sign:rt.plane.sign,onFace:rt.plane.onFace};
+  e.min[a]=e.max[a]=rt.plane.off;
+  e.min[u]=Math.min(rt.c0[u],rt.c1[u]);e.max[u]=Math.max(rt.c0[u],rt.c1[u]);
+  e.min[v]=Math.min(rt.c0[v],rt.c1[v]);e.max[v]=Math.max(rt.c0[v],rt.c1[v]);
+  setEnt(e);updateStats();
+  lastOp={kind:'rect',id:e.id,c0:[...rt.c0],a,du:Math.sign(w)||1,dv:Math.sign(h)||1};
+  setVCB(fmt(Math.abs(w))+', '+fmt(Math.abs(h)));
+}
+function endRectPreview(){rt.stage=0;rt.began=false;prevFill.visible=false;prevLine.visible=false;clearOv();updateHint();}
+
+/* ---------- push/pull tool ---------- */
+const pp={stage:0};
+function applyPP(st,t){
+  const o=st.orig,a=st.a;let e;
+  if(o.type==='rect'){
+    if(o.onFace&&t<0)t=0;
+    if(Math.abs(t)<0.01){e=clone(o);t=0;}
+    else{const d=t*o.sign;e={id:o.id,type:'box',min:[...o.min],max:[...o.max]};if(d>0)e.max[a]+=d;else e.min[a]+=d;}
+  }else{
+    e=clone(o);
+    if(st.s>0){e.max[a]=Math.max(o.min[a],o.max[a]+t);t=e.max[a]-o.max[a];}
+    else{e.min[a]=Math.min(o.max[a],o.min[a]-t);t=o.min[a]-e.min[a];}
+  }
+  setEnt(e);return t;
+}
+function movingFaceSign(st,t){return st.orig.type==='rect'?((Math.sign(t*st.orig.sign))||st.s):st.s;}
+function ppMove(){
+  if(pp.stage===0){
+    const h=pickFace();
+    if(h){showHover(h.e,h.a,h.s);ov.tip={pos:h.point,text:h.e.type==='rect'?'Pull to extrude':'Push or pull'};}
+    else{hideHover();ov.tip=null;}
+    setVCB('','Distance');req();return;
+  }
+  const n=V(0,0,0);n.setComponent(pp.a,pp.s);
+  const start=V(...pp.start);
+  let t=lineParam(start,n),label=null;
+  const sn=findSnap(null,pp.id);
+  if(sn){t=(sn.p[pp.a]-pp.start[pp.a])*pp.s;label=sn.label+' · matched';}
+  if(t==null)return;
+  t=applyPP(pp,t);pp.t=t;
+  const e=byId(pp.id);
+  if(e){const ms=movingFaceSign(pp,t);if(e.type==='box'||Math.abs(t)>0)showHover(e,pp.a,ms);}
+  ov.dimA={pos:start.clone().addScaledVector(n,t/2),text:fmt(t)};
+  ov.marker=sn?{pos:V(...sn.p),kind:sn.kind}:null;
+  ov.tip=label?{pos:V(...sn.p),text:label}:null;
+  setVCB(fmt(t),'Distance');req();
+}
+function ppDown(){
+  if(pp.stage===0){
+    const h=pickFace();if(!h)return;
+    snapshot();
+    Object.assign(pp,{stage:1,id:h.e.id,a:h.a,s:h.s,start:[h.point.x,h.point.y,h.point.z],orig:clone(h.e),t:0,began:true});
+    ov.tip=null;updateHint();
+  }else ppCommit();
+}
+function ppCommit(){
+  pp.stage=0;pp.began=false;
+  if(Math.abs(pp.t||0)<0.01){undoStack.pop();updateUndoBtns();setEnt(clone(pp.orig));}
+  else{
+    const e=byId(pp.id);
+    if(e&&e.type==='box'&&e.max[pp.a]-e.min[pp.a]<0.05){removeEnt(e.id);flash('Pushed through: shape removed');}
+    lastOp={kind:'pp',id:pp.id,a:pp.a,s:pp.s,orig:pp.orig};
+  }
+  updateStats();hideHover();clearOv();updateHint();
+}
+function ppCancel(){
+  pp.stage=0;pp.began=false;setEnt(clone(pp.orig));undoStack.pop();updateUndoBtns();hideHover();clearOv();updateHint();
+}
+
+/* ---------- select & erase ---------- */
+function setSel(id){
+  const prev=S.sel;S.sel=id;
+  [prev,id].forEach(i=>{const o=objs.get(i),e=byId(i);if(o&&e)o.mesh.material=i===S.sel?selMat:(e.type==='rect'?rectMat:faceMat);});
+  req();
+}
+function simpleMove(){
+  const h=pickFace();
+  if(h){showHover(h.e,h.a,h.s);}else hideHover();
+}
+
+/* ---------- dispatch ---------- */
+function toolMove(){
+  if(S.tool==='rect')rectMove();
+  else if(S.tool==='pushpull')ppMove();
+  else if(S.tool==='select'||S.tool==='erase')simpleMove();
+}
+function toolDown(){
+  if(S.tool==='rect')rectDown();
+  else if(S.tool==='pushpull')ppDown();
+  else if(S.tool==='select'){const h=pickFace();setSel(h?h.e.id:null);}
+  else if(S.tool==='erase'){const h=pickFace();if(h){snapshot();removeEnt(h.e.id);hideHover();}}
+}
+function toolUpAfterDrag(){
+  if(S.tool==='rect'&&rt.stage===1&&rt.began)rectCommit();
+  else if(S.tool==='pushpull'&&pp.stage===1&&pp.began)ppCommit();
+}
+function cancelOp(){
+  if(rt.stage===1)endRectPreview();
+  if(pp.stage===1)ppCancel();
+  vcbTyping=false;
+}
+
+let drag=null;
+canvas.addEventListener('pointerdown',ev=>{
+  canvas.setPointerCapture(ev.pointerId);updateMouse(ev);
+  if(document.activeElement===vcb)vcb.blur();
+  const navTool=S.tool==='orbit'||S.tool==='pan';
+  if(ev.button===1||ev.button===2||(ev.button===0&&(navTool||ev.shiftKey&&S.tool!=='rect'&&S.tool!=='pushpull'))){
+    let mode=ev.button===0&&navTool?S.tool:'orbit'; if(ev.shiftKey)mode='pan';
+    drag={mode,x:ev.clientX,y:ev.clientY};canvas.style.cursor='grabbing';ev.preventDefault();return;
+  }
+  if(ev.button!==0)return;
+  drag={mode:'tool',x:ev.clientX,y:ev.clientY,moved:false};
+  rt.began=false;pp.began=false;
+  toolDown();
+});
+canvas.addEventListener('pointermove',ev=>{
+  updateMouse(ev);
+  if(drag&&drag.mode!=='tool'){
+    const dx=ev.clientX-drag.x,dy=ev.clientY-drag.y;drag.x=ev.clientX;drag.y=ev.clientY;
+    if(drag.mode==='orbit'){cam.theta-=dx*0.008;cam.phi=Math.min(Math.PI-0.03,Math.max(0.03,cam.phi-dy*0.008));}
+    else{
+      const k=2*cam.dist*Math.tan(camera.fov*Math.PI/360)/H;
+      const r=V(0,0,0).setFromMatrixColumn(camera.matrixWorld,0),u=V(0,0,0).setFromMatrixColumn(camera.matrixWorld,1);
+      cam.target.addScaledVector(r,-dx*k).addScaledVector(u,dy*k);
+    }
+    applyCam();toolMove();return;
+  }
+  if(drag&&drag.mode==='tool'&&Math.hypot(ev.clientX-drag.x,ev.clientY-drag.y)>6)drag.moved=true;
+  toolMove();
+});
+canvas.addEventListener('pointerup',ev=>{
+  if(drag&&drag.mode==='tool'&&drag.moved)toolUpAfterDrag();
+  rt.began=false;pp.began=false;drag=null;setCursor();
+});
+canvas.addEventListener('pointerleave',()=>{if(!drag&&rt.stage===0&&pp.stage===0){hideHover();clearOv();}});
+canvas.addEventListener('contextmenu',ev=>ev.preventDefault());
+canvas.addEventListener('wheel',ev=>{
+  ev.preventDefault();updateMouse(ev);
+  const f=Math.exp(Math.max(-60,Math.min(60,ev.deltaY))*0.0022);
+  const hits=raycaster.intersectObjects(meshes,false);
+  let P=hits.length?hits[0].point:rayPlane({a:2,off:0});
+  if(!P||P.distanceTo(camera.position)>cam.dist*8)P=cam.target.clone();
+  if(cam.dist*f<3)return;
+  cam.target.copy(P.clone().add(cam.target.clone().sub(P).multiplyScalar(f)));cam.dist*=f;
+  applyCam();toolMove();
+},{passive:false});
+
+/* ---------- tools & keys ---------- */
+const HINTS={
+  select:'Click a face to select its shape. Delete removes it.',
+  rect0:'Click a corner on the ground or on any face, then click the opposite corner.',
+  rect1:"Click to finish, or type width, depth such as 10',8' and press Enter.",
+  pp0:'Click a face, then move to push or pull it. Try the flat pad beside the shed.',
+  pp1:'Move to set the distance. Hover a corner elsewhere to match its height, or type a distance and press Enter.',
+  orbit:'Drag to orbit around the model.',pan:'Drag to slide the view.',erase:'Click a shape to erase it.'
+};
+function updateHint(){
+  const t=S.tool;
+  $('hint').textContent=t==='rect'?HINTS['rect'+rt.stage]:t==='pushpull'?HINTS['pp'+pp.stage]:HINTS[t];
+}
+function setCursor(){canvas.style.cursor=S.tool==='orbit'||S.tool==='pan'?'grab':S.tool==='select'?'default':'crosshair';}
+function setTool(t){
+  cancelOp();S.tool=t;hideHover();clearOv();
+  document.querySelectorAll('.tool').forEach(b=>b.setAttribute('aria-pressed',b.dataset.tool===t?'true':'false'));
+  $('vcbLabel').textContent=t==='rect'?'Dimensions':t==='pushpull'?'Distance':'Measurements';
+  setCursor();updateHint();
+}
+document.querySelectorAll('.tool').forEach(b=>b.addEventListener('click',()=>{setTool(b.dataset.tool);b.blur();}));
+
+function applyVCB(){
+  const txt=vcb.value; vcbTyping=false; vcb.blur();
+  if(S.tool==='rect'){
+    const parts=txt.split(',').map(parseLen);
+    if(rt.stage===1){
+      const [u,v]=others(rt.plane.a);
+      const du=Math.sign(rt.c1[u]-rt.c0[u])||1,dv=Math.sign(rt.c1[v]-rt.c0[v])||1;
+      const w=parts[0],h=parts.length>1?parts[1]:Math.abs(rt.c1[v]-rt.c0[v])||parts[0];
+      if(!(w>0&&h>0)){flash("Type width, depth like 8',6'");return;}
+      setRect(du*w,dv*h);rectCommit();flash(fmt(w)+' × '+fmt(h));return;
+    }
+    if(lastOp&&lastOp.kind==='rect'){
+      const e=byId(lastOp.id);if(!e||e.type!=='rect'){flash('That rectangle has changed since');return;}
+      const [u,v]=others(lastOp.a),w=parts[0],h=parts.length>1?parts[1]:(e.max[v]-e.min[v]);
+      if(!(w>0&&h>0)){flash("Type width, depth like 8',6'");return;}
+      snapshot();const n=clone(e),c0=lastOp.c0,c1u=c0[u]+lastOp.du*w,c1v=c0[v]+lastOp.dv*h;
+      n.min[u]=Math.min(c0[u],c1u);n.max[u]=Math.max(c0[u],c1u);n.min[v]=Math.min(c0[v],c1v);n.max[v]=Math.max(c0[v],c1v);
+      setEnt(n);flash('Resized to '+fmt(w)+' × '+fmt(h));return;
+    }
+  }
+  if(S.tool==='pushpull'){
+    const d=parseLen(txt);if(!isFinite(d)){flash("Type a distance like 8' or 30\"");return;}
+    if(pp.stage===1){pp.t=applyPP(pp,d);ppCommit();flash('Moved '+fmt(pp.t));return;}
+    if(lastOp&&lastOp.kind==='pp'){
+      snapshot();const t=applyPP(lastOp,d);const e=byId(lastOp.id);
+      if(e&&e.type==='box'&&e.max[lastOp.a]-e.min[lastOp.a]<0.05)removeEnt(e.id);
+      updateStats();flash('Changed to '+fmt(t));return;
+    }
+  }
+  flash('Start a rectangle or push/pull first');
+}
+vcb.addEventListener('input',()=>{vcbTyping=true;});
+vcb.addEventListener('blur',()=>{vcbTyping=false;});
+
+document.addEventListener('keydown',ev=>{
+  if(document.activeElement===vcb){
+    if(ev.key==='Enter'){ev.preventDefault();applyVCB();}
+    else if(ev.key==='Escape'){vcb.value='';vcbTyping=false;vcb.blur();cancelOp();}
+    return;
+  }
+  const k=ev.key;
+  if((ev.ctrlKey||ev.metaKey)&&k.toLowerCase()==='z'){ev.preventDefault();ev.shiftKey?doRedo():doUndo();return;}
+  if((ev.ctrlKey||ev.metaKey)&&k.toLowerCase()==='y'){ev.preventDefault();doRedo();return;}
+  if(ev.ctrlKey||ev.metaKey||ev.altKey)return;
+  if(document.activeElement&&document.activeElement.tagName==='BUTTON'&&(k==='Enter'))return;
+  if(/^[0-9.'",\-\/]$/.test(k)){
+    ev.preventDefault();vcb.value=(vcbTyping?vcb.value:'')+k;vcbTyping=true;vcb.focus();
+    const n=vcb.value.length;vcb.setSelectionRange(n,n);return;
+  }
+  if(k===' '){ev.preventDefault();setTool('select');}
+  else if(k==='r'||k==='R')setTool('rect');
+  else if(k==='p'||k==='P')setTool('pushpull');
+  else if(k==='o'||k==='O')setTool('orbit');
+  else if(k==='h'||k==='H')setTool('pan');
+  else if(k==='e'||k==='E')setTool('erase');
+  else if(k==='Z'&&ev.shiftKey)zoomExtents();
+  else if(k==='Escape'){cancelOp();clearOv();}
+  else if((k==='Delete'||k==='Backspace')&&S.sel!=null){ev.preventDefault();snapshot();removeEnt(S.sel);}
+});
+
+$('undoBtn').addEventListener('click',e=>{doUndo();e.currentTarget.blur();});
+$('redoBtn').addEventListener('click',e=>{doRedo();e.currentTarget.blur();});
+$('zoomBtn').addEventListener('click',e=>{zoomExtents();e.currentTarget.blur();});
+$('resetBtn').addEventListener('click',e=>{
+  cancelOp();snapshot();S.ents=sampleModel();S.nextId=4;S.sel=null;lastOp=null;rebuildAll();
+  $('badge').hidden=false;$('badge').textContent="Example model: 10' × 8' shed, door outline, flat pad";
+  cam.target.set(100,40,30);cam.dist=620;cam.theta=-2.05;cam.phi=1.15;applyCam();e.currentTarget.blur();
+});
+$('stressBtn').addEventListener('click',e=>{
+  cancelOp();snapshot();
+  let seed=7;const rnd=()=>((seed=(seed*16807)%2147483647)/2147483647);
+  for(let i=0;i<40;i++)for(let j=0;j<50;j++){
+    const x=320+i*44,y=-400+j*44,h=12+Math.floor(rnd()*14)*12;
+    S.ents.push({id:S.nextId++,type:'box',min:[x,y,0],max:[x+32,y+32,h]});
+  }
+  rebuildAll();zoomExtents();$('badge').textContent='Stress test: '+S.ents.length.toLocaleString()+' shapes. Orbit and push/pull to feel the load.';
+  e.currentTarget.blur();
+});
+
+/* ---------- render ---------- */
+let raf=0,avg=0,faces=0;
+function updateStats(){faces=S.ents.reduce((n,e)=>n+(e.type==='box'?6:1),0);}
+function req(){if(!raf)raf=requestAnimationFrame(frame);}
+function frame(){
+  raf=0;positionOverlay();
+  const t0=performance.now();renderer.render(scene,camera);const dt=performance.now()-t0;
+  avg=avg?avg*0.8+dt*0.2:dt;
+  $('perf').textContent=avg.toFixed(1)+' ms draw · '+faces.toLocaleString()+' faces';
+}
+
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change',readTheme);
+new MutationObserver(readTheme).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
+
+S.ents=sampleModel();S.nextId=4;
+readTheme();rebuildAll();updateUndoBtns();setTool('pushpull');resize();
+})();
+</script>
+</body>
+</html>
