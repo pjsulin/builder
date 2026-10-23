@@ -4,3 +4,4 @@ node_modules/
 app/src/kernel/pkg/
 *.log
 .DS_Store
+/.run/

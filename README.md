@@ -18,24 +18,28 @@ Early, but the core loop works on real geometry:
 
 ## Run it
 
-You need Rust (with the `wasm32-unknown-unknown` target), `wasm-bindgen-cli` 0.2.129, and Node 20 or newer.
+You need Rust ([rustup.rs](https://rustup.rs)), Node 20 or newer, and `make`.
 
 ```sh
-rustup target add wasm32-unknown-unknown
-cargo install wasm-bindgen-cli --version 0.2.129
-npm install
-npm run dev        # builds the kernel to WebAssembly, then starts Vite
+make install   # one-time: wasm32 target, wasm-bindgen-cli 0.2.129, npm packages
+make start     # build the kernel and start the dev server in the background
+make stop      # stop it
 ```
 
-Then open the printed URL. The app opens with a sample shed: try pushing the door in with Push/Pull (P).
+`make start` prints the URL (http://localhost:5173/ by default). The app opens with a sample shed: try pushing the door in with Push/Pull (P).
 
 | Command | What it does |
 | --- | --- |
-| `npm run dev` | Build the kernel and start the dev server. |
-| `npm run build` | Build the kernel, type-check, and produce a static site in `dist/`. |
-| `npm test` | App tests (Vitest), including tools driven against the real kernel. Run `npm run build:kernel` first. |
-| `cargo test --workspace` | Kernel tests. |
+| `make install` | One-time setup. Safe to re-run; skips what is already installed. |
+| `make start` / `make stop` / `make restart` | Run the dev server in the background. Its pid and log are in `.run/`. |
+| `make status` / `make logs` | Check whether it is running, or follow its log. |
+| `make dev` | Run the dev server in the foreground (Ctrl+C stops it). |
+| `make test` | Kernel tests, type-check, and app tests (including tools driven against the real kernel). |
+| `make build` | Production build into `dist/`. |
+| `make clean` | Stop the server and remove build output. |
 | `cargo run --release --example bench` | Kernel timings on a 2,000-box model. |
+
+Use `make start PORT=8080` or `HOST=0.0.0.0` to change the address. Run `make` with no target to list everything.
 
 ## Keys
 
