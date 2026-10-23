@@ -1,0 +1,14 @@
+[package]
+name = "builder-kernel-wasm"
+description = "WebAssembly bindings for the Builder geometry kernel"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+builder-kernel = { path = "../kernel" }
+wasm-bindgen = "=0.2.129"
