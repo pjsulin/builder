@@ -26,26 +26,10 @@ impl From<V3> for [f64; 3] {
 }
 
 impl V3 {
-    pub const ZERO: V3 = V3 {
-        x: 0.0,
-        y: 0.0,
-        z: 0.0,
-    };
-    pub const X: V3 = V3 {
-        x: 1.0,
-        y: 0.0,
-        z: 0.0,
-    };
-    pub const Y: V3 = V3 {
-        x: 0.0,
-        y: 1.0,
-        z: 0.0,
-    };
-    pub const Z: V3 = V3 {
-        x: 0.0,
-        y: 0.0,
-        z: 1.0,
-    };
+    pub const ZERO: V3 = V3 { x: 0.0, y: 0.0, z: 0.0 };
+    pub const X: V3 = V3 { x: 1.0, y: 0.0, z: 0.0 };
+    pub const Y: V3 = V3 { x: 0.0, y: 1.0, z: 0.0 };
+    pub const Z: V3 = V3 { x: 0.0, y: 0.0, z: 1.0 };
 
     pub const fn new(x: f64, y: f64, z: f64) -> Self {
         V3 { x, y, z }
@@ -54,11 +38,7 @@ impl V3 {
         self.x * o.x + self.y * o.y + self.z * o.z
     }
     pub fn cross(self, o: V3) -> V3 {
-        V3::new(
-            self.y * o.z - self.z * o.y,
-            self.z * o.x - self.x * o.z,
-            self.x * o.y - self.y * o.x,
-        )
+        V3::new(self.y * o.z - self.z * o.y, self.z * o.x - self.x * o.z, self.x * o.y - self.y * o.x)
     }
     pub fn len(self) -> f64 {
         self.dot(self).sqrt()
@@ -114,10 +94,7 @@ pub struct Plane {
 impl Plane {
     pub fn from_point_normal(p: V3, n: V3) -> Option<Plane> {
         let normal = n.unit()?;
-        Some(Plane {
-            normal,
-            d: normal.dot(p),
-        })
+        Some(Plane { normal, d: normal.dot(p) })
     }
 
     /// Best-fit plane through a closed loop (Newell's method). The normal follows the
@@ -138,10 +115,7 @@ impl Plane {
         }
         let c = c * (1.0 / pts.len() as f64);
         let normal = n.unit()?;
-        Some(Plane {
-            normal,
-            d: normal.dot(c),
-        })
+        Some(Plane { normal, d: normal.dot(c) })
     }
 
     pub fn dist(&self, p: V3) -> f64 {
@@ -151,10 +125,7 @@ impl Plane {
         self.dist(p).abs() <= tol::PLANE
     }
     pub fn flipped(&self) -> Plane {
-        Plane {
-            normal: -self.normal,
-            d: -self.d,
-        }
+        Plane { normal: -self.normal, d: -self.d }
     }
     /// Same set of points, either orientation.
     pub fn same_surface(&self, o: &Plane) -> bool {
@@ -170,11 +141,7 @@ impl Plane {
     /// keeps rectangles on walls and roofs aligned with their eaves.
     pub fn basis(&self) -> (V3, V3) {
         let n = self.normal;
-        let u = if n.z.abs() > 1.0 - 1e-9 {
-            V3::X
-        } else {
-            V3::Z.cross(n).unit().unwrap_or(V3::X)
-        };
+        let u = if n.z.abs() > 1.0 - 1e-9 { V3::X } else { V3::Z.cross(n).unit().unwrap_or(V3::X) };
         let v = n.cross(u);
         (u, v)
     }
@@ -262,9 +229,7 @@ pub fn segment_segment(p0: V3, p1: V3, q0: V3, q1: V3) -> Option<(f64, f64, f64)
 /// Column-major 4×4 affine transform, the same layout as Three.js `Matrix4.elements`.
 pub type Mat4 = [f64; 16];
 
-pub const IDENTITY: Mat4 = [
-    1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0,
-];
+pub const IDENTITY: Mat4 = [1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0];
 
 pub fn mat_translation(t: V3) -> Mat4 {
     let mut m = IDENTITY;

@@ -67,33 +67,15 @@ impl Document {
     /// Serialize to `.builder` JSON. Ids are compacted; the root definition is 0.
     pub fn to_json(&self) -> String {
         let mut def_ids: Vec<DefId> = vec![ROOT];
-        def_ids.extend(
-            self.definitions
-                .iter()
-                .map(|(i, _)| DefId(i as u32))
-                .filter(|&d| d != ROOT),
-        );
-        let def_index: HashMap<DefId, u32> = def_ids
-            .iter()
-            .enumerate()
-            .map(|(i, &d)| (d, i as u32))
-            .collect();
-        let mat_ids: Vec<MatId> = self
-            .materials
-            .iter()
-            .map(|(i, _)| MatId(i as u32))
-            .collect();
-        let mat_index: HashMap<MatId, u32> = mat_ids
-            .iter()
-            .enumerate()
-            .map(|(i, &m)| (m, i as u32))
-            .collect();
+        def_ids.extend(self.definitions.iter().map(|(i, _)| DefId(i as u32)).filter(|&d| d != ROOT));
+        let def_index: HashMap<DefId, u32> =
+            def_ids.iter().enumerate().map(|(i, &d)| (d, i as u32)).collect();
+        let mat_ids: Vec<MatId> = self.materials.iter().map(|(i, _)| MatId(i as u32)).collect();
+        let mat_index: HashMap<MatId, u32> =
+            mat_ids.iter().enumerate().map(|(i, &m)| (m, i as u32)).collect();
         let tag_ids: Vec<TagId> = self.tags.iter().map(|(i, _)| TagId(i as u32)).collect();
-        let tag_index: HashMap<TagId, u32> = tag_ids
-            .iter()
-            .enumerate()
-            .map(|(i, &t)| (t, i as u32))
-            .collect();
+        let tag_index: HashMap<TagId, u32> =
+            tag_ids.iter().enumerate().map(|(i, &t)| (t, i as u32)).collect();
         let mat = |m: Option<MatId>| m.and_then(|m| mat_index.get(&m).copied());
 
         let definitions = def_ids
@@ -106,10 +88,7 @@ impl Document {
                     vindex.insert(id, vertices.len() as u32);
                     vertices.push([v.pos.x, v.pos.y, v.pos.z]);
                 }
-                let edges = self
-                    .edges_in(d)
-                    .map(|(_, e)| [vindex[&e.v[0]], vindex[&e.v[1]]])
-                    .collect();
+                let edges = self.edges_in(d).map(|(_, e)| [vindex[&e.v[0]], vindex[&e.v[1]]]).collect();
                 let lp = |l: &Vec<VId>| l.iter().map(|v| vindex[v]).collect::<Vec<u32>>();
                 let faces = self
                     .faces_in(d)
@@ -120,21 +99,13 @@ impl Document {
                         back_material: mat(f.back_material),
                     })
                     .collect();
-                FileDefinition {
-                    name: def.name.clone(),
-                    kind: def.kind,
-                    vertices,
-                    edges,
-                    faces,
-                }
+                FileDefinition { name: def.name.clone(), kind: def.kind, vertices, edges, faces }
             })
             .collect();
         let instances = self
             .instances
             .iter()
-            .filter(|(_, i)| {
-                def_index.contains_key(&i.definition) && def_index.contains_key(&i.parent)
-            })
+            .filter(|(_, i)| def_index.contains_key(&i.definition) && def_index.contains_key(&i.parent))
             .map(|(_, i)| FileInstance {
                 definition: def_index[&i.definition],
                 parent: def_index[&i.parent],
@@ -151,14 +122,8 @@ impl Document {
             generator: Some(format!("Builder {}", env!("CARGO_PKG_VERSION"))),
             definitions,
             instances,
-            materials: mat_ids
-                .iter()
-                .map(|&m| self.material(m).cloned().expect("listed"))
-                .collect(),
-            tags: tag_ids
-                .iter()
-                .map(|&t| self.tag(t).cloned().expect("listed"))
-                .collect(),
+            materials: mat_ids.iter().map(|&m| self.material(m).cloned().expect("listed")).collect(),
+            tags: tag_ids.iter().map(|&t| self.tag(t).cloned().expect("listed")).collect(),
         };
         serde_json::to_string(&file).expect("document serializes")
     }
@@ -167,10 +132,7 @@ impl Document {
     pub fn from_json(text: &str) -> Result<Document, Error> {
         let file: File = serde_json::from_str(text).map_err(|e| Error::Format(e.to_string()))?;
         if file.format != FORMAT {
-            return Err(Error::Format(format!(
-                "not a Builder file (format is {:?})",
-                file.format
-            )));
+            return Err(Error::Format(format!("not a Builder file (format is {:?})", file.format)));
         }
         if file.version > VERSION {
             return Err(Error::Format(format!(
@@ -185,9 +147,7 @@ impl Document {
             u => return Err(Error::Format(format!("unknown units {u:?}"))),
         };
         if file.definitions.is_empty() || file.definitions[0].kind != DefKind::Root {
-            return Err(Error::Format(
-                "the first definition must be the root".into(),
-            ));
+            return Err(Error::Format("the first definition must be the root".into()));
         }
         let mut doc = Document::new();
         for m in &file.materials {
@@ -209,17 +169,9 @@ impl Document {
             let def = DefId(di as u32);
             if di > 0 {
                 if fd.kind == DefKind::Root {
-                    return Err(Error::Format(
-                        "only the first definition can be the root".into(),
-                    ));
+                    return Err(Error::Format("only the first definition can be the root".into()));
                 }
-                doc.set_definition(
-                    def,
-                    Some(Definition {
-                        name: fd.name.clone(),
-                        kind: fd.kind,
-                    }),
-                );
+                doc.set_definition(def, Some(Definition { name: fd.name.clone(), kind: fd.kind }));
             }
             let mut verts = Vec::with_capacity(fd.vertices.len());
             for p in &fd.vertices {
@@ -236,15 +188,10 @@ impl Document {
                     .ok_or_else(|| Error::Format(format!("vertex {i} does not exist")))
             };
             for [a, b] in &fd.edges {
-                doc.add_edge(v(*a)?, v(*b)?)
-                    .map_err(|e| Error::Format(format!("bad edge: {e}")))?;
+                doc.add_edge(v(*a)?, v(*b)?).map_err(|e| Error::Format(format!("bad edge: {e}")))?;
             }
             for ff in &fd.faces {
-                let outer = ff
-                    .outer
-                    .iter()
-                    .map(|&i| v(i))
-                    .collect::<Result<Vec<_>, _>>()?;
+                let outer = ff.outer.iter().map(|&i| v(i)).collect::<Result<Vec<_>, _>>()?;
                 let holes = ff
                     .holes
                     .iter()
@@ -269,9 +216,7 @@ impl Document {
         let ndef = file.definitions.len() as u32;
         for fi in &file.instances {
             if fi.definition >= ndef || fi.parent >= ndef || fi.definition == 0 {
-                return Err(Error::Format(
-                    "instance refers to a missing definition".into(),
-                ));
+                return Err(Error::Format("instance refers to a missing definition".into()));
             }
             let t: Mat4 = fi
                 .transform
@@ -287,10 +232,7 @@ impl Document {
             inst.transform = t;
             inst.name = fi.name.clone();
             inst.material = check_mat(fi.material)?;
-            inst.tag = fi
-                .tag
-                .filter(|&t| (t as usize) < file.tags.len())
-                .map(TagId);
+            inst.tag = fi.tag.filter(|&t| (t as usize) < file.tags.len()).map(TagId);
             doc.set_instance(id, Some(inst));
         }
         doc.clear_history();

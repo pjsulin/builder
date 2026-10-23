@@ -25,16 +25,10 @@ impl Document {
         edges: &[EId],
         instances: &[InstId],
     ) -> Result<InstId, Error> {
-        let faces: Vec<FId> = faces
-            .iter()
-            .copied()
-            .filter(|&f| self.face(f).is_some_and(|x| x.owner == ctx))
-            .collect();
-        let mut edge_set: BTreeSet<EId> = edges
-            .iter()
-            .copied()
-            .filter(|&e| self.edge(e).is_some_and(|x| x.owner == ctx))
-            .collect();
+        let faces: Vec<FId> =
+            faces.iter().copied().filter(|&f| self.face(f).is_some_and(|x| x.owner == ctx)).collect();
+        let mut edge_set: BTreeSet<EId> =
+            edges.iter().copied().filter(|&e| self.edge(e).is_some_and(|x| x.owner == ctx)).collect();
         for &f in &faces {
             let face = self.face(f).cloned().ok_or(Error::Missing("face"))?;
             edge_set.extend(self.face_edges(&face));
@@ -50,13 +44,7 @@ impl Document {
 
         let def = self.next_def();
         let n = self.definitions.count();
-        self.set_definition(
-            def,
-            Some(Definition {
-                name: format!("Group#{n}"),
-                kind: DefKind::Group,
-            }),
-        );
+        self.set_definition(def, Some(Definition { name: format!("Group#{n}"), kind: DefKind::Group }));
         let inst = self.new_instance(def, ctx);
 
         let mut vmap: HashMap<VId, VId> = HashMap::new();
@@ -74,11 +62,7 @@ impl Document {
         for &f in &faces {
             let face = self.face(f).cloned().ok_or(Error::Missing("face"))?;
             let outer = face.outer.iter().map(|&v| map_v(self, v)).collect();
-            let holes = face
-                .holes
-                .iter()
-                .map(|h| h.iter().map(|&v| map_v(self, v)).collect())
-                .collect();
+            let holes = face.holes.iter().map(|h| h.iter().map(|&v| map_v(self, v)).collect()).collect();
             let nf = self.add_face(def, outer, holes, Some(face.plane.normal))?;
             self.with_face(nf, |x| {
                 x.material = face.material;
@@ -95,10 +79,7 @@ impl Document {
             }
         }
         for i in instances {
-            let mut x = self
-                .instance(i)
-                .cloned()
-                .ok_or(Error::Missing("instance"))?;
+            let mut x = self.instance(i).cloned().ok_or(Error::Missing("instance"))?;
             x.parent = def;
             self.set_instance(i, Some(x));
         }
@@ -108,10 +89,7 @@ impl Document {
     /// Replace an instance with a copy of its geometry in the parent context. The
     /// copy welds to touching geometry there. A group's definition is deleted.
     pub fn explode(&mut self, inst: InstId) -> Result<Exploded, Error> {
-        let instance = self
-            .instance(inst)
-            .cloned()
-            .ok_or(Error::Missing("instance"))?;
+        let instance = self.instance(inst).cloned().ok_or(Error::Missing("instance"))?;
         let (def, parent, m) = (instance.definition, instance.parent, instance.transform);
         let mut out = Exploded::default();
 
@@ -132,11 +110,7 @@ impl Document {
             let p0 = self.pos(face.outer[0]);
             let normal = mat_apply(&m, p0 + face.plane.normal) - mat_apply(&m, p0);
             let outer = face.outer.iter().map(|v| vmap[v]).collect();
-            let holes = face
-                .holes
-                .iter()
-                .map(|h| h.iter().map(|v| vmap[v]).collect())
-                .collect();
+            let holes = face.holes.iter().map(|h| h.iter().map(|v| vmap[v]).collect()).collect();
             if let Ok(nf) = self.add_face(parent, outer, holes, Some(normal)) {
                 self.with_face(nf, |x| {
                     x.material = face.material.or(instance.material);
@@ -149,19 +123,13 @@ impl Document {
         let only_instance = self.instances_of(def).count() == 1;
         for c in children {
             if only_instance {
-                let mut x = self
-                    .instance(c)
-                    .cloned()
-                    .ok_or(Error::Missing("instance"))?;
+                let mut x = self.instance(c).cloned().ok_or(Error::Missing("instance"))?;
                 x.parent = parent;
                 x.transform = mat_mul(&m, &x.transform);
                 self.set_instance(c, Some(x));
                 out.instances.push(c);
             } else {
-                let child = self
-                    .instance(c)
-                    .cloned()
-                    .ok_or(Error::Missing("instance"))?;
+                let child = self.instance(c).cloned().ok_or(Error::Missing("instance"))?;
                 let copy = self.new_instance(child.definition, parent);
                 let mut x = child;
                 x.parent = parent;
@@ -191,10 +159,7 @@ impl Document {
 
     /// Delete an instance. A group's definition goes with it.
     pub fn erase_instance(&mut self, inst: InstId) -> Result<(), Error> {
-        let def = self
-            .instance(inst)
-            .ok_or(Error::Missing("instance"))?
-            .definition;
+        let def = self.instance(inst).ok_or(Error::Missing("instance"))?.definition;
         self.set_instance(inst, None);
         if self.instances_of(def).count() == 0 {
             let children: Vec<InstId> = self.instances_in(def).map(|(i, _)| i).collect();
@@ -208,10 +173,7 @@ impl Document {
     }
 
     pub fn set_transform(&mut self, inst: InstId, m: Mat4) -> Result<(), Error> {
-        let mut x = self
-            .instance(inst)
-            .cloned()
-            .ok_or(Error::Missing("instance"))?;
+        let mut x = self.instance(inst).cloned().ok_or(Error::Missing("instance"))?;
         x.transform = m;
         self.set_instance(inst, Some(x));
         Ok(())

@@ -22,29 +22,18 @@ impl Document {
 
     pub fn add_vertex(&mut self, ctx: DefId, p: V3) -> VId {
         let id = self.next_vid();
-        self.set_vertex(
-            id,
-            Some(Vertex {
-                owner: ctx,
-                pos: p,
-                edges: Vec::new(),
-            }),
-        );
+        self.set_vertex(id, Some(Vertex { owner: ctx, pos: p, edges: Vec::new() }));
         id
     }
 
     /// The vertex at `p`, welding to an existing one when within tolerance.
     pub fn vertex_at(&mut self, ctx: DefId, p: V3) -> VId {
-        self.find_vertex(ctx, p)
-            .unwrap_or_else(|| self.add_vertex(ctx, p))
+        self.find_vertex(ctx, p).unwrap_or_else(|| self.add_vertex(ctx, p))
     }
 
     pub fn edge_between(&self, a: VId, b: VId) -> Option<EId> {
         let va = self.vertex(a)?;
-        va.edges
-            .iter()
-            .copied()
-            .find(|&e| self.edge(e).is_some_and(|e| e.other(a) == b))
+        va.edges.iter().copied().find(|&e| self.edge(e).is_some_and(|e| e.other(a) == b))
     }
 
     /// The edge from `a` to `b`, creating it if needed.
@@ -57,14 +46,7 @@ impl Document {
         }
         let owner = self.vertex(a).ok_or(Error::Missing("vertex"))?.owner;
         let id = self.next_eid();
-        self.set_edge(
-            id,
-            Some(Edge {
-                owner,
-                v: [a, b],
-                faces: Vec::new(),
-            }),
-        );
+        self.set_edge(id, Some(Edge { owner, v: [a, b], faces: Vec::new() }));
         for v in [a, b] {
             let mut vx = self.vertex(v).cloned().ok_or(Error::Missing("vertex"))?;
             vx.edges.push(id);
@@ -138,10 +120,7 @@ impl Document {
             owner: ctx,
             outer,
             holes,
-            plane: Plane {
-                normal: V3::Z,
-                d: 0.0,
-            },
+            plane: Plane { normal: V3::Z, d: 0.0 },
             material: None,
             back_material: None,
             tris: Vec::new(),
@@ -215,8 +194,8 @@ impl Document {
                 data.extend_from_slice(&p);
             }
         }
-        let tris = earcutr::earcut(&data, &holes, 2)
-            .map_err(|_| Error::Degenerate("triangulation failed"))?;
+        let tris =
+            earcutr::earcut(&data, &holes, 2).map_err(|_| Error::Degenerate("triangulation failed"))?;
         // earcut does not promise a winding; make every triangle counter-clockwise.
         let mut out = Vec::with_capacity(tris.len());
         for t in tris.chunks(3) {
@@ -273,7 +252,8 @@ impl Document {
         if at.dist(pb) <= tol::LENGTH {
             return Ok(b);
         }
-        let w = self.add_vertex(ctx, at);
+        // Weld to a vertex already there, so overlapping edges merge.
+        let w = self.find_vertex(ctx, at).unwrap_or_else(|| self.add_vertex(ctx, at));
         // Detach the faces, replace the edge, then re-attach with the new vertex.
         let faces = edge.faces.clone();
         let mut ed = edge.clone();
@@ -283,14 +263,7 @@ impl Document {
         // remove_edge may have deleted a or b if they had no other edges; restore them.
         for (v, pos) in [(a, pa), (b, pb)] {
             if self.vertex(v).is_none() {
-                self.set_vertex(
-                    v,
-                    Some(Vertex {
-                        owner: ctx,
-                        pos,
-                        edges: Vec::new(),
-                    }),
-                );
+                self.set_vertex(v, Some(Vertex { owner: ctx, pos, edges: Vec::new() }));
             }
         }
         let e1 = self.add_edge(a, w)?;

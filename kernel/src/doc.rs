@@ -10,9 +10,7 @@ use crate::math::{Mat4, Plane, IDENTITY, V3};
 
 macro_rules! id_type {
     ($name:ident) => {
-        #[derive(
-            Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize,
-        )]
+        #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
         #[serde(transparent)]
         pub struct $name(pub u32);
         impl $name {
@@ -142,10 +140,7 @@ impl<T> Arena<T> {
         self.slots.len()
     }
     pub fn iter(&self) -> impl Iterator<Item = (usize, &T)> {
-        self.slots
-            .iter()
-            .enumerate()
-            .filter_map(|(i, s)| s.as_ref().map(|t| (i, t)))
+        self.slots.iter().enumerate().filter_map(|(i, s)| s.as_ref().map(|t| (i, t)))
     }
     pub fn count(&self) -> usize {
         self.slots.iter().filter(|s| s.is_some()).count()
@@ -209,13 +204,7 @@ macro_rules! setter {
 impl Document {
     pub fn new() -> Self {
         let mut d = Document::default();
-        d.set_definition(
-            DefId(0),
-            Some(Definition {
-                name: "Model".into(),
-                kind: DefKind::Root,
-            }),
-        );
+        d.set_definition(DefId(0), Some(Definition { name: "Model".into(), kind: DefKind::Root }));
         d.pending.clear();
         d
     }
@@ -223,22 +212,8 @@ impl Document {
     setter!(set_vertex, vertex, vertices, Vertex, VId, Vertex);
     setter!(set_edge, edge, edges, Edge, EId, Edge);
     setter!(set_face, face, faces, Face, FId, Face);
-    setter!(
-        set_definition,
-        definition,
-        definitions,
-        Definition,
-        DefId,
-        Definition
-    );
-    setter!(
-        set_instance,
-        instance,
-        instances,
-        Instance,
-        InstId,
-        Instance
-    );
+    setter!(set_definition, definition, definitions, Definition, DefId, Definition);
+    setter!(set_instance, instance, instances, Instance, InstId, Instance);
     setter!(set_material, material, materials, Material, MatId, Material);
     setter!(set_tag, tag, tags, Tag, TagId, Tag);
 
@@ -262,10 +237,7 @@ impl Document {
     }
 
     pub fn pos(&self, v: VId) -> V3 {
-        self.vertices
-            .get(v.idx())
-            .map(|v| v.pos)
-            .unwrap_or_default()
+        self.vertices.get(v.idx()).map(|v| v.pos).unwrap_or_default()
     }
 
     // ---- transactions ----
@@ -374,28 +346,16 @@ impl Document {
     // ---- convenience queries ----
 
     pub fn faces_in(&self, ctx: DefId) -> impl Iterator<Item = (FId, &Face)> {
-        self.faces
-            .iter()
-            .filter(move |(_, f)| f.owner == ctx)
-            .map(|(i, f)| (FId(i as u32), f))
+        self.faces.iter().filter(move |(_, f)| f.owner == ctx).map(|(i, f)| (FId(i as u32), f))
     }
     pub fn edges_in(&self, ctx: DefId) -> impl Iterator<Item = (EId, &Edge)> {
-        self.edges
-            .iter()
-            .filter(move |(_, e)| e.owner == ctx)
-            .map(|(i, e)| (EId(i as u32), e))
+        self.edges.iter().filter(move |(_, e)| e.owner == ctx).map(|(i, e)| (EId(i as u32), e))
     }
     pub fn vertices_in(&self, ctx: DefId) -> impl Iterator<Item = (VId, &Vertex)> {
-        self.vertices
-            .iter()
-            .filter(move |(_, v)| v.owner == ctx)
-            .map(|(i, v)| (VId(i as u32), v))
+        self.vertices.iter().filter(move |(_, v)| v.owner == ctx).map(|(i, v)| (VId(i as u32), v))
     }
     pub fn instances_in(&self, ctx: DefId) -> impl Iterator<Item = (InstId, &Instance)> {
-        self.instances
-            .iter()
-            .filter(move |(_, i)| i.parent == ctx)
-            .map(|(i, inst)| (InstId(i as u32), inst))
+        self.instances.iter().filter(move |(_, i)| i.parent == ctx).map(|(i, inst)| (InstId(i as u32), inst))
     }
     pub fn instances_of(&self, def: DefId) -> impl Iterator<Item = (InstId, &Instance)> {
         self.instances

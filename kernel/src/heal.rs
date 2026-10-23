@@ -39,11 +39,7 @@ impl Document {
     pub fn old_region(&self, f: FId, plane: &Plane) -> Option<OldRegion> {
         let face = self.face(f)?;
         let (u, v) = plane.basis();
-        let to = |lp: &Vec<VId>| {
-            lp.iter()
-                .map(|&x| to_2d(self.pos(x), u, v))
-                .collect::<Vec<P2>>()
-        };
+        let to = |lp: &Vec<VId>| lp.iter().map(|&x| to_2d(self.pos(x), u, v)).collect::<Vec<P2>>();
         Some(OldRegion {
             outer: to(&face.outer),
             holes: face.holes.iter().map(to).collect(),
@@ -54,20 +50,14 @@ impl Document {
     }
 
     pub(crate) fn face_region_contains(&self, face: &Face, p: P2, u: V3, v: V3) -> bool {
-        let poly = |lp: &Vec<VId>| {
-            lp.iter()
-                .map(|&x| to_2d(self.pos(x), u, v))
-                .collect::<Vec<P2>>()
-        };
-        point_in_polygon(p, &poly(&face.outer))
-            && !face.holes.iter().any(|h| point_in_polygon(p, &poly(h)))
+        let poly = |lp: &Vec<VId>| lp.iter().map(|&x| to_2d(self.pos(x), u, v)).collect::<Vec<P2>>();
+        point_in_polygon(p, &poly(&face.outer)) && !face.holes.iter().any(|h| point_in_polygon(p, &poly(h)))
     }
 
     fn near_face_boundary(&self, face: &Face, p: V3) -> bool {
         face.loops().any(|lp| {
-            (0..lp.len()).any(|i| {
-                point_segment(p, self.pos(lp[i]), self.pos(lp[(i + 1) % lp.len()])).0 <= tol::LENGTH
-            })
+            (0..lp.len())
+                .any(|i| point_segment(p, self.pos(lp[i]), self.pos(lp[(i + 1) % lp.len()])).0 <= tol::LENGTH)
         })
     }
 
@@ -94,11 +84,8 @@ impl Document {
         // 1. The in-plane edge graph around the seeds, plus faces in the plane nearby.
         let mut graph: HashSet<EId> = HashSet::new();
         let mut queue: VecDeque<EId> = fresh.iter().chain(extra).copied().collect();
-        let plane_faces: Vec<FId> = self
-            .faces_in(ctx)
-            .filter(|(_, f)| f.plane.same_surface(plane))
-            .map(|(id, _)| id)
-            .collect();
+        let plane_faces: Vec<FId> =
+            self.faces_in(ctx).filter(|(_, f)| f.plane.same_surface(plane)).map(|(id, _)| id).collect();
         let mut included_faces: HashSet<FId> = HashSet::new();
         loop {
             while let Some(e) = queue.pop_front() {
@@ -148,8 +135,7 @@ impl Document {
                 }
                 let Some(ed) = self.edge(e) else { return false };
                 let mid = self.pos(ed.v[0]).lerp(self.pos(ed.v[1]), 0.5);
-                !self.near_face_boundary(face, mid)
-                    && self.face_region_contains(face, to_2d(mid, u, v), u, v)
+                !self.near_face_boundary(face, mid) && self.face_region_contains(face, to_2d(mid, u, v), u, v)
             });
             if crossed {
                 if let Some(r) = self.old_region(f, plane) {
@@ -165,11 +151,7 @@ impl Document {
         // 4. Create faces where they belong.
         let mut created = Vec::new();
         for r in regions {
-            let to = |lp: &Vec<VId>| {
-                lp.iter()
-                    .map(|&x| to_2d(self.pos(x), u, v))
-                    .collect::<Vec<P2>>()
-            };
+            let to = |lp: &Vec<VId>| lp.iter().map(|&x| to_2d(self.pos(x), u, v)).collect::<Vec<P2>>();
             let outer2 = to(&r.outer);
             let holes2: Vec<Vec<P2>> = r.holes.iter().map(to).collect();
             let Some(pt) = interior_point(&outer2, &holes2) else {
@@ -179,9 +161,9 @@ impl Document {
             if in_old.is_none() && !r.uses_fresh {
                 continue;
             }
-            let covered = self.faces_in(ctx).any(|(_, f)| {
-                f.plane.same_surface(plane) && self.face_region_contains(f, pt, u, v)
-            });
+            let covered = self
+                .faces_in(ctx)
+                .any(|(_, f)| f.plane.same_surface(plane) && self.face_region_contains(f, pt, u, v));
             if covered {
                 continue;
             }
@@ -209,12 +191,7 @@ impl Document {
     }
 
     fn bbox_2d(&self, edges: &HashSet<EId>, u: V3, v: V3) -> [f64; 4] {
-        let mut b = [
-            f64::INFINITY,
-            f64::INFINITY,
-            f64::NEG_INFINITY,
-            f64::NEG_INFINITY,
-        ];
+        let mut b = [f64::INFINITY, f64::INFINITY, f64::NEG_INFINITY, f64::NEG_INFINITY];
         for &e in edges {
             if let Some(ed) = self.edge(e) {
                 for &x in &ed.v {
@@ -226,12 +203,7 @@ impl Document {
     }
 
     fn loop_bbox(&self, lp: &[VId], u: V3, v: V3) -> [f64; 4] {
-        let mut b = [
-            f64::INFINITY,
-            f64::INFINITY,
-            f64::NEG_INFINITY,
-            f64::NEG_INFINITY,
-        ];
+        let mut b = [f64::INFINITY, f64::INFINITY, f64::NEG_INFINITY, f64::NEG_INFINITY];
         for &x in lp {
             grow(&mut b, to_2d(self.pos(x), u, v));
         }
@@ -294,10 +266,7 @@ impl Document {
             from.extend([ed.v[0], ed.v[1]]);
             to.extend([ed.v[1], ed.v[0]]);
         }
-        let p2: HashMap<VId, P2> = from
-            .iter()
-            .map(|&x| (x, to_2d(self.pos(x), u, v)))
-            .collect();
+        let p2: HashMap<VId, P2> = from.iter().map(|&x| (x, to_2d(self.pos(x), u, v))).collect();
         // Outgoing half-edges per vertex, sorted counter-clockwise by angle.
         let mut out: HashMap<VId, Vec<usize>> = HashMap::new();
         for (h, &f) in from.iter().enumerate() {
@@ -315,10 +284,7 @@ impl Document {
         // the twin. That keeps the region on the left.
         let next = |h: usize| {
             let list = &out[&to[h]];
-            let i = list
-                .iter()
-                .position(|&x| x == twin(h))
-                .expect("twin is outgoing");
+            let i = list.iter().position(|&x| x == twin(h)).expect("twin is outgoing");
             list[(i + list.len() - 1) % list.len()]
         };
 
@@ -341,10 +307,7 @@ impl Document {
             r
         }
         for h in (0..from.len()).step_by(2) {
-            let (a, b) = (
-                find(&mut parent, index[&from[h]]),
-                find(&mut parent, index[&to[h]]),
-            );
+            let (a, b) = (find(&mut parent, index[&from[h]]), find(&mut parent, index[&to[h]]));
             parent[a] = b;
         }
         for (i, &x) in verts.iter().enumerate() {
@@ -372,11 +335,7 @@ impl Document {
             let component = comp[&from[cycle[0]]];
             // Remove spikes and bridges: edges walked both ways in this cycle.
             let in_cycle: HashSet<usize> = cycle.iter().copied().collect();
-            let kept: Vec<usize> = cycle
-                .iter()
-                .copied()
-                .filter(|&h| !in_cycle.contains(&twin(h)))
-                .collect();
+            let kept: Vec<usize> = cycle.iter().copied().filter(|&h| !in_cycle.contains(&twin(h))).collect();
             let loops = split_loops(&kept, &from, &to);
             if area > tol::AREA {
                 let mut outer: Option<(Vec<VId>, f64)> = None;
@@ -393,13 +352,7 @@ impl Document {
                 }
                 if let Some((outer, area)) = outer {
                     let uses_fresh = kept.iter().any(|&h| fresh.contains(&edges[h / 2]));
-                    regions.push(Region {
-                        outer,
-                        holes,
-                        component,
-                        uses_fresh,
-                        area,
-                    });
+                    regions.push(Region { outer, holes, component, uses_fresh, area });
                 }
             } else {
                 for lp in loops {
@@ -454,9 +407,7 @@ fn split_loops(kept: &[usize], from: &[VId], to: &[VId]) -> Vec<Vec<VId>> {
                 break;
             }
             // The next unused half-edge leaving `end`, searching forward in walk order.
-            let next = (1..n)
-                .map(|k| (i + k) % n)
-                .find(|&j| !used[j] && from[kept[j]] == end);
+            let next = (1..n).map(|k| (i + k) % n).find(|&j| !used[j] && from[kept[j]] == end);
             match next {
                 Some(j) => i = j,
                 None => break,
@@ -499,10 +450,7 @@ pub fn interior_point(outer: &[P2], holes: &[Vec<P2>]) -> Option<P2> {
     tris.chunks(3)
         .map(|t| {
             let (a, b, c) = (pt(t[0]), pt(t[1]), pt(t[2]));
-            (
-                signed_area2(&[a, b, c]).abs(),
-                [(a[0] + b[0] + c[0]) / 3.0, (a[1] + b[1] + c[1]) / 3.0],
-            )
+            (signed_area2(&[a, b, c]).abs(), [(a[0] + b[0] + c[0]) / 3.0, (a[1] + b[1] + c[1]) / 3.0])
         })
         .max_by(|x, y| x.0.total_cmp(&y.0))
         .map(|(_, c)| c)

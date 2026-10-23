@@ -11,18 +11,13 @@ pub fn v(x: f64, y: f64, z: f64) -> V3 {
 /// Draw a closed polyline.
 pub fn poly(doc: &mut Document, ctx: DefId, pts: &[V3]) {
     for i in 0..pts.len() {
-        doc.add_line(ctx, pts[i], pts[(i + 1) % pts.len()])
-            .expect("line");
+        doc.add_line(ctx, pts[i], pts[(i + 1) % pts.len()]).expect("line");
     }
 }
 
 /// Axis-aligned rectangle on the plane z.
 pub fn rect_xy(doc: &mut Document, ctx: DefId, x0: f64, y0: f64, x1: f64, y1: f64, z: f64) {
-    poly(
-        doc,
-        ctx,
-        &[v(x0, y0, z), v(x1, y0, z), v(x1, y1, z), v(x0, y1, z)],
-    );
+    poly(doc, ctx, &[v(x0, y0, z), v(x1, y0, z), v(x1, y1, z), v(x0, y1, z)]);
 }
 
 /// A w × d × h box with its base at the origin, made by pulling a rectangle up.
@@ -52,29 +47,17 @@ pub fn face_at(doc: &Document, ctx: DefId, p: V3, normal: V3) -> FId {
         })
         .map(|(id, _)| id)
         .collect();
-    assert_eq!(
-        found.len(),
-        1,
-        "expected one face at {p:?} facing {normal:?}, found {}",
-        found.len()
-    );
+    assert_eq!(found.len(), 1, "expected one face at {p:?} facing {normal:?}, found {}", found.len());
     found[0]
 }
 
 pub fn contains_point(doc: &Document, f: FId, p: V3) -> bool {
     let face = doc.face(f).unwrap();
     let (u, w) = face.plane.basis();
-    let poly = |lp: &Vec<VId>| {
-        lp.iter()
-            .map(|&x| to_2d(doc.pos(x), u, w))
-            .collect::<Vec<_>>()
-    };
+    let poly = |lp: &Vec<VId>| lp.iter().map(|&x| to_2d(doc.pos(x), u, w)).collect::<Vec<_>>();
     let q = to_2d(p, u, w);
     math::point_in_polygon(q, &poly(&face.outer))
-        && !face
-            .holes
-            .iter()
-            .any(|h| math::point_in_polygon(q, &poly(h)))
+        && !face.holes.iter().any(|h| math::point_in_polygon(q, &poly(h)))
 }
 
 pub fn edge_count(doc: &Document, ctx: DefId) -> usize {
@@ -119,15 +102,9 @@ pub fn validate(doc: &Document) {
         let vid = VId(vi as u32);
         assert!(!vx.edges.is_empty(), "vertex {vi} has no edges");
         let unique: HashSet<_> = vx.edges.iter().collect();
-        assert_eq!(
-            unique.len(),
-            vx.edges.len(),
-            "vertex {vi} lists an edge twice"
-        );
+        assert_eq!(unique.len(), vx.edges.len(), "vertex {vi} lists an edge twice");
         for &e in &vx.edges {
-            let ed = doc
-                .edge(e)
-                .unwrap_or_else(|| panic!("vertex {vi} lists missing edge {e:?}"));
+            let ed = doc.edge(e).unwrap_or_else(|| panic!("vertex {vi} lists missing edge {e:?}"));
             assert!(ed.v.contains(&vid), "edge {e:?} does not use vertex {vi}");
             assert_eq!(ed.owner, vx.owner, "edge and vertex owners differ");
         }
@@ -136,30 +113,28 @@ pub fn validate(doc: &Document) {
     for (ei, ed) in doc.edges.iter() {
         let eid = EId(ei as u32);
         assert_ne!(ed.v[0], ed.v[1], "edge {ei} is a loop");
-        let key = if ed.v[0] < ed.v[1] {
-            (ed.v[0], ed.v[1])
-        } else {
-            (ed.v[1], ed.v[0])
-        };
+        let key = if ed.v[0] < ed.v[1] { (ed.v[0], ed.v[1]) } else { (ed.v[1], ed.v[0]) };
         assert!(pairs.insert(key), "duplicate edge between {:?}", key);
-        assert!(
-            doc.pos(ed.v[0]).dist(doc.pos(ed.v[1])) > tol::LENGTH,
-            "edge {ei} is too short"
-        );
+        assert!(doc.pos(ed.v[0]).dist(doc.pos(ed.v[1])) > tol::LENGTH, "edge {ei} is too short");
         for &v in &ed.v {
-            assert!(
-                doc.vertex(v).unwrap().edges.contains(&eid),
-                "vertex {v:?} does not list edge {ei}"
-            );
+            assert!(doc.vertex(v).unwrap().edges.contains(&eid), "vertex {v:?} does not list edge {ei}");
         }
         for &f in &ed.faces {
-            let face = doc
-                .face(f)
-                .unwrap_or_else(|| panic!("edge {ei} lists missing face {f:?}"));
-            assert!(
-                doc.face_edges(face).contains(&eid),
-                "face {f:?} does not use edge {ei}"
-            );
+            let face = doc.face(f).unwrap_or_else(|| panic!("edge {ei} lists missing face {f:?}"));
+            assert!(doc.face_edges(face).contains(&eid), "face {f:?} does not use edge {ei}");
+        }
+    }
+    // Sticky geometry: no vertex lies inside an edge of the same context, so edges
+    // never overlap or cross without sharing a vertex.
+    for (ei, ed) in doc.edges.iter() {
+        let (p, q) = (doc.pos(ed.v[0]), doc.pos(ed.v[1]));
+        for (vi, vx) in doc.vertices.iter() {
+            if vx.owner != ed.owner || ed.v.contains(&VId(vi as u32)) {
+                continue;
+            }
+            let (d, _) = math::point_segment(vx.pos, p, q);
+            let inside = vx.pos.dist(p) > tol::LENGTH && vx.pos.dist(q) > tol::LENGTH;
+            assert!(!(d <= tol::LENGTH && inside), "vertex {vi} lies inside edge {ei} without splitting it");
         }
     }
     for (fi, face) in doc.faces.iter() {
@@ -174,16 +149,9 @@ pub fn validate(doc: &Document) {
                 let e = doc
                     .edge_between(a, b)
                     .unwrap_or_else(|| panic!("face {fi} loop has no edge {a:?}-{b:?}"));
-                assert!(
-                    doc.edge(e).unwrap().faces.contains(&fid),
-                    "edge {e:?} does not list face {fi}"
-                );
+                assert!(doc.edge(e).unwrap().faces.contains(&fid), "edge {e:?} does not list face {fi}");
                 assert!(face.plane.contains(doc.pos(a)), "face {fi} is not planar");
-                assert_eq!(
-                    doc.vertex(a).unwrap().owner,
-                    face.owner,
-                    "face and vertex owners differ"
-                );
+                assert_eq!(doc.vertex(a).unwrap().owner, face.owner, "face and vertex owners differ");
             }
             let p: Vec<_> = lp.iter().map(|&x| to_2d(doc.pos(x), u, w)).collect();
             let area = signed_area2(&p);
@@ -207,9 +175,6 @@ pub fn validate(doc: &Document) {
                 signed_area2(&[q(t[0]), q(t[1]), q(t[2])]) / 2.0
             })
             .sum();
-        assert!(
-            (tri_area - doc.face_area(fid)).abs() < 1e-6,
-            "face {fi} triangulation area mismatch"
-        );
+        assert!((tri_area - doc.face_area(fid)).abs() < 1e-6, "face {fi} triangulation area mismatch");
     }
 }

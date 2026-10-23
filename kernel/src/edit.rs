@@ -88,10 +88,7 @@ impl Document {
             self.remove_edge(e);
         }
         for (ctx, plane, regions, boundary) in merges {
-            let boundary: Vec<EId> = boundary
-                .into_iter()
-                .filter(|&e| self.edge(e).is_some())
-                .collect();
+            let boundary: Vec<EId> = boundary.into_iter().filter(|&e| self.edge(e).is_some()).collect();
             if !boundary.is_empty() {
                 self.heal(ctx, &plane, &[], &boundary, regions)?;
             }

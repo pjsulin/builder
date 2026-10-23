@@ -43,59 +43,48 @@ impl Document {
             }
         }
 
-        // 2. Existing edges the segment crosses or overlaps: split them.
+        // 2. Existing edges the segment crosses: split both at the crossing.
         let existing: Vec<EId> = self.edges_in(ctx).map(|(id, _)| id).collect();
-        for e in existing {
-            let Some(edge) = self.edge(e).cloned() else {
-                continue;
-            };
+        let mut collinear: Vec<EId> = Vec::new();
+        for &e in &existing {
+            let Some(edge) = self.edge(e).cloned() else { continue };
             let (p, q) = (self.pos(edge.v[0]), self.pos(edge.v[1]));
-            let mut splits: Vec<V3> = Vec::new();
             match segment_segment(a, b, p, q) {
-                Some((s, _, d)) if d <= tol::LENGTH => splits.push(a + dir * s),
+                Some((s, _, d)) if d <= tol::LENGTH => {
+                    let w = self.split_edge(e, a + dir * s)?;
+                    cuts.push((point_segment(self.pos(w), a, b).1, w));
+                }
                 Some(_) => {}
                 None => {
-                    // Parallel: only collinear overlaps matter. Our endpoints may lie
-                    // inside the existing edge.
-                    for x in [a, b] {
-                        if point_segment(x, p, q).0 <= tol::LENGTH {
-                            splits.push(x);
-                        }
+                    let touches = |x: V3, s: V3, t: V3| point_segment(x, s, t).0 <= tol::LENGTH;
+                    if touches(p, a, b) || touches(q, a, b) || touches(a, p, q) || touches(b, p, q) {
+                        collinear.push(e);
                     }
-                }
-            }
-            // Split from p toward q so each later point lies on the remaining tail.
-            splits.sort_by(|x, y| x.dist(p).total_cmp(&y.dist(p)));
-            let tail_end = edge.v[1];
-            let mut current = Some(e);
-            for x in splits {
-                let Some(cur) = current else { break };
-                let w = self.split_edge(cur, x)?;
-                let (_, t) = point_segment(self.pos(w), a, b);
-                cuts.push((t, w));
-                current = if w == tail_end {
-                    None
-                } else {
-                    self.edge_between(w, tail_end).or(Some(cur))
-                };
-                if current == Some(cur) && self.edge(cur).is_none() {
-                    current = None;
                 }
             }
         }
 
-        // 3. The endpoints themselves.
+        // 3. Existing edges the segment overlaps: split them at our endpoints and at
+        //    every touch point inside them, so overlapping pieces become one edge.
+        for e in collinear {
+            if self.edge(e).is_none() {
+                continue;
+            }
+            let mut pts: Vec<V3> = vec![a, b];
+            pts.extend(cuts.iter().map(|&(_, v)| self.pos(v)));
+            for w in self.split_edge_at(e, &pts)? {
+                cuts.push((point_segment(self.pos(w), a, b).1, w));
+            }
+        }
+
+        // 4. The endpoints themselves.
         let va = self.vertex_at(ctx, a);
         let vb = self.vertex_at(ctx, b);
         cuts.push((0.0, va));
         cuts.push((1.0, vb));
 
         cuts.sort_by(|x, y| x.0.total_cmp(&y.0));
-        let min_dt = if len2 > 0.0 {
-            tol::LENGTH / len2.sqrt()
-        } else {
-            1.0
-        };
+        let min_dt = if len2 > 0.0 { tol::LENGTH / len2.sqrt() } else { 1.0 };
         let mut chain: Vec<VId> = Vec::new();
         for (t, v) in cuts {
             if chain.last() == Some(&v) {
@@ -116,6 +105,37 @@ impl Document {
         Ok(edges)
     }
 
+    /// Split an edge at every point (among `pts`) that lies strictly inside it.
+    /// Returns the vertices at those points.
+    pub fn split_edge_at(&mut self, e: EId, pts: &[V3]) -> Result<Vec<VId>, Error> {
+        let edge = self.edge(e).cloned().ok_or(Error::Missing("edge"))?;
+        let (p, q) = (self.pos(edge.v[0]), self.pos(edge.v[1]));
+        let mut inside: Vec<V3> = pts
+            .iter()
+            .copied()
+            .filter(|&x| {
+                point_segment(x, p, q).0 <= tol::LENGTH && x.dist(p) > tol::LENGTH && x.dist(q) > tol::LENGTH
+            })
+            .collect();
+        // Split from p toward q so each later point lies on the remaining tail.
+        inside.sort_by(|x, y| x.dist(p).total_cmp(&y.dist(p)));
+        let tail_end = edge.v[1];
+        let mut current = e;
+        let mut out = Vec::new();
+        for x in inside {
+            if out.last().is_some_and(|&w: &VId| self.pos(w).dist(x) <= tol::LENGTH) {
+                continue;
+            }
+            let w = self.split_edge(current, x)?;
+            out.push(w);
+            match self.edge_between(w, tail_end) {
+                Some(next) => current = next,
+                None => break,
+            }
+        }
+        Ok(out)
+    }
+
     /// Heal every plane that the given edges lie in.
     pub fn heal_around(&mut self, ctx: DefId, edges: &[EId]) -> Result<(), Error> {
         let planes = self.candidate_planes(ctx, edges);
@@ -133,8 +153,7 @@ impl Document {
     }
 
     pub fn edge_in_plane(&self, e: EId, plane: &Plane) -> bool {
-        self.edge(e)
-            .is_some_and(|ed| ed.v.iter().all(|&v| plane.contains(self.pos(v))))
+        self.edge(e).is_some_and(|ed| ed.v.iter().all(|&v| plane.contains(self.pos(v))))
     }
 
     /// Planes a set of edges could form faces in: the planes of faces that contain an
