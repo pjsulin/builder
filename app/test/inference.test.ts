@@ -88,6 +88,7 @@ describe("inference", () => {
     expect(r.locked).toBe(true);
     expect(r.point[0]).toBeCloseTo(200, 6);
     expect(r.point[2]).toBeCloseTo(96, 6);
+    expect(r.ref).toEqual({ point: [120, 0, 96], kind: "endpoint" });
     engine.toggleAxisLock(2);
     expect(engine.locked).toBe(false);
   });

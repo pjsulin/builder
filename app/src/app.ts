@@ -393,6 +393,9 @@ export class App implements ToolHost {
   }
 
   private drawGuide(r: Inference | null): void {
+    // A dotted line from a matched point to where it was projected.
+    if (r?.ref) this.view.setGuide("refGuide", r.ref.point, r.point, this.previewColor);
+    else this.view.clearLayer("refGuide");
     if (r && r.from && (r.kind === "axis" || r.kind === "line")) {
       const color = r.axis !== undefined ? this.axisColors[r.axis] : this.previewColor;
       const dir = r.axis !== undefined ? AXES[r.axis] : null;
@@ -416,9 +419,11 @@ export class App implements ToolHost {
     };
     const r = o.inference;
     const marker = $("marker");
-    const showMarker = r && r.kind !== "ground" && r.kind !== "plane" && r.kind !== "line";
-    marker.className = `ov marker ${r ? MARKER_CLASS[r.kind] : ""}${r?.axis !== undefined ? ` ax${r.axis}` : ""}`;
-    place(marker, showMarker ? r!.point : undefined, -6, -6);
+    // Matched inferences mark the point they matched, like SketchUp.
+    const mk = r?.ref ? { point: r.ref.point, kind: r.ref.kind, axis: undefined } : r;
+    const showMarker = mk && mk.kind !== "ground" && mk.kind !== "plane" && mk.kind !== "line";
+    marker.className = `ov marker ${mk ? MARKER_CLASS[mk.kind] : ""}${mk?.axis !== undefined ? ` ax${mk.axis}` : ""}`;
+    place(marker, showMarker ? mk!.point : undefined, -6, -6);
     const tip = $("tip");
     tip.textContent = r?.label ?? "";
     place(tip, r?.label ? r.point : undefined, 14, 12);

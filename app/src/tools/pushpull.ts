@@ -108,7 +108,9 @@ export class PushPullTool implements Tool {
     if (this.active || !this.last) return;
     const hit = this.pickFace(p);
     if (!hit) return;
-    this.run(hit.face, this.last.distance);
+    // Repeat the last distance, pulling the face out toward the viewer.
+    const toward = dot(hit.normal, this.host.camera.ray(p.x, p.y).dir) < 0 ? 1 : -1;
+    this.run(hit.face, toward * Math.abs(this.last.distance));
   }
 
   key(key: string): boolean {

@@ -103,15 +103,26 @@ This gives the SketchUp behaviors directly:
 - *Stretch*: every edge of the face is shared with faces that contain the push direction (for example, the top of a box, whose sides are vertical). The face's vertices move along the normal. Every face that shares a vertex stays planar.
 - *Extrude*: anything else (a free face, a face drawn on another face). A cap face is created at the offset, with a side face for every edge of every loop, holes included. A free-standing face stays as the bottom, facing away. A face inset in a larger face is consumed, so the walls join the surrounding face's hole.
 
-After extruding, the cap's plane is healed. If the cap lands exactly on an opposite-facing face, as when pushing a rectangle through a wall, both are removed and the result is an opening. This works on any planar face. The prototype only handled axis-aligned ones.
+After either mode, the new or moved geometry is **settled** into what it touches:
 
-**`move_vertices`**, **`erase`**, **`make_group`** and **`explode`** follow the same pattern: change the raw records, then re-validate. Move rejects a change that would bend a face out of plane (SketchUp folds the face into triangles; we will add that later). Erase removes the faces bounded by an erased edge, heals the plane to merge coplanar neighbors, and dissolves vertices left between two collinear edges. Make group re-owns entities into a new definition and adds an instance with an identity transform, which is a cheap operation. Explode re-owns them back through the instance transform and heals, so the geometry sticks again.
+1. Its edges are merged with existing edges they overlap, and faces whose loops now touch themselves are re-healed into separate pieces.
+2. A new face that lands on an opposite-facing coplanar face cancels against it. The other face is cut along the outline and both overlapping pieces are removed. Pushing a door outline through a wall leaves an opening, including the notch where the door meets the floor.
+3. A new face that lands beside a coplanar face facing the same way merges with it, so pulling a shape flush with a wall doesn't leave a seam.
+
+This works on any planar face. The prototype only handled axis-aligned ones.
+
+**`move_vertices`**, **`erase`**, **`make_group`** and **`explode`** follow the same pattern: change the raw records, then re-validate.
+
+- Move rejects a change that would bend a face out of plane or turn it inside out. SketchUp folds such faces into triangles, which we will add later.
+- Erase removes the faces bounded by an erased edge, heals the plane to merge coplanar neighbors, and dissolves vertices left between two collinear edges.
+- Make group copies the selected faces and edges into a new definition, adds an instance with an identity transform, and removes the originals. Edges still used by faces left outside stay, so the remaining geometry keeps its boundary.
+- Explode copies the definition's geometry back through the instance transform, welding to touching vertices, so the geometry sticks again.
 
 ### Tolerance and robustness
 
 Floating-point tolerance is part of the design from the start rather than patched in later:
 
-- One tolerance policy in `kernel/src/tol.rs`: `LENGTH = 1e-3` inches for welding points and point-on-line tests (SketchUp uses a thousandth of an inch too), `PLANE = 1e-3` inches for point-on-plane, and `ANGLE = 1e-6` (radians, as a sine) for parallel tests.
+- One tolerance policy in `kernel/src/tol.rs`: `LENGTH = 1e-3` inches for welding points and point-on-line tests (SketchUp uses a thousandth of an inch too), `PLANE = 1e-3` inches for point-on-plane, `ANGLE = 1e-9` (as `1 − |cos θ|`, about 0.003°) for parallel planes, and `AREA = 1e-6` square inches for degenerate faces.
 - Points are welded on creation, so two vertices are never closer than `LENGTH`. All later tests can then compare vertex ids instead of coordinates.
 - Planes are stored as a normal and offset, recomputed with Newell's method from the loop so long thin faces stay stable.
 - 2D arrangement work uses each face's own orthonormal basis, so precision does not depend on where the face sits in world space.
@@ -145,7 +156,7 @@ Document
 ```
 
 - A **group** is a definition with exactly one instance, like in SketchUp. A **component** is the same thing with many instances. Edit one, and every instance changes, because they all draw the same definition. Making a group unique, or a component from a group, only changes the definition kind.
-- **Tags** control visibility on instances and loose geometry. **Materials** go on faces (front and back) and on instances (inherited by faces with no material).
+- **Tags** control visibility on instances. **Materials** go on faces (front and back) and on instances (inherited by faces with no material). Both are in the kernel and the file format now. Their panels are next.
 - Ids are indexes into arenas and are **never reused**. A deleted slot becomes a tombstone. That keeps ids stable across undo and redo, so the UI can hold a selection by id.
 - Building data (BIM) attaches as attributes: a definition or instance carries a `classification` (an IFC class such as `IfcWallStandardCase`) and a property map. Parametric objects like walls and doors are components whose geometry is generated by a plugin from their parameters. This is planned for the Full app, and the slot for it exists from the start.
 
@@ -185,11 +196,11 @@ Memory cost is proportional to what changed, not to model size, unlike the proto
 
 ## 5. Rendering and picking
 
-**Batched drawing.** The kernel turns each definition into one set of flat buffers: triangle positions, normals and per-triangle face ids, plus edge segments with edge ids. The renderer creates one Three.js mesh and one line set per definition, not per object. Loose geometry in the root, even 2,000 boxes, is a single draw call for faces and one for edges. Instances of a definition share its buffers, each with its own matrix. When there are many instances of the same definition we will switch to `InstancedMesh` or `BatchedMesh`.
+**Batched drawing.** The kernel turns each definition into one set of flat buffers: triangle positions, normals and per-triangle face ids, plus edge segments with edge ids. The renderer (`app/src/view/viewport.ts`) uploads one geometry per definition, not per object, and draws each placement of it with three draw calls: front faces, back faces (in SketchUp's blue-gray) and edges. Loose geometry in the root, even 2,000 boxes, is those three draw calls. Instances of a definition share its geometry, each with its own matrix. When there are many instances of the same definition we will switch to `InstancedMesh` or `BatchedMesh`.
 
-Buffers are rebuilt only for definitions changed by a transaction, and faces keep their triangulation cached, so a rebuild is a memory copy, not re-triangulation.
+Faces keep their triangulation cached, so building buffers is a memory copy, not re-triangulation. Today every definition's buffers are rebuilt after each change. On the 2,000-box stress model (12,000 faces) that takes about 10 ms, and a full push/pull preview step (kernel, buffers, inference) about 17 ms. Rebuilding only the definitions a transaction touched, and updating buffer ranges in place, are the next steps when models outgrow that.
 
-**Picking is separate from drawing.** Picking runs on the CPU over the same buffers, in world space, using a bounding-volume hierarchy built per definition (today it is a flat array scan with bounding-box rejection, which is fast enough for the stress test). A pick returns `{instance path, face id or edge id, point}`. Keeping picking out of the GPU makes it testable, independent of the draw style (x-ray, hidden faces), and usable by inference, which needs edges and vertices as well as faces. A GPU id-buffer can be added later as an accelerator.
+**Picking is separate from drawing.** Picking runs on the CPU over the same buffers, flattened to world space (`app/src/view/scene.ts`). Face picks are an allocation-free ray–triangle scan, about 0.4 ms on the stress model. Edge and point inference scan a screen-space copy of every edge end, cached until the camera moves. A bounding-volume hierarchy per definition is the next step for bigger models. A pick returns `{item (placement), face or edge id, point}`. The item says whether it is editable geometry or an instance to select as a whole. Keeping picking out of the GPU makes it testable, independent of the draw style (x-ray, hidden faces), and usable by inference, which needs edges and vertices as well as faces. A GPU id-buffer can be added later as an accelerator.
 
 **Overlays** (hover highlight, selection, previews, inference markers) are small separate meshes or DOM elements over the canvas, rebuilt only when they change.
 
@@ -202,28 +213,29 @@ Buffers are rebuilt only for definitions changed by a transaction, and faces kee
 ```ts
 interface Tool {
   id: string;
-  hint(): string;                       // status bar text for the current step
-  vcbLabel(): string;                   // "Length", "Distance", "Dimensions"
-  activate(): void;
-  deactivate(): void;                   // must cancel and abort any preview
-  pointerMove(e: ToolPointer): void;
-  pointerDown(e: ToolPointer): void;
-  pointerUp(e: ToolPointer): void;      // click-move-click and drag both work
-  key(e: KeyboardEvent): boolean;       // true if handled (arrow locks, Esc)
-  vcb(text: string): void;              // typed value, during or after the op
+  hint(): string;                          // status bar text for the current step
+  vcbLabel(): string;                      // "Length", "Distance", "Dimensions"
+  busy(): boolean;                         // an operation is in progress
+  deactivate(): void;                      // must cancel and abort any preview
+  move(p: ToolPointer): void;
+  down(p: ToolPointer): void;
+  up(p: ToolPointer, dragged: boolean): void; // click-move-click and drag both work
+  doubleClick?(p: ToolPointer): void;
+  key?(key: string, shift: boolean): boolean; // true if handled (Esc)
+  vcb(text: string): void;                 // typed value, during or after the op
 }
 ```
 
-Tools never touch Three.js or the kernel's internals directly. They get a context object with the camera ray, the inference engine, the kernel wrapper, the overlay API and the Measurements box. Live previews use `begin` / `abort`, and finishing uses `commit`. Every tool gets undo, cancel and preview behavior the same way.
+Tools never touch Three.js or the DOM. They get a `ToolHost` (`app/src/tools/tool.ts`) with the model, the active context, the camera model, the inference engine, the selection, and calls to show an overlay (plain data: segments, fill, dimension labels, the inference marker) and set the Measurements box. The tests drive every tool through a headless `ToolHost` against the real WebAssembly kernel. Live previews use `begin` / `abort`, and finishing uses `commit`. Every tool gets undo, cancel and preview behavior the same way.
 
 **One inference engine** serves every tool. Given the cursor, the camera, an optional anchor point (the start of the current line) and an optional plane, it returns the best candidate by priority:
 
-1. Point inferences: endpoint, midpoint, origin (and later intersection, center, guide point). Screen-space radius around 12 px.
-2. Linear inferences from the anchor: along the red, green and blue axes (and later parallel and perpendicular to a referenced edge), and "from point" alignment with the last hovered point.
+1. Point inferences: endpoint, midpoint, origin (later also intersection, center and guide point). Screen-space radius of 12 px. Points hidden behind faces are skipped.
+2. Linear inferences from the anchor: along the red, green and blue axes. Next come parallel and perpendicular to a referenced edge, and "from point" alignment with the last hovered point.
 3. On edge, on face.
-4. Ground plane, or the tool's working plane.
+4. The tool's working plane, or the ground.
 
-Each result carries a kind, a color and a label (`Endpoint`, `On Blue Axis`, `On Face`), which the overlay shows like SketchUp's markers. **Locks:** Right/Left/Up arrows lock to the red/green/blue axis, and Shift locks the current linear inference. The engine is pure TypeScript with no Three.js dependency, over a small "scene query" interface, so it is unit-tested without a browser.
+Each result carries a kind, a color and a label (`Endpoint`, `On Blue Axis`, `On Face`), which the overlay shows like SketchUp's markers. **Locks:** Right/Left/Up arrows lock to the red/green/blue axis. Down clears the lock (in SketchUp it locks parallel/perpendicular, which comes with that inference). Shift locks the current axis, edge direction or face plane while held. With a lock, hovering any point projects it onto the locked line, which is how you match a height. The engine is pure TypeScript with no Three.js dependency, over a small "scene query" interface, so it is unit-tested without a browser.
 
 **One Measurements box** is shared by all tools. It handles typing without focusing (any digit starts typing), parses `8'6"`, `8' 6"`, `30 1/2"`, `2.4m`, `600mm` and `w, d` pairs, and sends the value to the active tool. After an operation finishes, the tool keeps a "last op" handle, so retyping amends it. That is implemented as undo of the last transaction plus redo with the typed value, which keeps the kernel simple.
 
@@ -250,13 +262,26 @@ Extensions are a big part of why people stay on SketchUp, so the plugin API is d
 
 ## 9. Build, test and run
 
-- `npm run build:kernel` builds `kernel-wasm` for `wasm32-unknown-unknown` and runs `wasm-bindgen --target web` into `app/src/kernel/pkg/`.
+- `npm run build:kernel` builds `kernel-wasm` for `wasm32-unknown-unknown` and runs `wasm-bindgen --target web` into `app/src/kernel/pkg/` (generated, not committed).
 - `npm run dev` starts Vite. `npm run build` produces a static site.
-- `cargo test` runs the kernel tests: lines, welding, splitting, auto faces, holes, face splitting, push/pull in both modes on tilted faces, move, erase and merge, groups, undo/redo, and file round-trips.
-- `npm test` runs Vitest: unit parsing and formatting, inference priority and locks, and integration tests that load the real WebAssembly kernel in Node and drive tools against it.
+- `cargo test` runs the kernel tests: lines, welding, splitting, auto faces, holes, face splitting, push/pull in both modes on tilted faces, openings, move, erase and merge, groups, undo/redo, and file round-trips. Every test checks the full set of topology invariants (`kernel/tests/common/mod.rs`), including that no vertex lies inside an edge it doesn't split. `cargo run --release --example bench` times the stress model.
+- `npm test` runs Vitest: unit parsing and formatting, camera and ray math, inference priority and locks, picking, and tool tests that load the real WebAssembly kernel in Node and drive each tool with screen coordinates.
 - CI (`.github/workflows/ci.yml`) runs `cargo fmt --check`, `cargo clippy`, `cargo test`, the WebAssembly build, `tsc --noEmit` and `npm test` on every push.
 
-## 10. Growing into the full app
+## 10. Status and known limits
+
+Built and tested: the kernel (lines, welding, splitting, auto faces, holes, face splitting and merging, push/pull in both modes on any planar face, openings, move, erase, groups, undo/redo, file format), the inference engine with locks, the Measurements box with retyping, and the Line, Rectangle, Push/Pull, Select, Move, Erase, Orbit and Pan tools, group editing, and save/open.
+
+Known limits, roughly in the order we plan to address them:
+
+- A line that pierces a face (rather than lying in it) does not cut it. That is Intersect Faces, a Core feature still to build.
+- Moved vertices do not weld to geometry they land on. Push/pull does settle its results.
+- Push/pull settling handles faces that land exactly on other faces. Partial overlaps with geometry the extrusion passes through are not intersected.
+- A move that would bend a face is rejected rather than folding the face into triangles.
+- Components (many instances), tags and materials exist in the kernel and file format, but have no UI yet.
+- Vertex and edge lookups are linear scans with bounding-box rejection. A spatial grid will replace them when models grow past the stress test.
+
+## 11. Growing into the full app
 
 | Step | What changes | What stays |
 | --- | --- | --- |

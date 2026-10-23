@@ -1,0 +1,228 @@
+import { describe, expect, it } from "vitest";
+import { ROOT } from "../src/kernel/model";
+import { EraseTool } from "../src/tools/erase";
+import { LineTool } from "../src/tools/line";
+import { MoveTool } from "../src/tools/move";
+import { PushPullTool } from "../src/tools/pushpull";
+import { RectangleTool } from "../src/tools/rectangle";
+import { SelectTool } from "../src/tools/select";
+import { TestHost } from "./toolhost";
+
+/** Draw a 10' × 8' rectangle on the ground and pull it 8' up. */
+function shed(h: TestHost) {
+  const rect = new RectangleTool(h);
+  h.click(rect, [0, 0, 0]);
+  h.hover(rect, [100, 80, 0]);
+  rect.vcb("10', 8'");
+  h.refresh();
+  const pp = new PushPullTool(h);
+  h.click(pp, [60, 48, 0.0]);
+  return { rect, pp };
+}
+
+describe("Rectangle", () => {
+  it("draws a face on the ground from typed dimensions", () => {
+    const h = new TestHost();
+    const rect = new RectangleTool(h);
+    h.click(rect, [0, 0, 0]);
+    expect(rect.busy()).toBe(true);
+    h.hover(rect, [50, 30, 0]);
+    expect(h.vcbText).toBe(`4' 2", 2' 6"`);
+    rect.vcb("10', 8'");
+    expect(rect.busy()).toBe(false);
+    expect(h.model.stats().faces).toBe(1);
+    const face = h.model.buffers(ROOT).faceIds[0];
+    expect(h.model.facePlane(face)!.area).toBeCloseTo(120 * 96);
+  });
+
+  it("resizes the last rectangle when you retype", () => {
+    const h = new TestHost();
+    const rect = new RectangleTool(h);
+    h.click(rect, [0, 0, 0]);
+    h.click(rect, [50, 30, 0]);
+    rect.vcb("6', 4'");
+    const face = h.model.buffers(ROOT).faceIds[0];
+    expect(h.model.facePlane(face)!.area).toBeCloseTo(72 * 48);
+    expect(h.model.stats().faces).toBe(1);
+    h.model.undo();
+    expect(h.model.stats().faces).toBe(0);
+  });
+
+  it("draws on a wall, and the rectangle splits the wall", () => {
+    const h = new TestHost();
+    const { pp } = shed(h);
+    h.hover(pp, [60, 48, 96]);
+    pp.vcb("8'");
+    h.refresh();
+    expect(h.model.stats().faces).toBe(6);
+    const rect = new RectangleTool(h);
+    // Front wall is y = 0. Start a door at x = 40 on the ground line.
+    h.click(rect, [40, 0, 0]);
+    h.hover(rect, [70, 0, 60]);
+    rect.vcb("3', 6' 8\"");
+    expect(h.model.stats().faces).toBe(7);
+  });
+});
+
+describe("Push/Pull", () => {
+  it("pulls a ground rectangle into a box by dragging, matching a typed height", () => {
+    const h = new TestHost();
+    const { pp } = shed(h);
+    expect(pp.busy()).toBe(true);
+    h.hover(pp, [60, 48, 30]);
+    expect(h.vcbText).toMatch(/^2' 6"|2' 5|2' 6/);
+    pp.vcb("8'");
+    expect(pp.busy()).toBe(false);
+    expect(h.model.stats().faces).toBe(6);
+    const s = h.scene();
+    expect(s.max[2]).toBeCloseTo(96);
+  });
+
+  it("aborting a drag leaves the model unchanged", () => {
+    const h = new TestHost();
+    const { pp } = shed(h);
+    const before = h.model.toJson();
+    h.hover(pp, [60, 48, 50]);
+    expect(h.model.stats().faces).toBe(6);
+    pp.key("Escape");
+    expect(h.model.toJson()).toBe(before);
+    expect(h.model.canRedo()).toBe(false);
+  });
+
+  it("retyping changes the last push/pull", () => {
+    const h = new TestHost();
+    const { pp } = shed(h);
+    h.hover(pp, [60, 48, 50]);
+    pp.vcb("4'");
+    h.refresh();
+    expect(h.scene().max[2]).toBeCloseTo(48);
+    pp.vcb("7'");
+    h.refresh();
+    expect(h.scene().max[2]).toBeCloseTo(84);
+    h.model.undo();
+    expect(h.model.stats().faces).toBe(1);
+  });
+
+  it("double-click repeats the last distance on another face", () => {
+    const h = new TestHost();
+    const { pp } = shed(h);
+    h.hover(pp, [60, 48, 50]);
+    pp.vcb("2'");
+    h.refresh();
+    pp.doubleClick!(h.at([60, 48, 24]));
+    h.refresh();
+    expect(h.scene().max[2]).toBeCloseTo(48);
+  });
+});
+
+describe("Line", () => {
+  it("closes a triangle into a face and ends the chain", () => {
+    const h = new TestHost();
+    const line = new LineTool(h);
+    h.click(line, [0, 0, 0]);
+    h.hover(line, [30, 0, 0]);
+    line.vcb("5'");
+    expect(line.busy()).toBe(true);
+    h.click(line, [30, 40, 0]);
+    h.click(line, [0, 0, 0]);
+    expect(h.model.stats().faces).toBe(1);
+    expect(line.busy()).toBe(false);
+  });
+
+  it("draws along a locked axis", () => {
+    const h = new TestHost();
+    const line = new LineTool(h);
+    h.click(line, [0, 0, 0]);
+    h.inference.toggleAxisLock(2);
+    h.hover(line, [40, 10, 50]);
+    line.vcb("4'");
+    const e = h.model.edgeInfo(h.scene().segEdge[0])!;
+    expect(e.b[0]).toBeCloseTo(0);
+    expect(e.b[1]).toBeCloseTo(0);
+    expect(Math.max(e.a[2], e.b[2])).toBeCloseTo(48);
+  });
+});
+
+describe("Select, Move, Erase and groups", () => {
+  function box(h: TestHost) {
+    const { pp } = shed(h);
+    h.hover(pp, [60, 48, 50]);
+    pp.vcb("8'");
+    h.refresh();
+  }
+
+  it("moves a selected top face up, stretching the box", () => {
+    const h = new TestHost();
+    box(h);
+    const sel = new SelectTool(h);
+    h.click(sel, [60, 48, 96]);
+    expect(h.selection.items).toEqual([{ kind: "face", id: expect.any(Number) }]);
+    const mv = new MoveTool(h);
+    h.click(mv, [60, 48, 96]);
+    h.hover(mv, [60, 48, 110]);
+    mv.vcb("1'");
+    h.refresh();
+    expect(h.scene().max[2]).toBeCloseTo(108);
+    expect(h.model.stats().faces).toBe(6);
+  });
+
+  it("window-selects, groups, and moves the group along an axis", () => {
+    const h = new TestHost();
+    box(h);
+    const sel = new SelectTool(h);
+    const all = [[0, 0, 0], [120, 0, 0], [120, 96, 0], [0, 96, 0], [0, 0, 96], [120, 0, 96], [120, 96, 96], [0, 96, 96]].map((p) => h.camera.project(p as [number, number, number])!);
+    const x0 = Math.min(...all.map((s) => s.x)) - 10, x1 = Math.max(...all.map((s) => s.x)) + 10;
+    const y0 = Math.min(...all.map((s) => s.y)) - 10, y1 = Math.max(...all.map((s) => s.y)) + 10;
+    const ptr = (x: number, y: number) => ({ x, y, shift: false, ctrl: false, alt: false });
+    sel.down(ptr(x0, y0));
+    sel.move(ptr(x1, y1));
+    sel.up(ptr(x1, y1), true);
+    expect(h.selection.ids("face").length).toBe(6);
+    expect(h.selection.ids("edge").length).toBe(12);
+    const g = h.model.transact("Make Group", () => h.model.makeGroup(ROOT, h.selection.ids("face"), h.selection.ids("edge"), []));
+    h.refresh();
+    h.selection.set([{ kind: "instance", id: g }]);
+    const mv = new MoveTool(h);
+    h.click(mv, [0, 0, 0]);
+    h.hover(mv, [50, 0, 0]);
+    mv.vcb("10'");
+    expect(h.model.instances(ROOT)[0].transform.slice(12, 15)).toEqual([120, 0, 0]);
+  });
+
+  it("edits inside a group without touching outside geometry", () => {
+    const h = new TestHost();
+    box(h);
+    const faces = [...new Set(h.scene().triFace)];
+    const g = h.model.transact("Make Group", () => h.model.makeGroup(ROOT, faces, [...h.scene().segEdge], []));
+    h.refresh();
+    const sel = new SelectTool(h);
+    sel.doubleClick!(h.at([60, 48, 96]));
+    expect(h.ctx).toBe(h.model.instanceInfo(g)!.definition);
+    const pp = new PushPullTool(h);
+    h.click(pp, [60, 48, 96]);
+    h.hover(pp, [60, 48, 100]);
+    pp.vcb("1'");
+    h.refresh();
+    expect(h.scene().max[2]).toBeCloseTo(108);
+    sel.key!("Escape");
+    expect(h.ctx).toBe(ROOT);
+  });
+
+  it("erasing the line across a face merges it back", () => {
+    const h = new TestHost();
+    const rect = new RectangleTool(h);
+    h.click(rect, [0, 0, 0]);
+    rect.vcb("10', 8'");
+    h.refresh();
+    const line = new LineTool(h);
+    h.click(line, [60, 0, 0]);
+    h.click(line, [60, 96, 0]);
+    h.refresh();
+    expect(h.model.stats().faces).toBe(2);
+    const er = new EraseTool(h);
+    h.click(er, [60, 48, 0]);
+    h.refresh();
+    expect(h.model.stats().faces).toBe(1);
+    expect(h.model.stats().edges).toBe(4);
+  });
+});

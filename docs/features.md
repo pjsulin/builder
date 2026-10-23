@@ -49,7 +49,7 @@ Users don't praise SketchUp for its feature count. They praise a small number of
 | Feature | Tier | Notes |
 | --- | --- | --- |
 | Line (chained, closing loops makes faces) | Core | Built now. |
-| Rectangle on ground or on any face | Core | Built now. Includes the "square" and "golden section" hints. |
+| Rectangle on ground or on any face | Core | Built now, with the "square" hint. The "golden section" hint is next. |
 | Rotated rectangle (three-point) | Core | |
 | Circle and polygon (segmented, with segment count in the VCB) | Core | Stored as an edge "curve" so it selects as one item. |
 | Arc (two-point, three-point, pie) | Core | Same curve object. |
@@ -78,7 +78,7 @@ Users don't praise SketchUp for its feature count. They praise a small number of
 
 | Feature | Tier | Notes |
 | --- | --- | --- |
-| Inference engine (point, linear and from-point inferences) | Core | Built now: endpoint, midpoint, on edge, on face, origin, axes from the anchor. |
+| Inference engine (point, linear and from-point inferences) | Core | Built now: endpoint, midpoint, on edge, on face, origin, axes from the anchor. Parallel, perpendicular and from-point come next. |
 | Inference locks (arrow keys, Shift) | Core | Built now. |
 | Measurements box with imperial and metric parsing and retyping | Core | Built now. |
 | Tape Measure and guide lines and points | Core | |
@@ -128,7 +128,7 @@ Users don't praise SketchUp for its feature count. They praise a small number of
 
 | Feature | Tier | Notes |
 | --- | --- | --- |
-| Native open file format with save and open | Core | Built now. See `docs/architecture.md`. |
+| Native open file format with save and open | Core | Built now. See `docs/file-format.md`. |
 | Autosave and recovery | Core | |
 | Export glTF/GLB, OBJ, STL | Core | glTF for web and AR, STL for 3D printing, OBJ for everything. |
 | Import OBJ, STL, glTF | Core | As triangle meshes, merged into planar faces where coplanar. |

@@ -79,3 +79,14 @@ fn metric_files_are_converted_to_inches() {
     let d = Document::from_json(mm).unwrap();
     assert!(d.find_vertex(ROOT, v(10.0, 0.0, 0.0)).is_some());
 }
+
+#[test]
+fn instance_cycles_are_rejected() {
+    let cyclic = r#"{"format":"builder","version":1,"units":"inch","definitions":[
+        {"name":"Model","kind":"root"},{"name":"A","kind":"group"},{"name":"B","kind":"group"}],
+        "instances":[
+          {"definition":1,"parent":0,"transform":[1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1]},
+          {"definition":2,"parent":1,"transform":[1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1]},
+          {"definition":1,"parent":2,"transform":[1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1]}]}"#;
+    assert!(Document::from_json(cyclic).unwrap_err().to_string().contains("contains itself"));
+}

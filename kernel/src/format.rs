@@ -218,6 +218,12 @@ impl Document {
             if fi.definition >= ndef || fi.parent >= ndef || fi.definition == 0 {
                 return Err(Error::Format("instance refers to a missing definition".into()));
             }
+        }
+        if has_cycle(ndef as usize, file.instances.iter().map(|i| (i.parent as usize, i.definition as usize)))
+        {
+            return Err(Error::Format("a definition contains itself".into()));
+        }
+        for fi in &file.instances {
             let t: Mat4 = fi
                 .transform
                 .clone()
@@ -238,4 +244,28 @@ impl Document {
         doc.clear_history();
         Ok(doc)
     }
+}
+
+/// True if the parent → child definition graph has a cycle.
+fn has_cycle(n: usize, links: impl Iterator<Item = (usize, usize)>) -> bool {
+    let mut children = vec![Vec::new(); n];
+    for (p, c) in links {
+        children[p].push(c);
+    }
+    // 0 = unvisited, 1 = on the current path, 2 = done.
+    let mut state = vec![0u8; n];
+    fn visit(d: usize, children: &[Vec<usize>], state: &mut [u8]) -> bool {
+        match state[d] {
+            1 => return true,
+            2 => return false,
+            _ => {}
+        }
+        state[d] = 1;
+        if children[d].iter().any(|&c| visit(c, children, state)) {
+            return true;
+        }
+        state[d] = 2;
+        false
+    }
+    (0..n).any(|d| visit(d, &children, &mut state))
 }

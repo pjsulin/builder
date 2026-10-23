@@ -45,6 +45,8 @@ export interface Inference {
   edge?: { item: number; id: number; a: Vec3; b: Vec3 };
   /** True when the result came from a lock (arrow keys or Shift). */
   locked?: boolean;
+  /** A point elsewhere that this result was aligned with (e.g. a matched height). */
+  ref?: { point: Vec3; kind: InferenceKind };
 }
 
 export interface InferOptions {
@@ -148,6 +150,7 @@ export class InferenceEngine {
     if (line) {
       let t = lineRayParam(line.origin, line.dir, ray);
       let label = "";
+      const ref = snap ? { point: snap.point, kind: snap.kind } : undefined;
       if (snap) {
         t = dot(sub(snap.point, line.origin), line.dir) / dot(line.dir, line.dir);
         label = `${snap.label} · matched`;
@@ -157,9 +160,9 @@ export class InferenceEngine {
       const locked = !opts.line;
       if (locked && this.lockAxis !== null) {
         label = label || `On ${AXIS_NAMES[this.lockAxis]} Axis`;
-        return { point, kind: "axis", axis: this.lockAxis, from: line.origin, label, locked };
+        return { point, kind: "axis", axis: this.lockAxis, from: line.origin, label, locked, ref };
       }
-      return { point, kind: "line", from: line.origin, label: label || (locked ? "Locked" : ""), locked };
+      return { point, kind: "line", from: line.origin, label: label || (locked ? "Locked" : ""), locked, ref };
     }
 
     const plane = opts.plane ?? this.lockPlane ?? undefined;

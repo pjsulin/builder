@@ -1,7 +1,7 @@
 // Picking whole entities (faces, edges, groups) for Select, Move and Erase.
 
 import type { Entity } from "../kernel/model";
-import { dist } from "../math";
+import { dist, lineRayParam, madd, sub } from "../math";
 import type { CameraModel } from "../view/camera";
 import type { SceneIndex } from "../view/scene";
 
@@ -29,10 +29,11 @@ export function pickEntity(scene: SceneIndex, cam: CameraModel, x: number, y: nu
     const t = l2 > 0 ? Math.min(1, Math.max(0, ((x - ax) * dx + (y - ay) * dy) / l2)) : 0;
     const d = Math.hypot(x - (ax + dx * t), y - (ay + dy * t));
     if (!(d <= EDGE_PX) || (best && d >= best.d)) continue;
+    // The 3D point under the cursor (perspective-correct, unlike the screen t).
     const pa = scene.segEnd(s, 0);
-    const pb = scene.segEnd(s, 1);
-    const p: [number, number, number] = [pa[0] + (pb[0] - pa[0]) * t, pa[1] + (pb[1] - pa[1]) * t, pa[2] + (pb[2] - pa[2]) * t];
-    if (dist(ray.origin, p) > visibleDepth) continue;
+    const u = sub(scene.segEnd(s, 1), pa);
+    const k = Math.min(1, Math.max(0, lineRayParam(pa, u, ray) ?? t));
+    if (dist(ray.origin, madd(pa, u, k)) > visibleDepth) continue;
     best = { s, d };
   }
   if (best) return entityFor(scene, scene.segItem[best.s], { kind: "edge", id: scene.segEdge[best.s] });
