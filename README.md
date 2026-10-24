@@ -72,7 +72,7 @@ prototype/     the original single-file prototype
 - [docs/features.md](docs/features.md): a feature survey of SketchUp and other building tools, tagged Core, Later or Full app, and the behaviors that make SketchUp feel easy.
 - [docs/architecture.md](docs/architecture.md): the kernel, document model, file format, rendering, tools and inference, plugins and license, plus current limits.
 - [docs/file-format.md](docs/file-format.md): the `.builder` format specification.
-- [docs/roadmap.md](docs/roadmap.md): the prioritized plan to a workable application.
+- [docs/roadmap.md](docs/roadmap.md): the prioritized plan to a workable application, split into sprints in [docs/sprints.md](docs/sprints.md).
 - [HANDOFF.md](HANDOFF.md): where the project came from.
 
 ## License

@@ -8,7 +8,7 @@ The order follows three rules:
 2. **Then the tools every project needs.** Copy, Rotate, Offset and curves are on the critical path for sheds, decks and furniture alike.
 3. **Then getting the result out.** Exports, measurements and printable views are why people model in the first place.
 
-Sizes are rough guesses for one developer: **S** ≈ 1–2 days, **M** ≈ 1 week, **L** ≈ 2–3 weeks. Status is tracked in `docs/features.md`.
+Sizes are rough guesses for one developer: **S** ≈ 1–2 days, **M** ≈ 1 week, **L** ≈ 2–3 weeks. Status is tracked in `docs/features.md`. The milestones are split into two-week sprints in [sprints.md](sprints.md).
 
 ## Milestone 1: Safe and solid
 
@@ -98,4 +98,4 @@ These come from the Later and Full app tiers in `docs/features.md`. Their order 
 
 ## Rough total
 
-Milestones 1–4 are about 4–6 months for one developer, or about half that for two working in parallel on the kernel (1.2–1.5, 2.5) and the app (1.1, 1.6, 2.1–2.4, Milestone 3). After Milestone 4, Builder covers what most people use SketchUp Free for.
+Milestones 1–4 are about 4–6 months for one developer (13 two-week sprints in `sprints.md`, with some slack), or about half that for two working in parallel on the kernel (1.2–1.5, 2.5) and the app (1.1, 1.6, 2.1–2.4, Milestone 3). After Milestone 4, Builder covers what most people use SketchUp Free for.
