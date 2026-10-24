@@ -166,6 +166,8 @@ export class InferenceEngine {
     }
 
     const plane = opts.plane ?? this.lockPlane ?? undefined;
+    // Only say "Locked" when the Shift lock is what's constraining the point.
+    const fromLock = !opts.plane && !!this.lockPlane;
     const onPlane = (p: Vec3) => (plane ? projectToPlane(p, plane) : p);
 
     if (snap) return { ...snap, point: onPlane(snap.point) };
@@ -186,7 +188,7 @@ export class InferenceEngine {
       const onSameFace = hit && Math.abs(dot(plane.normal, hit.point) - plane.d) < 1e-3;
       return onSameFace
         ? { point: p, kind: "onFace", label: "On Face", face: hit! }
-        : { point: p, kind: "plane", label: this.lockPlane ? "Locked" : "", locked: !!this.lockPlane };
+        : { point: p, kind: "plane", label: fromLock ? "Locked" : "", locked: fromLock };
     }
     if (hit) return { point: hit.point, kind: "onFace", label: "On Face", face: hit };
     const g = rayPlane(ray, { normal: [0, 0, 1], d: 0 });

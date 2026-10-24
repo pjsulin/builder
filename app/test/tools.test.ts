@@ -8,6 +8,13 @@ import { RectangleTool } from "../src/tools/rectangle";
 import { SelectTool } from "../src/tools/select";
 import { TestHost } from "./toolhost";
 
+/** Faces on the front wall plane (y = 0) facing out. */
+function wallFaces(h: TestHost): number {
+  return [...new Set(h.model.buffers(ROOT).faceIds)]
+    .map((f) => h.model.facePlane(f)!)
+    .filter((p) => p.normal[1] < -0.99 && Math.abs(p.d) < 1e-6).length;
+}
+
 /** Draw a 10' × 8' rectangle on the ground and pull it 8' up. */
 function shed(h: TestHost) {
   const rect = new RectangleTool(h);
@@ -56,11 +63,39 @@ describe("Rectangle", () => {
     h.refresh();
     expect(h.model.stats().faces).toBe(6);
     const rect = new RectangleTool(h);
-    // Front wall is y = 0. Start a door at x = 40 on the ground line.
-    h.click(rect, [40, 0, 0]);
+    // Front wall is y = 0. Start a door at x = 40 on its bottom edge.
+    h.click(rect, [40, 0, 0.5]);
+    expect(h.inference.last?.kind).toBe("onEdge");
     h.hover(rect, [70, 0, 60]);
     rect.vcb("3', 6' 8\"");
     expect(h.model.stats().faces).toBe(7);
+    expect(wallFaces(h)).toBe(2); // the wall and the door, both facing out
+  });
+
+  it("starting on a corner of a wall rectangle stays on the wall", () => {
+    const h = new TestHost();
+    const { pp } = shed(h);
+    h.hover(pp, [60, 48, 96]);
+    pp.vcb("8'");
+    h.refresh();
+    const rect = new RectangleTool(h);
+    h.click(rect, [40, 0, 0.5]);
+    h.hover(rect, [70, 0, 60]);
+    rect.vcb("3', 6' 8\"");
+    h.refresh();
+    expect(wallFaces(h)).toBe(2);
+    // Start on the door's top-right corner (an endpoint, not a face) and drag
+    // down and right across the wall, as in the reported bug.
+    h.click(rect, [76, 0, 80]);
+    expect(h.inference.last?.kind).toBe("endpoint");
+    h.hover(rect, [100, 0, 20]);
+    rect.vcb("2', 5'");
+    h.refresh();
+    const normals = [...new Set(h.model.buffers(ROOT).faceIds)].map((f) => h.model.facePlane(f)!.normal);
+    const horizontal = normals.filter((n) => Math.abs(n[2]) > 0.99);
+    expect(horizontal.length).toBe(2); // only the floor and the roof
+    expect(h.model.stats().faces).toBe(8); // the wall split again
+    expect(wallFaces(h)).toBe(3);
   });
 });
 

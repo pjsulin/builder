@@ -3,6 +3,9 @@ import { add, dot, madd, planeBasis, planeFrom, scale, sub, type Plane, type Vec
 import { parseLengths } from "../units";
 import { errorMessage, type Tool, type ToolHost, type ToolPointer } from "./tool";
 
+/** How close (inches) a start point must be to a face's plane to draw on that face. */
+const ON_PLANE = 0.01;
+
 interface RectPlane {
   plane: Plane;
   u: Vec3;
@@ -43,9 +46,21 @@ export class RectangleTool implements Tool {
     this.host.show({});
   }
 
-  /** The plane a rectangle starting at this inference would lie in. */
-  private planeFor(r: Inference): RectPlane {
-    const normal: Vec3 = r.face ? r.face.normal : [0, 0, 1];
+  /**
+   * The plane a rectangle starting at this inference would lie in: the face it is
+   * on, a plane locked with Shift, or the face under the cursor when the start
+   * snapped to a corner or edge of that face. Only with no face at all does it lie
+   * flat (horizontal) at the start point's height.
+   */
+  private planeFor(r: Inference, p: ToolPointer): RectPlane {
+    let normal: Vec3 = [0, 0, 1];
+    const locked = this.host.inference.lockPlane;
+    if (r.face) normal = r.face.normal;
+    else if (locked && Math.abs(dot(locked.normal, r.point) - locked.d) < ON_PLANE) normal = locked.normal;
+    else {
+      const hit = this.host.scene().pick(this.host.camera.ray(p.x, p.y), (it) => it.active);
+      if (hit && Math.abs(dot(hit.normal, sub(r.point, hit.point))) < ON_PLANE) normal = hit.normal;
+    }
     const plane = planeFrom(r.point, normal);
     const [u, v] = planeBasis(plane.normal);
     return { plane, u, v };
@@ -57,7 +72,7 @@ export class RectangleTool implements Tool {
       const r = inference.infer(p.x, p.y);
       if (!r) return this.host.show({});
       this.hoverPoint = r.point;
-      this.hoverPlane = this.planeFor(r);
+      this.hoverPlane = this.planeFor(r, p);
       this.host.show({ inference: r, hover: r.face ? { item: r.face.item, face: r.face.face } : null });
       return;
     }
