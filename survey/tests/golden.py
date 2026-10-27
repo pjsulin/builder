@@ -63,11 +63,16 @@ def main():
              for p in args.extra_plan]
     allbad = []
     for label, extra, out in runs:
-        r = subprocess.run(["uv", "run", "--project", str(args.project / "survey"), "survey",
-                            "build", "--project", str(proj), *extra],
-                           capture_output=True, text=True)
+        cmd = ["uv", "run", "--project", str(args.project / "survey"), "survey",
+               "build", "--project", str(proj), *extra]
+        r = subprocess.run(cmd, capture_output=True, text=True)
         if r.returncode:
-            sys.exit(f"{label}: build failed\n{r.stdout}\n{r.stderr}")
+            # matplotlib's 3D preview has failed about once in 100 builds ("Axis limits
+            # cannot be NaN or Inf"); a real error fails again, so retry once and say so.
+            print(f"{label}: build failed, retrying once:\n{r.stderr.strip().splitlines()[-1]}")
+            r = subprocess.run(cmd, capture_output=True, text=True)
+            if r.returncode:
+                sys.exit(f"{label}: build failed\n{r.stdout}\n{r.stderr}")
         gold = args.golden / label
         names, bad = diff_dirs(label, gold, out)
         allbad += bad
