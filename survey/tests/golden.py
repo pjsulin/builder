@@ -70,12 +70,7 @@ def main():
                "build", "--project", str(proj), *extra]
         r = subprocess.run(cmd, capture_output=True, text=True)
         if r.returncode:
-            # matplotlib's 3D preview has failed about once in 100 builds ("Axis limits
-            # cannot be NaN or Inf"); a real error fails again, so retry once and say so.
-            print(f"{label}: build failed, retrying once:\n{r.stderr.strip().splitlines()[-1]}")
-            r = subprocess.run(cmd, capture_output=True, text=True)
-            if r.returncode:
-                sys.exit(f"{label}: build failed\n{r.stdout}\n{r.stderr}")
+            sys.exit(f"{label}: build failed\n{r.stdout}\n{r.stderr}")
         gold = args.golden / label
         names, bad = diff_dirs(label, gold, out)
         allbad += bad

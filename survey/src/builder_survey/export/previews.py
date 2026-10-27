@@ -40,7 +40,13 @@ def write_previews(out, elements):
     fig.savefig(out / "plan.png", dpi=110, bbox_inches="tight")
     plt.close(fig)
 
-    # Axonometric
+    # Axonometric. autolim=False on every collection: Poly3DCollection pads a
+    # ragged face list (the 24/32-gon pipe tops with 4-gon sides) with
+    # np.empty, i.e. uninitialised memory, and add_collection3d's autolim
+    # feeds the padding into the data limits. A stale value above ~1.76e308
+    # overflows the 1/48 view margin to inf and set_zlim raises "Axis limits
+    # cannot be NaN or Inf" (seen ~1 build in 100 on Linux). The limits are
+    # set below from the real corners, so autolim has nothing to add.
     fig = plt.figure(figsize=(11, 9))
     ax = fig.add_subplot(projection="3d")
     lo, hi = [1e9] * 3, [-1e9] * 3
@@ -54,17 +60,19 @@ def write_previews(out, elements):
                 faces = [bot, top] + [[bot[i], bot[(i + 1) % n], top[(i + 1) % n], top[i]]
                                       for i in range(n)]
                 ax.add_collection3d(Poly3DCollection(
-                    faces, facecolor=rgb(el["material"], 0.85), edgecolor=(0, 0, 0, 0.3), lw=0.3))
+                    faces, facecolor=rgb(el["material"], 0.85), edgecolor=(0, 0, 0, 0.3), lw=0.3),
+                    autolim=False)
                 corners = bot + top
             elif p["kind"] == "mesh":
                 v = p["verts"]
                 ax.add_collection3d(Poly3DCollection(
                     [[v[i] for i in t] for t in p["tris"]], facecolor=rgb(el["material"], 0.85),
-                    edgecolor="none"))
+                    edgecolor="none"), autolim=False)
                 corners = v
             else:
                 ax.add_collection3d(Line3DCollection([[p["a"], p["b"]]],
-                                                     colors=[rgb(el["material"])], lw=2))
+                                                     colors=[rgb(el["material"])], lw=2),
+                                     autolim=False)
                 corners = [p["a"], p["b"]]
             for c in corners:
                 for i in range(3):
