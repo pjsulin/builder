@@ -81,7 +81,7 @@ Nine phases, each about a day or more and each one commit. Phases 1–2 make `su
 - **Files:**
   - Create: survey/tests/test_project.py
 - **Context:** [spec.md§Validation Criteria](spec.md#validation-criteria)
-- **Description:** Add unit tests for the stem slug, out-dir precedence and the material merge. Run golden on a scratch copy of 20SPierson that has `output_stem: basement` and the `materials:` snippet. Expected differences: `mesh.json` (kind, material table) and the Blender materials. Send the snippet and the list of differences to the 20SPierson conversation.
+- **Description:** Add unit tests for the stem slug, out-dir precedence and the material merge. Run golden on a scratch copy of 20SPierson that has `output_stem: basement` and the `materials:` snippet. Expected differences: `mesh.json` (kind, material table). Run `survey render` (Blender is on this Mac) on the scratch copy to confirm `basement.blend` builds with the materials from the table. Send the snippet and the list of differences to the 20SPierson conversation.
 
 #### Task 1.6: README for settings and materials
 
@@ -363,9 +363,10 @@ Nine phases, each about a day or more and each one commit. Phases 1–2 make `su
 - **Dependencies:** [7.1]
 - **Files:**
   - Create: app/test/plan-export.test.ts
+  - Create: survey/tests/fixtures/plan_export.yaml
   - Create: survey/tests/test_plan_roundtrip.py
 - **Context:** [spec.md§Validation Criteria](spec.md#validation-criteria)
-- **Description:** In TS: a box, a rotated box and a non-box give one entry and two skipped. In Python: the exported YAML for a known box builds through `apply_plan` + `build_objects` to the same corner and size.
+- **Description:** In TS: a box, a rotated box and a non-box give one entry and two skipped, and the YAML equals the shared fixture. In Python: that same fixture builds through `apply_plan` + `build_objects` to the box's corner and size.
 
 #### Task 7.4: Document the export
 
@@ -478,3 +479,14 @@ Document tasks make doc updates visible to close Gate 4.
 ## Completion
 
 Closed by `/close`.
+
+## Plan Review
+
+**Reviewed:** 2026-10-27
+
+- [x] Requirements to Spec traced
+- [x] Spec to Plan traced
+- [x] Proposed ADRs checked against accepted
+- [x] Checklist passed (1 warning accepted: `test.command` is unset in `.flux/config.yaml`; tests run by the commands in spec.md Validation Criteria)
+
+**Plan Status:** Ready for implementation

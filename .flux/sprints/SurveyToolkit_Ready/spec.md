@@ -1783,7 +1783,7 @@ impl Document {
     pub fn set_tag_flags(&mut self, tag: TagId, visible: bool, locked: bool) -> Result<(), Error>;
     pub fn is_locked_def(&self, def: DefId) -> bool;    // any instance of def (or an ancestor) on a locked tag
 }
-// error.rs / lib.rs
+// lib.rs
 pub enum Error { /* existing */ Locked, Attribute(String) }
 // Locked check at entry of: add_line, push_pull, move_vertices, erase, erase_instance,
 // make_group, explode, set_transform (by the target definition / instance)
@@ -1905,6 +1905,7 @@ if (skipped.length) app.flash(`Not exported: ${skipped.join(", ")}`);
 
 ```bash
 cargo test --workspace                 # attribute round-trip, undo, lock refusals, format v1 compat
+uv run --project survey pytest survey/tests   # stem, materials, part -> faces, plan round trip, capture
 npm test                               # scene tag/material colour, survey mode, plan export
 npx tsc --noEmit
 cd ../20SPierson && uv run survey build --project . && uv run survey build --project . --plan testplan
