@@ -1,0 +1,40 @@
+description: synthetic golden-master plan (not project data)
+add:
+  layout:
+    fixtures:
+      vanity:
+        type: box
+        material: wood
+        size: [30", 21"]
+        west: bathroom.west + 4"
+        south: bathroom.south - 4"
+        z: [laundry_floor, laundry_floor + 34"]
+      sauna:
+        type: sauna
+        size: [51", 74"]
+        west: garage.west + 12"
+        north: garage.north + 12"
+        facing: south
+        wall: 2"
+        door: {from_left: 6", width: 24", height: 70"}
+        window: {from_right: 6", width: 12", bottom: 30", height: 30"}
+        benches: [{top: 18", depth: 20"}, {top: 36", depth: 20"}]
+        z: [base_slab, base_slab + 84"]
+      shelf:
+        type: shelving
+        size: [48", 18"]
+        west: garage.west + 80"
+        north: garage.north + 12"
+        facing: south
+        post: 1.5"
+        board: 1"
+        caster: 3"
+        shelves: [20", 40"]
+        z: [base_slab, base_slab + 60"]
+    doors:
+      new_door: {room: bathroom, side: south, west: bathroom.west + 3', width: 30", height: 6'8"}
+  cameras:
+    vanity_view: {at: [27', 22', 5'], look_at: [24', 30', 4'], lens: 18}
+remove:
+  - pipes.laundry_main
+  - layout.doors.garage_laundry
