@@ -19,289 +19,18 @@ A plan (plans/NAME.yaml, see apply_plan) layers onto the spec:
 """
 import json
 import math
-import re
 import sys
-from pathlib import Path
 
 import yaml
 
 from .project import Project
-
-MATERIALS = {  # name -> RGB
-    "block": (190, 190, 185),
-    "framed": (235, 225, 205),
-    "slab": (160, 160, 160),
-    "wood": (200, 160, 110),
-    "joist": (200, 160, 110),          # old floor framing; dark brown in renders
-    "sauna_wood": (225, 195, 150),
-    "glass": (200, 225, 235),
-    "glow": (255, 190, 110),           # LED strips; emit light in renders
-    "white_paint": (240, 240, 235),    # painted wood: stairs, window sashes, doors
-    "rubber": (35, 35, 35),            # stair tread covers
-    "pine": (230, 195, 140),           # clear-finished pine (panel cabinet doors)
-    "walnut": (110, 70, 40),           # garage shelving boards
-    "iron": (25, 25, 25),              # black iron (garage shelving frame)
-    "landscape_block": (185, 170, 145),  # patio steps: tan split-face block, grey caps
-    "grass": (95, 140, 70),            # lawn
-    "flagstone": (150, 140, 125),      # big flat rocks (under the solarium stairs)
-    "enamel": (238, 238, 234),         # white appliance enamel
-    "appliance_grey": (150, 155, 160), # washer console
-    "boiler_green": (30, 90, 55),      # Williamson boiler jacket
-    "wh_jacket": (200, 200, 195),      # water heater jacket
-    "object": (120, 140, 160),
-    "pipe": (40, 40, 40),              # pipe of unknown material
-    "steel": (60, 60, 65),
-    "copper": (184, 115, 51),
-    "pvc": (235, 235, 230),
-    "cast_iron": (30, 28, 26),
-    "proposed": (90, 150, 220),
-    "placeholder": (255, 140, 0),
-}
-
-LEN_RE = re.compile(
-    r"^\s*(?:(?P<ft>\d+)')?\s*(?:(?P<in>\d+(?:\.\d+)?)?\s*(?:(?P<num>\d+)/(?P<den>\d+))?\s*\")?\s*$"
-)
-
-
-class Missing(Exception):
-    pass
-
-
-class Ctx:
-    """Resolves values and records MISSING / placeholder use for one element."""
-
-    def __init__(self, spec, report, path):
-        self.levels = spec.get("levels", {})
-        self.report = report
-        self.path = path
-        self.placeholder = False
-
-    def len(self, val, field):
-        where = f"{self.path}.{field}"
-        if val is None or val == "MISSING":
-            self.report["missing"].append(where)
-            raise Missing(where)
-        if isinstance(val, (int, float)):
-            return float(val)
-        s = str(val).strip()
-        if s.startswith("~"):
-            self.placeholder = True
-            self.report["placeholder"].append(f"{where} = {s}")
-            s = s[1:]
-        if s in self.levels:
-            return self.len(self.levels[s], f"{field}<{s}>")
-        try:
-            return float(s)
-        except ValueError:
-            pass
-        m = LEN_RE.match(s)
-        if not m or not any(m.group(g) for g in ("ft", "in", "num")):
-            sys.exit(f"Can't read length {val!r} at {where}")
-        inches = float(m.group("ft") or 0) * 12 + float(m.group("in") or 0)
-        if m.group("num"):
-            inches += float(m.group("num")) / float(m.group("den"))
-        return inches
-
-    def pt(self, val, field):
-        if val is None or val == "MISSING":
-            return [self.len(None, field)]
-        return [self.len(v, f"{field}[{i}]") for i, v in enumerate(val)]
-
-
-def xy(east, south):
-    """Spec [east, south] -> SketchUp x (east), y (north)."""
-    return [east, -south]
-
-
-def rect(e0, s0, e1, s1):
-    return [xy(e0, s0), xy(e1, s0), xy(e1, s1), xy(e0, s1)]
-
-
-def prism(pts, z0, z1):
-    return {"kind": "prism", "pts": pts, "z": [z0, z1]}
-
-
-def extrude(profile, to3d, depth):
-    """A solid from a 2D polygon `profile` [(a, b), ...] (may be concave),
-    pushed `depth` along c. to3d(a, b, c) -> spec [east, south, z] must be
-    affine. Used for parts that aren't vertical prisms: sloped stringers and
-    rails, spindles with sloped ends, door and window parts in a wall."""
-    pts = [tuple(p) for p in profile]
-    if _signed_area(pts) < 0:
-        pts.reverse()
-    def sk(a, b, c):                       # -> SketchUp coordinates
-        e, s, z = to3d(a, b, c)
-        return (*xy(e, s), z)
-    o = sk(0, 0, 0)
-    A, B, C = ([q - r for q, r in zip(sk(*u), o)] for u in ((1, 0, 0), (0, 1, 0), (0, 0, 1)))
-    n = len(pts)
-    verts = [sk(a, b, 0) for a, b in pts] + [sk(a, b, depth) for a, b in pts]
-
-    def tri(i, j, k, out):
-        """Wind (i, j, k) so its normal points along `out`."""
-        p, q, r = verts[i], verts[j], verts[k]
-        u = [q[m] - p[m] for m in range(3)]
-        v = [r[m] - p[m] for m in range(3)]
-        nrm = (u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0])
-        return (i, j, k) if sum(x * y for x, y in zip(nrm, out)) > 0 else (k, j, i)
-
-    tris = []
-    for a, b, c in _triangulate(pts):
-        tris += [tri(a, b, c, [-x for x in C]), tri(a + n, b + n, c + n, C)]
-    for i in range(n):
-        j = (i + 1) % n
-        da, db = pts[j][0] - pts[i][0], pts[j][1] - pts[i][1]
-        out = [db * x - da * y for x, y in zip(A, B)]   # outward for a CCW profile
-        tris += [tri(i, j, j + n, out), tri(i, j + n, i + n, out)]
-    return {"kind": "mesh", "verts": verts, "tris": tris}
-
-
-def local_frame(p, facing):
-    """A fixture's own frame: u across its front from the left end (seen
-    standing outside, facing it), v from the front toward the back.
-    Returns (width, depth, box, to_plan); box(u0, u1, v0, v1, za, zb) -> prism."""
-    w, n, e, s = p["west"], p["north"], p["east"], p["south"]
-    width, depth = ((s - n, e - w) if facing in ("east", "west") else (e - w, s - n))
-    to_plan = {"east": lambda u, v: (e - v, s - u), "west": lambda u, v: (w + v, n + u),
-               "north": lambda u, v: (e - u, n + v), "south": lambda u, v: (w + u, s - v)}[facing]
-
-    def box(u0, u1, v0, v1, za, zb):
-        (e0, s0), (e1, s1) = to_plan(u0, v0), to_plan(u1, v1)
-        return prism(rect(min(e0, e1), min(s0, s1), max(e0, e1), max(s0, s1)), za, zb)
-    return width, depth, box, to_plan
-
-
-def disc(to_plan, u, v0, v1, z, r, seg=24):
-    """A short horizontal cylinder (a knob or dial) through the front, axis along v."""
-    pts = [(u + r * math.cos(2 * math.pi * i / seg), z + r * math.sin(2 * math.pi * i / seg))
-           for i in range(seg)]
-    return extrude(pts, lambda a, b, c: (*to_plan(a, v0 + c), b), v1 - v0)
-
-
-def element(name, phase, material, ctx, parts, notes=None):
-    base = material                # the real material, for realistic renders
-    if phase == "proposed" and material not in ("placeholder",):
-        material = "proposed"
-    return {
-        "name": name,
-        "phase": phase,
-        "material": "placeholder" if ctx.placeholder else material,
-        "base": base,
-        "placeholder": ctx.placeholder,
-        "parts": parts,
-    }
-
-
-EDGES = ("west", "east", "north", "south")
-AXIS = {"west": "ew", "east": "ew", "north": "ns", "south": "ns"}
-REF_RE = re.compile(r"^\s*(~)?\s*([A-Za-z_]\w*)\.(north|south|east|west)\s*((?:[+-][^+-]+)*)$")
-TERM_RE = re.compile(r"([+-])\s*([^+-]+?)\s*(?=[+-]|$)")
-TOLERANCE = 0.5  # inches; relationships that disagree by more are CONFLICTS
-# Size of a miss -> how it's drawn. Block walls wander, so small misses are noise.
-SEVERITY = ((2, "minor", "#8a8a8a"), (6, "check", "#e08a00"), (float("inf"), "major", "#d62728"))
-
-
-def severity(off):
-    return next((name, color) for limit, name, color in SEVERITY if abs(off) <= limit)
-
-
-def conflict(report, text, off=None, geom=None):
-    name = severity(off)[0] if off is not None else "major"
-    report["conflicts"].append({"text": text, "off": off, "geom": geom, "severity": name})
-
-
-class Blocked(Exception):
-    """A relationship refers to a room that isn't placed (yet)."""
-
-
-def ftin(x):
-    sign, x = ("-" if x < 0 else ""), abs(x)
-    ft, inch = int(x // 12), round((x % 12) * 8) / 8
-    if inch == 12:
-        ft, inch = ft + 1, 0
-    return f"{sign}{ft}'{inch:g}\""
-
-
-def edge_value(expr, ctx, field, placed):
-    """'office.east + 4 1/2"' or 'bathroom.south + 8" - 6'' -> number,
-    using already-placed rooms."""
-    m = REF_RE.match(str(expr)) if isinstance(expr, str) else None
-    if not m:
-        return ctx.len(expr, field)
-    tilde, room, edge, rest = m.groups()
-    if room not in placed:
-        raise Blocked(room)
-    if tilde:
-        ctx.placeholder = True
-        ctx.report["placeholder"].append(f"{ctx.path}.{field} = {expr}")
-    ctx.placeholder |= placed[room]["placeholder"]
-    v = placed[room][edge]
-    for sign, term in TERM_RE.findall(rest):
-        d = ctx.len(term, field)
-        v += d if sign == "+" else -d
-    return v
-
-
-def zval(ctx, expr, field):
-    """Height: a length or level name, optionally with + / - terms,
-    e.g. 'laundry_floor + 65"'."""
-    if not isinstance(expr, str):
-        return ctx.len(expr, field)
-    return sum((1 if sign == "+" else -1) * ctx.len(term, field)
-               for sign, term in TERM_RE.findall("+" + expr.strip()))
-
-
-def edge_rels(r):
-    """Edge relationships in placing order: plain values first, then list items."""
-    rels = [(k, r[k], k) for k in EDGES if k in r and not isinstance(r[k], list)]
-    rels += [(k, v, f"{k}[{i}]") for k in EDGES if isinstance(r.get(k), list)
-             for i, v in enumerate(r[k])]
-    return rels
-
-
-def check_rels(spec, report, name, p, refs, path):
-    """Every relationship that didn't place `p` is only checked."""
-    for k, v, field in p["rels"]:
-        if (k, v, field) in p["defs"]:
-            continue
-        ctx = Ctx(spec, report, path)
-        try:
-            got = edge_value(v, ctx, field, refs)
-        except Blocked as b:
-            conflict(report, f"`{name}.{k}: {v}` unchecked — `{b}` not placed")
-            continue
-        except Missing:
-            continue
-        if abs(got - p[k]) > TOLERANCE:
-            conflict(report, f"`{name}.{k}`: placed at {ftin(p[k])}, but `{v}` gives "
-                     f"{ftin(got)} (off by {ftin(abs(got - p[k]))})", got - p[k],
-                     dict(kind="edge", room=name, edge=k, placed=p[k], got=got))
-
-
-def place_rect(ctx, r, refs):
-    """A rectangle from `size` and its edge relationships (as for rooms).
-    Raises Missing or Blocked."""
-    rels = edge_rels(r)
-    first = {}
-    for rel in rels:
-        first.setdefault(rel[0], rel)
-    size = r.get("size")
-    if size is None or size == "MISSING":
-        ctx.len(None, "size")
-    dims = [None if v == "edges" else ctx.len(v, f"size[{i}]") for i, v in enumerate(size)]
-    defs = []
-    for (lo, hi), d in zip((("west", "east"), ("north", "south")), dims):
-        need = [lo, hi] if d is None else [next((k for k, *_ in rels if k in (lo, hi)), lo)]
-        for k in need:
-            if k not in first:
-                ctx.len(None, k)
-            defs.append(first[k])
-    pos = {k: edge_value(v, ctx, field, refs) for k, v, field in defs}
-    W = dims[0] if dims[0] is not None else pos["east"] - pos["west"]
-    L = dims[1] if dims[1] is not None else pos["south"] - pos["north"]
-    w = pos["west"] if "west" in pos else pos["east"] - W
-    n = pos["north"] if "north" in pos else pos["south"] - L
-    return dict(west=w, east=w + W, north=n, south=n + L, W=W, L=L, rels=rels, defs=defs)
+from .elements import element
+from .geometry import disc, extrude, local_frame, part_mesh, prism, rect, xy
+from .materials import MATERIALS, rgb
+from .spec.checks import SEVERITY, TOLERANCE, conflict, severity
+from .spec.ctx import Blocked, Ctx, Missing
+from .spec.refs import EDGES, REF_RE, check_rels, edge_rels, edge_value, place_rect, zval
+from .units import ftin
 
 
 def stair_parts(p, up, risers, zb, rise):
@@ -1564,83 +1293,6 @@ def write_ruby(out, name, module, elements):
     )
 
 
-def _signed_area(pts):
-    return sum(x0 * y1 - x1 * y0 for (x0, y0), (x1, y1) in zip(pts, pts[1:] + pts[:1])) / 2
-
-
-def _triangulate(pts):
-    """Ear-clip a simple CCW polygon; returns index triples."""
-    idx = list(range(len(pts)))
-    tris = []
-
-    def cross(o, a, b):
-        return (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0])
-
-    def inside(p, a, b, c):
-        return cross(a, b, p) >= 0 and cross(b, c, p) >= 0 and cross(c, a, p) >= 0
-
-    while len(idx) > 3:
-        for k in range(len(idx)):
-            i, j, m = idx[k - 1], idx[k], idx[(k + 1) % len(idx)]
-            a, b, c = pts[i], pts[j], pts[m]
-            if cross(a, b, c) <= 1e-9:
-                continue
-            if any(inside(pts[q], a, b, c) for q in idx if q not in (i, j, m)):
-                continue
-            tris.append((i, j, m))
-            idx.pop(k)
-            break
-        else:
-            sys.exit("Could not triangulate a polygon (self-intersecting?)")
-    tris.append(tuple(idx))
-    return tris
-
-
-def _mesh(part):
-    """Part -> (vertices, triangles) with outward-facing (CCW) winding."""
-    if part["kind"] == "mesh":                   # already triangulated (extrude)
-        return [tuple(v) for v in part["verts"]], [tuple(t) for t in part["tris"]]
-    if part["kind"] == "prism":
-        pts = [tuple(p) for p in part["pts"]]
-        z0, z1 = part["z"]
-        n = len(pts)
-        ztop = list(part.get("ztop") or [z1] * n)
-        if _signed_area(pts) < 0:
-            pts.reverse()
-            ztop.reverse()
-        verts = [(x, y, z0) for x, y in pts] + [(x, y, z) for (x, y), z in zip(pts, ztop)]
-        tris = []
-        for a, b, c in _triangulate(pts):
-            tris.append((a + n, b + n, c + n))   # top, faces up
-            tris.append((c, b, a))               # bottom, faces down
-        for i in range(n):
-            j = (i + 1) % n
-            tris += [(i, j, j + n), (i, j + n, i + n)]
-        return verts, tris
-
-    import math
-    a, b, r, seg = part["a"], part["b"], part["r"], 16
-    w = [b[i] - a[i] for i in range(3)]
-    wl = math.sqrt(sum(c * c for c in w))
-    w = [c / wl for c in w]
-    helper = (0, 0, 1) if abs(w[2]) < 0.9 else (1, 0, 0)
-    u = [helper[1] * w[2] - helper[2] * w[1], helper[2] * w[0] - helper[0] * w[2],
-         helper[0] * w[1] - helper[1] * w[0]]
-    ul = math.sqrt(sum(c * c for c in u))
-    u = [c / ul for c in u]
-    v = [w[1] * u[2] - w[2] * u[1], w[2] * u[0] - w[0] * u[2], w[0] * u[1] - w[1] * u[0]]
-    ring = [[r * (math.cos(t) * u[k] + math.sin(t) * v[k]) for k in range(3)]
-            for t in (2 * math.pi * i / seg for i in range(seg))]
-    verts = [tuple(a[k] + p[k] for k in range(3)) for p in ring] + \
-            [tuple(b[k] + p[k] for k in range(3)) for p in ring] + [tuple(a), tuple(b)]
-    ca, cb = 2 * seg, 2 * seg + 1
-    tris = []
-    for i in range(seg):
-        j = (i + 1) % seg
-        tris += [(i, j, j + seg), (i, j + seg, i + seg), (cb, i + seg, j + seg), (ca, j, i)]
-    return verts, tris
-
-
 def cameras(spec, report):
     """Named interior views: at / look_at are [east, south, z]."""
     out = {}
@@ -1720,7 +1372,7 @@ def write_mesh_json(out, elements, cams, face, ceilings, daylight):
     for el in elements:
         verts, tris = [], []
         for part in el["parts"]:
-            v, t = _mesh(part)
+            v, t = part_mesh(part)
             base = len(verts)
             verts += v
             tris += [(a + base, b + base, c + base) for a, b, c in t]
@@ -1758,7 +1410,7 @@ def write_dae(out_dir, model_name, elements):
     for k, el in enumerate(elements):
         verts, tris = [], []
         for part in el["parts"]:
-            v, t = _mesh(part)
+            v, t = part_mesh(part)
             base = len(verts)
             verts += v
             tris += [(a + base, b + base, c + base) for a, b, c in t]
@@ -1897,7 +1549,7 @@ def write_sh3d(out, elements, floor_z=0.0, movable=()):
         verts, faces = [], []   # OBJ: X = east, Y = up, Z = south
         for el, parts in items:
             for part in parts:
-                v, t = _mesh(part)
+                v, t = part_mesh(part)
                 base = len(verts)
                 verts += [(x, z, -y) for x, y, z in v]
                 faces.append((el["base"], [(a + base, b + base, c + base) for a, b, c in t]))
@@ -1950,11 +1602,6 @@ def write_sh3d(out, elements, floor_z=0.0, movable=()):
         for name, text in files.items():
             z.writestr(name, text)
     return len(walls), len(furniture), len(rooms)
-
-
-def rgb(name, alpha=1.0):
-    r, g, b = MATERIALS[name]
-    return (r / 255, g / 255, b / 255, alpha)
 
 
 def write_previews(out, elements):
