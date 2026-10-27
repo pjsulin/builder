@@ -123,3 +123,11 @@ testplan: 9 files compared, 0 differ
 
 `survey/uv.lock` is committed: `survey/` is its own uv project with a CLI. A house project that depends on it by
 path keeps its own lock.
+
+## Docs
+
+- [docs/spec-format.md](docs/spec-format.md): every `spec.yaml` key, length and reference syntax, checks, and what `MISSING`, `~` and CONFLICTS do.
+- [docs/plans.md](docs/plans.md): `model/plans/NAME.yaml` (`add:` / `remove:`), `survey build --plan`, and the phases a plan produces.
+- [docs/contract.md](docs/contract.md): the geometry rule for survey mode and for agents editing a spec.
+- [docs/render.md](docs/render.md): `survey render` options, outputs, materials and recipes, Metal kernel cache and GUI-Blender notes.
+- [docs/exports.md](docs/exports.md): each output file, who reads it, the Sweet Home 3D `dropOnTopElevation` finding, the 2D layout page.

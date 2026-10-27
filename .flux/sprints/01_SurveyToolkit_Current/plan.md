@@ -99,13 +99,13 @@ Nine phases, each about a day or more and each one commit. Phases 1–2 make `su
 
 ### Phase 2: Toolkit Docs
 
-**Status:** pending
+**Status:** completed
 **Dependencies:** [Phase 1]
 
 #### Task 2.1: Spec and plan format docs
 
 - **Type:** document
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** none
 - **Files:**
   - Create: survey/docs/spec-format.md
@@ -116,7 +116,7 @@ Nine phases, each about a day or more and each one commit. Phases 1–2 make `su
 #### Task 2.2: Survey-mode contract, render and export notes
 
 - **Type:** document
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** none
 - **Files:**
   - Create: survey/docs/contract.md
@@ -128,7 +128,7 @@ Nine phases, each about a day or more and each one commit. Phases 1–2 make `su
 #### Task 2.3: Link from README
 
 - **Type:** document
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [2.1, 2.2]
 - **Files:**
   - Modify: survey/README.md
@@ -208,7 +208,7 @@ Nine phases, each about a day or more and each one commit. Phases 1–2 make `su
 #### Task 4.1: WASM bindings
 
 - **Type:** implement
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** none
 - **Files:**
   - Modify: kernel-wasm/src/lib.rs
@@ -218,7 +218,7 @@ Nine phases, each about a day or more and each one commit. Phases 1–2 make `su
 #### Task 4.2: Model wrapper
 
 - **Type:** implement
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [4.1]
 - **Files:**
   - Modify: app/src/kernel/model.ts
@@ -228,7 +228,7 @@ Nine phases, each about a day or more and each one commit. Phases 1–2 make `su
 #### Task 4.3: Tag visibility and material colours in the scene
 
 - **Type:** implement
-- **Status:** pending
+- **Status:** in_progress
 - **Dependencies:** [4.2]
 - **Files:**
   - Modify: app/src/view/scene.ts
