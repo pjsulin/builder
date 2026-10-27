@@ -14,9 +14,11 @@ def main():
     b = sub.add_parser("build", help="spec -> model/out (report, dae, sh3d, mesh.json, previews)")
     b.add_argument("--project", required=True, type=Path)
     b.add_argument("--plan", help="layer model/plans/PLAN.yaml; outputs go to out/plans/PLAN/")
+    b.add_argument("--out", type=Path, help="out dir (default: survey.yaml out_dir, else model/out)")
 
     r = sub.add_parser("render", help="run Blender on out/mesh.json; options after --")
     r.add_argument("--project", required=True, type=Path)
+    r.add_argument("--out", type=Path, help="out dir (default: survey.yaml out_dir, else model/out)")
     r.add_argument("--blender", default=BLENDER)
     r.add_argument("blender_args", nargs=argparse.REMAINDER, help="after --: --render, --quick, --plan ...")
 
@@ -27,14 +29,21 @@ def main():
     args = ap.parse_args()
     if args.cmd == "build":
         from .build import build
-        build(args.project, args.plan)
+        build(args.project, args.plan, args.out)
     elif args.cmd == "render":
         script = Path(__file__).parent / "render" / "blender_build.py"
         extra = args.blender_args[1:] if args.blender_args[:1] == ["--"] else args.blender_args
         if not Path(args.blender).is_file():
             sys.exit(f"survey render: no Blender at {args.blender} (use --blender PATH)")
-        cmd = [args.blender, "-b", "-P", str(script), "--", "--project", str(args.project.resolve()), *extra]
+        from .project import Project
+        out = Project(args.project, args.out).out
+        cmd = [args.blender, "-b", "-P", str(script), "--", "--project", str(args.project.resolve()),
+               "--out", str(out), *extra]
         sys.exit(subprocess.run(cmd).returncode)
     else:
         from .capture.serve import serve
         serve(args.project, args.port)
+
+
+if __name__ == "__main__":
+    main()

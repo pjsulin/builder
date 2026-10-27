@@ -4,7 +4,7 @@ from ..spec.checks import SEVERITY, severity
 from ..units import ftin
 
 
-def write_check_plan(out, report):
+def write_check_plan(out, report, mats):
     """Plan for finding where measurements don't line up: rooms with their
     sizes, the wall each pair of neighbours implies, and every failed check
     drawn where it happens, coloured by how far off it is."""
@@ -66,7 +66,7 @@ def write_check_plan(out, report):
     for r in report.get("pipes", []):
         if "a" in r:
             ax.plot([r["a"][0] / 12, r["b"][0] / 12], [-r["a"][1] / 12, -r["b"][1] / 12],
-                    color=rgb(r["material"]), lw=3, ls="--" if r["placeholder"] else "-",
+                    color=rgb(mats, r["material"]), lw=3, ls="--" if r["placeholder"] else "-",
                     solid_capstyle="butt", zorder=5)
     for key, (vals, ph) in report.get("pipe_corners", {}).items():
         if vals[0] is None or vals[1] is None:

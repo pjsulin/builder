@@ -4,7 +4,7 @@ import sys
 
 from ..elements import element
 from ..geometry import xy
-from ..materials import MATERIALS
+from ..materials import material_table
 from ..spec.checks import TOLERANCE, conflict
 from ..spec.ctx import Blocked, Ctx, Missing
 from ..spec.refs import REF_RE, edge_value, zval
@@ -121,7 +121,7 @@ def build_pipes(spec, report, out):
                 if e not in corners:
                     sys.exit(f"{path}: no corner `{e}`")
             material = r.get("material", p.get("material", "pipe"))
-            if material not in MATERIALS:
+            if material not in material_table(spec):
                 sys.exit(f"{path}: unknown material {material!r}")
             ctx = Ctx(spec, report, path)
             run = dict(pipe=name, frm=r["from"], to=r["to"], material=material, d=None)
@@ -153,6 +153,6 @@ def build_pipes(spec, report, out):
             out.append(element(f"pipe {name} {r['from']}-{r['to']}", p.get("phase", "existing"),
                                material, ctx, [{"kind": "cylinder", "a": [*xy(a[0], a[1]), a[2]],
                                                 "b": [*xy(b[0], b[1]), b[2]], "r": rad}],
-                               kind="pipe"))
+                               kind="pipe", source=r.get("source", p.get("source"))))
     report["pipes"] = runs
     report["pipe_corners"] = corners

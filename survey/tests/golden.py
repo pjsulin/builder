@@ -1,17 +1,23 @@
 #!/usr/bin/env python3
 """Golden-master check: rebuild a project and diff every output against saved ones.
 
-    uv run python ../builder/survey/tests/golden.py --golden DIR --project . [--extra-plan FILE]
+    uv run python ../builder/survey/tests/golden.py --golden DIR --project . [--extra-plan FILE] [--write]
 
-The project must have builder-survey installed (`survey` runs from its env).
+Run it from an environment with builder-survey installed (the project's own
+`uv run`, or `uv run --project builder/survey`): the build runs as
+`python -m builder_survey.cli` with this interpreter.
 
 DIR holds `base/` (a base build's out/) and, per extra plan, `<plan name>/`
 (that plan's out/plans/<name>/). The project is copied to a scratch dir first,
 so the project's own out/ is never touched; --extra-plan files are copied into
 the scratch copy's model/plans/ (a synthetic plan to exercise `--plan`).
 
-Files compare byte for byte, except basement.sh3d: it is a zip with timestamps,
-so its members are compared instead.
+Files compare byte for byte, except `.sh3d`: it is a zip with timestamps, so
+its members are compared instead.
+
+--write prints the differences, then copies the new outputs over DIR so the
+reference matches. Use it when the differences are intended, and list each one
+with its reason in the commit that updates DIR.
 """
 import argparse
 import shutil
@@ -29,7 +35,7 @@ def zip_members(path):
 
 def diff_dirs(label, gold, new):
     bad = []
-    names = sorted({p.name for p in gold.iterdir() if p.is_file()} |
+    names = sorted(({p.name for p in gold.iterdir() if p.is_file()} if gold.is_dir() else set()) |
                    {p.name for p in new.iterdir() if p.is_file()})
     for n in names:
         g, b = gold / n, new / n
@@ -46,17 +52,36 @@ def diff_dirs(label, gold, new):
     return names, bad
 
 
+def write_reference(gold, new):
+    """Replace gold's files with new's (files only; nothing else is kept)."""
+    if gold.is_dir():
+        for p in gold.iterdir():
+            if p.is_file():
+                p.unlink()
+    gold.mkdir(parents=True, exist_ok=True)
+    for p in sorted(new.iterdir()):
+        if p.is_file():
+            shutil.copy(p, gold / p.name)
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--golden", required=True, type=Path)
     ap.add_argument("--project", required=True, type=Path)
     ap.add_argument("--extra-plan", action="append", default=[], type=Path)
+    ap.add_argument("--write", action="store_true", help="copy the new outputs over --golden")
     args = ap.parse_args()
 
     tmp = Path(tempfile.mkdtemp(prefix="survey-golden-"))
     proj = tmp / "project"
     shutil.copytree(args.project, proj, ignore=shutil.ignore_patterns(
         ".git", ".venv", "out", "photos", "measurements", "docs", ".flux", "survey"))
+    # Entry folders without their files, so `source:` keys still resolve.
+    measurements = args.project / "measurements"
+    if measurements.is_dir():
+        for d in measurements.rglob("*"):
+            if d.is_dir():
+                (proj / d.relative_to(args.project)).mkdir(parents=True, exist_ok=True)
     for plan in args.extra_plan:
         shutil.copy(plan, proj / "model" / "plans" / plan.name)
 
@@ -65,9 +90,7 @@ def main():
              for p in args.extra_plan]
     allbad = []
     for label, extra, out in runs:
-        # The project's own env has builder-survey installed (a path dependency).
-        cmd = ["uv", "run", "--project", str(args.project), "survey",
-               "build", "--project", str(proj), *extra]
+        cmd = [sys.executable, "-m", "builder_survey.cli", "build", "--project", str(proj), *extra]
         r = subprocess.run(cmd, capture_output=True, text=True)
         if r.returncode:
             sys.exit(f"{label}: build failed\n{r.stdout}\n{r.stderr}")
@@ -75,10 +98,14 @@ def main():
         names, bad = diff_dirs(label, gold, out)
         allbad += bad
         print(f"{label}: {len(names)} files compared, {len(bad)} differ")
+        if args.write:
+            write_reference(gold, out)
     for b in allbad:
         print("  DIFF", b)
+    if args.write and allbad:
+        print(f"wrote {args.golden}")
     shutil.rmtree(tmp)
-    sys.exit(1 if allbad else 0)
+    sys.exit(1 if allbad and not args.write else 0)
 
 
 if __name__ == "__main__":

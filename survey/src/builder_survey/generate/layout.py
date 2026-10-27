@@ -162,4 +162,4 @@ def build_rooms(spec, report, out):
         except Missing:
             continue
         out.append(element(f"{name} floor", r["phase"], "slab", ctx, [prism(pts, fz - 4, fz)],
-                           kind="floor"))
+                           kind="floor", source=r.get("source")))

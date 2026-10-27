@@ -1,9 +1,8 @@
-"""basement.dae: COLLADA model for SketchUp (File > Import)."""
+"""STEM.dae: COLLADA model for SketchUp (File > Import)."""
 from ..geometry import part_mesh
-from ..materials import MATERIALS
 
 
-def write_dae(out_dir, model_name, elements):
+def write_dae(out_dir, stem, model_name, elements, mats):
     """COLLADA file for SketchUp Go/Pro: File > Import. One node per element,
     nested under Existing / Demo / Proposed so each phase can be tagged at once."""
     import re as _re
@@ -16,12 +15,12 @@ def write_dae(out_dir, model_name, elements):
            '<COLLADA xmlns="http://www.collada.org/2005/11/COLLADASchema" version="1.4.1">',
            '<asset><unit name="inch" meter="0.0254"/><up_axis>Z_UP</up_axis></asset>',
            '<library_effects>']
-    for name, (r, g, b) in MATERIALS.items():
+    for name, (r, g, b) in mats.items():
         out.append(f'<effect id="fx-{name}"><profile_COMMON><technique sid="t"><lambert>'
                    f'<diffuse><color>{r / 255:.3f} {g / 255:.3f} {b / 255:.3f} 1</color></diffuse>'
                    '</lambert></technique></profile_COMMON></effect>')
     out.append('</library_effects><library_materials>')
-    for name in MATERIALS:
+    for name in mats:
         out.append(f'<material id="mat-{name}" name="{name}">'
                    f'<instance_effect url="#fx-{name}"/></material>')
     out.append('</library_materials><library_geometries>')
@@ -61,4 +60,4 @@ def write_dae(out_dir, model_name, elements):
             out.append('</node>')
     out.append('</node></visual_scene></library_visual_scenes>'
                '<scene><instance_visual_scene url="#scene"/></scene></COLLADA>')
-    (out_dir / "basement.dae").write_text("\n".join(out) + "\n")
+    (out_dir / f"{stem}.dae").write_text("\n".join(out) + "\n")

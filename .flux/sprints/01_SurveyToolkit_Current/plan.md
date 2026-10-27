@@ -8,13 +8,13 @@ Nine phases, each about a day or more and each one commit. Phases 1–2 make `su
 
 ### Phase 1: Toolkit Settings and Materials
 
-**Status:** pending
+**Status:** completed
 **Dependencies:** none
 
 #### Task 1.1: Output stem and out dir
 
 - **Type:** implement
-- **Status:** in_progress
+- **Status:** completed
 - **Dependencies:** none
 - **Files:**
   - Modify: survey/src/builder_survey/project.py
@@ -31,7 +31,7 @@ Nine phases, each about a day or more and each one commit. Phases 1–2 make `su
 #### Task 1.2: Material table from library and spec
 
 - **Type:** implement
-- **Status:** in_progress
+- **Status:** completed
 - **Dependencies:** none
 - **Files:**
   - Modify: survey/src/builder_survey/materials.py
@@ -50,7 +50,7 @@ Nine phases, each about a day or more and each one commit. Phases 1–2 make `su
 #### Task 1.3: kind and source on elements
 
 - **Type:** implement
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** none
 - **Files:**
   - Modify: survey/src/builder_survey/elements.py
@@ -69,18 +69,18 @@ Nine phases, each about a day or more and each one commit. Phases 1–2 make `su
 #### Task 1.4: Golden --write and the lock file
 
 - **Type:** implement
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** none
 - **Files:**
   - Modify: survey/tests/golden.py
   - Modify: survey/pyproject.toml
 - **Context:** [spec.md§Proposed](spec.md#proposed)
-- **Description:** `--write` copies the new outputs over the reference after printing the differences. Keep `survey/uv.lock` committed and add a `dev` group with pytest.
+- **Description:** `--write` copies the new outputs over the reference after printing the differences. Keep `survey/uv.lock` committed and add a `dev` group with pytest. (2026-10-27: golden.py now runs the build as `sys.executable -m builder_survey.cli` instead of `uv run --project <project> survey`, so it can be run from any env with builder-survey installed, including this worktree's `survey/.venv` against a scratch copy of 20SPierson whose path dependency points elsewhere; `cli.py` got a `__main__` guard for it. The scratch copy keeps the `measurements/` folder tree, without files, so `source:` keys resolve. Also fixed while running the build: `sh3d.py` shadowed the `mats` parameter with a local; `capture/serve.py` takes its paths from `Project`; `.venv/` added to `.gitignore`.)
 
 #### Task 1.5: Verify against 20SPierson
 
 - **Type:** test
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [1.1, 1.2, 1.3, 1.4]
 - **Files:**
   - Create: survey/tests/test_project.py
@@ -90,7 +90,7 @@ Nine phases, each about a day or more and each one commit. Phases 1–2 make `su
 #### Task 1.6: README for settings and materials
 
 - **Type:** document
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [1.1, 1.2]
 - **Files:**
   - Modify: survey/README.md

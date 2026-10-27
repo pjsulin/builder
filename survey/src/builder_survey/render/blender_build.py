@@ -1,8 +1,8 @@
-"""Build the basement in Blender from out/mesh.json (written by survey build).
+"""Build the model in Blender from out/mesh.json (written by survey build).
 
 Run headless:   uv run survey render --project DIR -- [options]
   (wraps  blender -b -P blender_build.py -- --project DIR [options])
-  (no options)             build and save basement.blend only; no renders
+  (no options)             build and save STEM.blend only; no renders
   --render NAME ...        render: before, after, a spec camera name, or all
   --look E,S,Z E,S,Z       render one view from / toward [east, south, z] in
                            inches, to out/view_check.png
@@ -11,8 +11,8 @@ Run headless:   uv run survey render --project DIR -- [options]
   --check                  flat check colours (orange = ~ values) instead of
                            the realistic finishes
   --plan NAME              use out/plans/NAME/ (after survey build --plan NAME)
-Outputs (DIR/model/out/, or DIR/model/out/plans/NAME/):
-  basement.blend       open in Blender; collections Existing / Demo / Proposed
+Outputs (the out dir, or its plans/NAME/; STEM comes from mesh.json):
+  STEM.blend           open in Blender; collections Existing / Demo / Proposed
   render_before.png    Existing + Demo
   render_after.png     Existing + Proposed
   view_<name>.png      spec cameras; view_check.png for --look
@@ -58,8 +58,8 @@ def make_materials(spec):
 
 
 # ── Realistic materials (procedural, nothing to download) ──────────────────
-# Keyed by finish name (spec `finishes:`) or spec material. Colours are from
-# the photos in ../photos/. A face with no recorded finish uses its spec
+# Keyed by finish name (spec `finishes:`) or spec material. A spec `materials:`
+# entry with `render:` adds or overrides one by naming a recipe (RECIPES). A face with no recorded finish uses its spec
 # material: bare grey block for walls, plain concrete for floors.
 
 def _nodes(name):
@@ -372,18 +372,22 @@ def glow(name, color, strength):
     return m
 
 
-def make_real_materials():
+RECIPES = {"concrete": concrete, "block": block, "painted_block": painted_block,
+           "worn_paint_floor": worn_paint_floor, "pavers": pavers, "plain": plain, "wood": wood,
+           "pine": pine, "glass": glass, "glow": glow}
+
+
+def make_real_materials(recipes):
+    """Generic finishes and materials, then the spec's (mesh.json `recipes`), which
+    add or override by name."""
     real = {
         # finishes (spec `finishes:`)
         "troweled concrete": concrete("troweled concrete", (0.13, 0.13, 0.125), (0.22, 0.22, 0.21), 0.8, 0.12),
         "smooth concrete": concrete("smooth concrete", (0.12, 0.12, 0.115), (0.19, 0.19, 0.18), 0.45, 0.03),
         "painted block": painted_block("painted block"),
-        "worn grey paint": worn_paint_floor("worn grey floor paint"),
-        "stucco": concrete("stucco", (0.42, 0.40, 0.36), (0.55, 0.52, 0.47), 0.9, 0.35),
         "pavers": pavers("pavers"),
         "light grey floor": plain("light grey floor", (0.30, 0.30, 0.29), 0.8),   # shed
         "dark grey floor": plain("dark grey floor", (0.08, 0.08, 0.08), 0.8),     # office
-        "landscape_block": concrete("landscape block", (0.30, 0.27, 0.22), (0.40, 0.37, 0.31), 0.9, 0.4),
         "grass": concrete("grass", (0.05, 0.10, 0.03), (0.10, 0.18, 0.05), 0.95, 0.5),
         "flagstone": concrete("flagstone", (0.22, 0.20, 0.17), (0.34, 0.31, 0.27), 0.85, 0.6),
         "drywall": plain("drywall", (0.87, 0.84, 0.72), 0.9),    # off-white toward yellow
@@ -399,24 +403,22 @@ def make_real_materials():
         "pvc": plain("pvc", (0.88, 0.88, 0.86), 0.35),
         "cast_iron": plain("cast iron", (0.08, 0.07, 0.07), 0.6, 0.5),
         "proposed": plain("proposed", (0.60, 0.75, 0.90), 0.8),
-        "sauna_wood": pine("sauna pine"),
         "glass": glass("glass"),
         "glow": glow("LED strip", (1.0, 0.62, 0.30), 60.0),
         "white_paint": plain("white paint", (0.80, 0.80, 0.77), 0.45),
         "rubber": plain("rubber", (0.025, 0.025, 0.025), 0.7),
-        "iron": plain("black iron", (0.02, 0.02, 0.02), 0.5, 0.6),
-        "walnut": wood("walnut", (0.035, 0.018, 0.009), (0.07, 0.036, 0.018)),
         "pine": wood("clear pine", (0.78, 0.56, 0.33), (0.86, 0.66, 0.42)),
         "enamel": plain("appliance enamel", (0.86, 0.86, 0.84), 0.25),
         "appliance_grey": plain("appliance grey", (0.35, 0.37, 0.40), 0.35),
-        "boiler_green": plain("boiler green", (0.05, 0.20, 0.10), 0.35),
-        "wh_jacket": plain("water heater jacket", (0.62, 0.62, 0.60), 0.35, 0.3),
         "placeholder": plain("placeholder", (1.0, 0.55, 0.0), 0.8),
         # render-only ceiling where none is recorded: the dark underside of
         # the old floor framing (the photos show exposed joists)
         "ceiling": concrete("exposed framing", (0.07, 0.045, 0.03), (0.15, 0.10, 0.06), 0.8, 0.1),
     }
-    real["joist"] = real["ceiling"]   # the joists are the same dark brown (Patrick)
+    real["joist"] = real["ceiling"]   # old floor framing: the same dark brown
+    for name, r in recipes.items():
+        real[name] = RECIPES[r["recipe"]](r["label"], *[tuple(a) if isinstance(a, list) else a
+                                                        for a in r["args"]])
     return real
 
 
@@ -583,6 +585,7 @@ def args():
     ap.add_argument("--check", action="store_true")
     ap.add_argument("--cpu", action="store_true")
     ap.add_argument("--project", required=True, type=Path, help="project directory (set by `survey render`)")
+    ap.add_argument("--out", required=True, type=Path, help="the out dir (set by `survey render`)")
     ap.add_argument("--plan", help="read and write out/plans/PLAN/ (survey build --plan PLAN first)")
     return ap.parse_args(argv)
 
@@ -624,7 +627,7 @@ def add_camera(scene, name, at, look_at, lens):
 def main():
     global OUT
     opt = args()
-    OUT = opt.project / "model" / "out"
+    OUT = opt.out
     if opt.plan:
         OUT = OUT / "plans" / opt.plan
         if not (OUT / "mesh.json").exists():
@@ -633,7 +636,7 @@ def main():
     spec = json.loads((OUT / "mesh.json").read_text())
     scene = reset()
     mats = make_materials(spec)
-    real = None if opt.check else make_real_materials()
+    real = None if opt.check else make_real_materials(spec["recipes"])
     use_device(scene, opt.cpu)
     colls = {}
     for phase in ("existing", "demo", "proposed"):
@@ -707,8 +710,8 @@ def main():
         scene.collection.objects.unlink(o)
         rig.objects.link(o)
     bpy.context.view_layer.layer_collection.children[rig.name].hide_viewport = True
-    bpy.ops.wm.save_as_mainfile(filepath=str(OUT / "basement.blend"))
-    print(f"Built {len(objs)} objects; saved basement.blend. Total {time.time() - t0:.1f} s")
+    bpy.ops.wm.save_as_mainfile(filepath=str(OUT / f"{spec['stem']}.blend"))
+    print(f"Built {len(objs)} objects; saved {spec['stem']}.blend. Total {time.time() - t0:.1f} s")
 
 
 main()

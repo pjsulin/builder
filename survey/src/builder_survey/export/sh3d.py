@@ -1,6 +1,5 @@
-"""basement.sh3d: the model as a Sweet Home 3D home."""
+"""STEM.sh3d: the model as a Sweet Home 3D home."""
 from ..geometry import part_mesh
-from ..materials import MATERIALS
 from ..units import ftin
 
 
@@ -29,8 +28,8 @@ def _shift_z(part, dz):
     return dict(part, a=[*part["a"][:2], part["a"][2] + dz], b=[*part["b"][:2], part["b"][2] + dz])
 
 
-def write_sh3d(out, elements, floor_z=0.0, movable=()):
-    """basement.sh3d: the model as a Sweet Home 3D home (cm; x = east, y = south,
+def write_sh3d(out, stem, elements, floor_z, movable, mats):
+    """STEM.sh3d: the model as a Sweet Home 3D home (cm; x = east, y = south,
     the same axes as the spec), for laying out furniture by hand.
       - full-height wall runs -> Sweet Home 3D walls (magnetism, dimensions)
       - each room -> a room with its name and area
@@ -120,10 +119,9 @@ def write_sh3d(out, elements, floor_z=0.0, movable=()):
         for mat, tris in faces:
             obj.append(f"usemtl {mat}")
             obj += [f"f {a + 1} {b + 1} {c + 1}" for a, b, c in tris]
-        mats = dict.fromkeys(m for m, _ in faces)
         mtl = []
-        for m in mats:
-            r, g, b = MATERIALS[m]
+        for m in dict.fromkeys(m for m, _ in faces):
+            r, g, b = mats[m]
             mtl += [f"newmtl {m}", f"Kd {r / 255:.3f} {g / 255:.3f} {b / 255:.3f}", "illum 1", ""]
         files[f"{k}/model.obj"] = "\n".join(obj) + "\n"
         files[f"{k}/model.mtl"] = "\n".join(mtl)
@@ -135,7 +133,7 @@ def write_sh3d(out, elements, floor_z=0.0, movable=()):
             f"resizable='false'{'' if catches else drop_off}/>")
 
     xml = ["<?xml version='1.0'?>",
-           f"<home version='7000' name='basement' wallHeight='{max(w[4] for w in walls) * CM:.3f}' "
+           f"<home version='7000' name='{stem}' wallHeight='{max(w[4] for w in walls) * CM:.3f}' "
            "basePlanLocked='true'>"]
     xml += furniture
     for i, (x0, s0, x1, s1, h) in enumerate(walls):
@@ -153,7 +151,7 @@ def write_sh3d(out, elements, floor_z=0.0, movable=()):
         xml.append("</room>")
     xml.append("</home>")
 
-    path = out / "basement.sh3d"
+    path = out / f"{stem}.sh3d"
     with zipfile.ZipFile(path, "w", zipfile.ZIP_DEFLATED) as z:
         z.writestr("Home.xml", "\n".join(xml) + "\n")
         # Transparent: the plan paints furniture over walls, so an opaque icon

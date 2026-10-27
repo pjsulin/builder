@@ -8,3 +8,4 @@ app/src/kernel/pkg/
 __pycache__/
 .flux/cache/
 .flux/results/
+.venv/

@@ -3,11 +3,15 @@
 `kind` says what the element is, so exporters and the 2D layout page filter on it
 rather than on the name: floor, sill, joists, wall (the generated walls), named_wall
 (spec `walls:`), ledge, door (frames, leaves, glazing, infill), pipe, object, fixture.
-It stays in memory; mesh.json and the Ruby script don't carry it.
+mesh.json and the .builder file carry it; the Ruby script doesn't.
+
+`source` is the spec entry's optional `source:` key: the measurement entry folder
+(`measurements/<date>/<time>-<id>`) the numbers came from. The build checks the
+folder exists under the project; the .builder export writes it as `survey:source`.
 """
 
 
-def element(name, phase, material, ctx, parts, *, kind, notes=None):
+def element(name, phase, material, ctx, parts, *, kind, notes=None, source=None):
     base = material                # the real material, for realistic renders
     if phase == "proposed" and material not in ("placeholder",):
         material = "proposed"
@@ -19,4 +23,5 @@ def element(name, phase, material, ctx, parts, *, kind, notes=None):
         "placeholder": ctx.placeholder,
         "parts": parts,
         "kind": kind,
+        "source": source,
     }

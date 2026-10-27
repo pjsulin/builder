@@ -2,7 +2,7 @@
 from ..materials import rgb
 
 
-def write_previews(out, elements):
+def write_previews(out, elements, mats):
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
@@ -17,16 +17,16 @@ def write_previews(out, elements):
         for p in el["parts"]:
             if p["kind"] == "prism":
                 pts = [(x / 12, y / 12) for x, y in p["pts"]]
-                ax.add_patch(Polygon(pts, closed=True, fc=rgb(el["material"], 0.6),
+                ax.add_patch(Polygon(pts, closed=True, fc=rgb(mats, el["material"], 0.6),
                                      ec="k", lw=0.5))
             elif p["kind"] == "mesh":
                 xs, ys = [v[0] / 12 for v in p["verts"]], [v[1] / 12 for v in p["verts"]]
                 ax.add_patch(Polygon([(min(xs), min(ys)), (max(xs), min(ys)), (max(xs), max(ys)),
                                       (min(xs), max(ys))], closed=True,
-                                     fc=rgb(el["material"], 0.6), ec="k", lw=0.5))
+                                     fc=rgb(mats, el["material"], 0.6), ec="k", lw=0.5))
             else:
                 ax.plot([p["a"][0] / 12, p["b"][0] / 12], [p["a"][1] / 12, p["b"][1] / 12],
-                        color=rgb(el["material"]), lw=2)
+                        color=rgb(mats, el["material"]), lw=2)
     for el in elements:
         if "label" in el:
             ax.text(el["label"][0] / 12, el["label"][1] / 12, el["name"].removesuffix(" floor"),
@@ -60,18 +60,18 @@ def write_previews(out, elements):
                 faces = [bot, top] + [[bot[i], bot[(i + 1) % n], top[(i + 1) % n], top[i]]
                                       for i in range(n)]
                 ax.add_collection3d(Poly3DCollection(
-                    faces, facecolor=rgb(el["material"], 0.85), edgecolor=(0, 0, 0, 0.3), lw=0.3),
+                    faces, facecolor=rgb(mats, el["material"], 0.85), edgecolor=(0, 0, 0, 0.3), lw=0.3),
                     autolim=False)
                 corners = bot + top
             elif p["kind"] == "mesh":
                 v = p["verts"]
                 ax.add_collection3d(Poly3DCollection(
-                    [[v[i] for i in t] for t in p["tris"]], facecolor=rgb(el["material"], 0.85),
+                    [[v[i] for i in t] for t in p["tris"]], facecolor=rgb(mats, el["material"], 0.85),
                     edgecolor="none"), autolim=False)
                 corners = v
             else:
                 ax.add_collection3d(Line3DCollection([[p["a"], p["b"]]],
-                                                     colors=[rgb(el["material"])], lw=2),
+                                                     colors=[rgb(mats, el["material"])], lw=2),
                                      autolim=False)
                 corners = [p["a"], p["b"]]
             for c in corners:

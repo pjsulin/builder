@@ -149,13 +149,11 @@ class Handler(BaseHTTPRequestHandler):
 
 def serve(project, port=PORT):
     global ROOT, PHOTOS, OUT, CHECKLIST, NAME
-    ROOT = Path(project).resolve()
-    PHOTOS = ROOT / "photos"
-    OUT = ROOT / "measurements"
-    CHECKLIST = ROOT / "measure" / "checklist.yaml"
+    proj = Project(project)
+    ROOT, PHOTOS, OUT, CHECKLIST = proj.root, proj.photos, proj.measurements, proj.checklist
     if not CHECKLIST.is_file():
         sys.exit(f"capture: no checklist at {CHECKLIST}")
-    NAME = Project(ROOT).load_spec()["name"]
+    NAME = proj.load_spec()["name"]
     host = socket.gethostname().removesuffix(".local")
     print(f"Measure app: http://{host}.local:{port}  (iPad on the same Wi-Fi)", flush=True)
     ThreadingHTTPServer(("0.0.0.0", port), Handler).serve_forever()
