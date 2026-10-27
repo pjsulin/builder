@@ -1814,7 +1814,8 @@ pub fn tags(&self) -> String;                                                  /
 pub fn new_tag(&mut self, name: &str) -> u32;
 pub fn set_instance_tag(&mut self, inst: u32, tag: i32) -> Result<(), JsError>; // -1 clears
 pub fn set_tag_flags(&mut self, tag: u32, visible: bool, locked: bool) -> Result<(), JsError>;
-pub fn instance_props(&self, inst: u32) -> String;                             // JSON {name, tag, material}
+pub fn instance_props(&self, inst: u32) -> String;                             // JSON {name, tag, material, locked} (close: `locked` added so the scene and tools need no tag walk)
+pub fn is_locked_def(&self, def: u32) -> bool;                                 // close: added with it
 pub fn materials(&self) -> String;                                             // JSON [{id,name,color,opacity}]
 pub fn face_materials(&self, def: u32) -> Vec<i32>;                            // per face id in buffers order, -1 none
 pub fn definition_name(&self, def: u32) -> String;
@@ -1835,18 +1836,21 @@ class Model {
   newTag(name: string): number;
   setInstanceTag(inst: number, tag: number | null): void;
   setTagFlags(tag: number, visible: boolean, locked: boolean): void;
-  instanceProps(inst: number): { name: string; tag: number | null; material: number | null };
+  instanceProps(inst: number): InstanceProps | null;   // close: {name, tag, material, locked}, null when gone
   materials(): MaterialInfo[];
+  faceMaterials(def: number): Int32Array;             // close: per triangle of buffers(def)
+  definitionName(def: number): string;
+  isLockedDef(def: number): boolean;                  // close: added
 }
 // view/scene.ts: DrawItem gains `tag: number | null`, `material: number | null`, `locked: boolean`;
 // SceneIndex.build skips items whose tag (or an ancestor's) is hidden; per-triangle colour
 // = face material ?? nearest instance material ?? theme face colour.
 // survey/mode.ts
 export function isSurveyModel(m: Model): boolean;
-export class SurveyPanel { constructor(app: App); update(): void }   // tag strip + attribute view
+export class SurveyPanel { constructor(host: SurveyHost, container: HTMLElement); update(): void }   // tag strip + attribute view (close: takes the narrow SurveyHost {model, selection, activeTag, refresh, flash} and its container, so tests and the app share it)
 // survey/plan-export.ts
 export interface PlanExport { yaml: string; skipped: string[] }
-export function exportProposed(m: Model, planName: string): PlanExport;
+export function exportProposed(m: Model, planName: string, date?: string): PlanExport;   // close: `date` (default today) so the fixture is stable
 ```
 
 ### Data Models
@@ -1919,6 +1923,16 @@ uv run python survey/tests/golden.py --golden ../20SPierson/tests/golden --proje
 const { yaml, skipped } = exportProposed(app.model, "vanity");
 if (skipped.length) app.flash(`Not exported: ${skipped.join(", ")}`);
 ```
+
+## Added during implementation
+
+Recorded at close (2026-10-27). Each supports a spec'd interface; none changes a spec'd signature beyond the three marked `close:` above.
+
+- Survey (Python): `materials._spec_materials` (validation, private); `export/builder.py` `builder_json`, `part_faces`, `prism_faces`, `cylinder_faces`, `definition`, `attributes`, `normal`, `area`, `planar`, `cross`, `TAGS`, `LOCKED`, `SEGMENTS`, `IDENTITY` (the pieces of `write_builder`, exposed so tests check faces directly); `capture/serve.py` `make_server(project, port, cert, key, host)` (split from `serve` for tests), `entries()` (replaces the v1 `answers()`), `AUDIO_EXT`, `CTYPE`, `MODEL`, `transcriptions`; `capture/transcribe.py` `decode`, `transcribe_file`, `RATE`; `capture/entries.py` `print_entries` (the CLI's output); `build.check_sources` as spec'd; `tests/golden.py` `write_reference`; `tests/walkthrough.mjs` (the browser walkthrough driver).
+- Kernel: `doc.check_attribute` (crate), `format.FileAttributes`/`read_attributes`/`write_attributes` (private), `group.check_def_unlocked`/`check_instance_unlocked` (crate), `contains_locked`/`tag_locked` (private). `kernel-wasm` `target()` (private).
+- App: `kernel/model.ts` `AttrValue`, `InstanceProps`; `view/scene.ts` `RGBA`, `SceneIndex.triColor`, `faceMaterials`/`materials` maps; `view/viewport.ts` `ColouredGeometry`, `colouredFor`, `translucentFor` (private); `survey/mode.ts` `SURVEY_TAGS`, `surveyTags`, `groupSelection`, `lockedMessage`, `selectionAttributes`, `AttributeRow`, `SurveyHost`; `survey/plan-export.ts` `ftin`, `entryName`, `boxOf`, `Box` (private helpers of `exportProposed`); `app.ts` `exportPlan` (private), `activeTag`; `tools/pick.ts` `EntityPick.locked`.
+- Removed: `materials.MATERIALS` (now `LIBRARY` + `material_table`), `capture/serve.answers` (now `entries`).
+- Tests: `kernel/tests/attributes.rs` (10), `format.rs` (+3), `app/test/scene.test.ts`, `survey.test.ts`, `plan-export.test.ts`, `survey/tests/test_project.py`, `test_builder_export.py`, `test_plan_roundtrip.py`, `test_capture.py`.
 
 ## Validation Criteria
 

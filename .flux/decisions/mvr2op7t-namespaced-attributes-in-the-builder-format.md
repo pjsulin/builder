@@ -1,7 +1,7 @@
 ---
 adr: "mvr2op7t"
 title: "Namespaced attributes in the builder format"
-status: proposed
+status: accepted
 supersedes: null
 superseded_by: null
 created: 2026-10-27

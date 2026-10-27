@@ -70,7 +70,7 @@ materials:
 - An entry with only `render` is a finish (`finishes:` in the spec) and has no flat colour.
 
 `material_table(spec)` returns library colours then the spec's; `render_recipes(spec)` the spec's recipes. A build
-stops at the first element whose material or base material is not in the table: `shelving: unknown material 'teak'`.
+stops at the first element whose material or base material is not in the table: `shelving: unknown material 'teak' (add it to the spec's `materials:`)`.
 
 ## Element provenance
 

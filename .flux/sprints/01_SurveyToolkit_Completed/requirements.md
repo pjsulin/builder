@@ -90,45 +90,45 @@ End to end: Patrick photographs and dictates a measurement on his phone; the ent
 
 ### For Feature 1
 
-- [ ] An accepted ADR states that survey code lives in `builder/survey`, why, and the path-dependency-until-0.1.0 rule.
+- [x] An accepted ADR states that survey code lives in `builder/survey`, why, and the path-dependency-until-0.1.0 rule. Evidence: `.flux/decisions/mvr2ooxl-survey-code-lives-in-the-builder-repo.md`, status accepted at close.
 
 ### For Feature 2
 
-- [ ] `grep -ri "pierson\|basement" survey/src` finds no house-specific names in code; output names come from `name:`.
-- [ ] Every element in `mesh.json` has a `kind`.
-- [ ] The house materials are defined in 20SPierson's spec, not in survey code, and builds and renders use them.
-- [ ] The output directory can be set (flag or `survey.yaml`) and defaults to today's `model/out/`.
-- [ ] The golden check is at 0 differences, or 20SPierson's reference has been updated with a list of each difference and its reason.
+- [x] `grep -ri "pierson\|basement" survey/src` finds no house-specific names in code; output names come from `name:`. Evidence: `grep -rniE "pierson|basement" survey/src` exits 1 (nothing); `Project.stem` (survey/src/builder_survey/project.py) and `test_stem_defaults_to_slugged_name`.
+- [x] Every element in `mesh.json` has a `kind`. Evidence: survey/src/builder_survey/export/mesh.py writes `kind` per element; the scratch 20SPierson build shows kinds door, fixture, floor, joists, ledge, pipe, sill, wall on all 133 elements.
+- [x] The house materials are defined in 20SPierson's spec, not in survey code, and builds and renders use them. Evidence: `LIBRARY` has no walnut/iron/landscape_block/boiler_green/sauna_wood/wh_jacket (Gate 2 diff, materials.py); the `materials:` snippet was sent to the 20SPierson conversation; on the scratch copy with it, `survey build` passes `check_materials` and `survey render` built basement.blend with boiler green, landscape block, stucco, water heater jacket, worn grey floor paint from the recipes.
+- [x] The output directory can be set (flag or `survey.yaml`) and defaults to today's `model/out/`. Evidence: `test_out_dir_precedence` (survey/tests/test_project.py); `--out` on build and render (cli.py).
+- [x] The golden check is at 0 differences, or 20SPierson's reference has been updated with a list of each difference and its reason. Evidence: the list (mesh.json stem/recipes/kind and material order; basement.rb and .dae material order; new basement.builder in base and testplan) with reasons was sent to the 20SPierson conversation in the Phase 1 and Phase 5 messages; on a scratch copy `golden.py --write` then a re-run gave `base: 10 files compared, 0 differ`, `testplan: 10 files compared, 0 differ`. The reference commit itself is 20SPierson's.
 
 ### For Feature 3
 
-- [ ] `survey/docs/` holds the spec format, plan format, capture and render docs, and someone with only the builder repo can write a spec and build it from them.
-- [ ] 20SPierson's docs point to `survey/docs/` instead of repeating the format.
+- [x] `survey/docs/` holds the spec format, plan format, capture and render docs, and someone with only the builder repo can write a spec and build it from them. Evidence: survey/docs/spec-format.md, plans.md, contract.md, render.md, exports.md, capture.md, walkthrough.md; the YAML examples in spec-format.md and plans.md were built in a scratch project while writing them (Phase 2).
+- [ ] 20SPierson's docs point to `survey/docs/` instead of repeating the format. Backlog #mvr7ndvo: the section list was sent to the 20SPierson conversation; the edit is its (Out of Scope below).
 
 ### For Feature 4
 
-- [ ] Attributes on definitions, instances and faces load, save and round-trip byte-stable through the kernel, including unknown namespaces.
-- [ ] Setting an attribute is undoable and redoable.
-- [ ] `docs/file-format.md` documents attributes; files without them still load.
+- [x] Attributes on definitions, instances and faces load, save and round-trip byte-stable through the kernel, including unknown namespaces. Evidence: `attributes_and_locks_round_trip_byte_stable` (kernel/tests/format.rs, namespace `x-myplugin`).
+- [x] Setting an attribute is undoable and redoable. Evidence: `set_and_delete_are_undone_and_redone`, `instance_and_face_attributes_are_journaled` (kernel/tests/attributes.rs).
+- [x] `docs/file-format.md` documents attributes; files without them still load. Evidence: docs/file-format.md § Attributes; `files_without_attributes_still_load_and_write_none` (kernel/tests/format.rs).
 
 ### For Feature 5
 
-- [ ] `survey build --project ../20SPierson` writes a `.builder` that the kernel loads without errors, for the base model and the test plan.
-- [ ] Each element is one group with its phase tag, its materials and `survey:*` attributes for kind, approximate values and source.
+- [x] `survey build --project ../20SPierson` writes a `.builder` that the kernel loads without errors, for the base model and the test plan. Evidence: `validate` on the scratch copy: `559 definitions, 558 instances, 3 tags: ok` (base), `622 definitions, 621 instances, 3 tags: ok` (testplan).
+- [x] Each element is one group with its phase tag, its materials and `survey:*` attributes for kind, approximate values and source. Evidence: `test_file_shape` (survey/tests/test_builder_export.py).
 
 ### For Feature 6
 
-- [ ] The basement opens in Builder; Existing / Demo / Proposed can each be hidden and shown.
-- [ ] Existing geometry cannot be moved, pushed or erased; drawing works on top of it and lands on Proposed.
-- [ ] Selecting an element shows its attributes; `~` elements are visibly marked.
-- [ ] A box drawn on Proposed exports to `plans/NAME.yaml`, and `survey build --plan NAME` builds it in the right place; geometry that can't be exported is listed in a message.
+- [x] The basement opens in Builder; Existing / Demo / Proposed can each be hidden and shown. Evidence: survey/docs/walkthrough.md §§ 2 and 5 (headless run); `hides a tag's items and journals the flags` (app/test/survey.test.ts).
+- [x] Existing geometry cannot be moved, pushed or erased; drawing works on top of it and lands on Proposed. Evidence: `refuses Move on Existing with a Locked message`, `does not offer locked faces to Push/Pull or the Eraser`, `puts a new group on Proposed and leaves it editable` (app/test/survey.test.ts); walkthrough §§ 4 and 6.
+- [x] Selecting an element shows its attributes; `~` elements are visibly marked. Evidence: walkthrough § 3 and survey/docs/img/survey-mode.png (garage floor, `survey:approx true` in orange, element drawn in the placeholder material).
+- [x] A box drawn on Proposed exports to `plans/NAME.yaml`, and `survey build --plan NAME` builds it in the right place; geometry that can't be exported is listed in a message. Evidence: walkthrough §§ 7–8 (x 288–318, y −381–−360, z 0–34 in out/plans/vanity/mesh.json); `test_exported_plan_builds_the_box` (survey/tests/test_plan_roundtrip.py); `writes one entry for a box and skips a rotated box and a non-box` (app/test/plan-export.test.ts); `App.exportPlan` flashes the skipped names.
 
 ### For Feature 7
 
-- [ ] On an iPhone over the LAN: photo + voice note saved in under 30 seconds with no typing.
-- [ ] The entry folder holds the photo(s), the audio, a transcript produced on the Mac, and `entry.json`.
-- [ ] Old entries still list and display.
-- [ ] Patrick changes the model from a dictated entry (a Claude session takes the number into the spec citing the entry, then rebuilds), on his return.
+- [ ] On an iPhone over the LAN: photo + voice note saved in under 30 seconds with no typing. Backlog #mvr7ne51 (waiting on Patrick; Should Have).
+- [x] The entry folder holds the photo(s), the audio, a transcript produced on the Mac, and `entry.json`. Evidence: `test_v2_entry_with_photo_and_audio` (survey/tests/test_capture.py); a spoken m4a transcribed to "Return pipe is 32 and a half inches to the top at the West Wall" (plan.md Task 8.3 note).
+- [x] Old entries still list and display. Evidence: `test_v1_items_and_entries_still_list` (survey/tests/test_capture.py); index.html `entryHtml` renders v1 `values`.
+- [ ] Patrick changes the model from a dictated entry (a Claude session takes the number into the spec citing the entry, then rebuilds), on his return. Backlog #mvr7ne51 (waiting on Patrick; Should Have).
 
 ## Impact
 

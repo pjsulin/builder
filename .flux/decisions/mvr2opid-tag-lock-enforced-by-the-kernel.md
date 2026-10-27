@@ -1,7 +1,7 @@
 ---
 adr: "mvr2opid"
 title: "Tag lock enforced by the kernel"
-status: proposed
+status: accepted
 supersedes: null
 superseded_by: null
 created: 2026-10-27

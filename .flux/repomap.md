@@ -1,4 +1,4 @@
-commit: dce9a98
+commit: 99501c3
 budget: 1000
 
 app/src/math.ts:
@@ -32,13 +32,13 @@ app/src/view/scene.ts:
 │export class SceneIndex {
 │  items: DrawItem[] = [];
 │  buffers = new Map<number, DefBuffers>();
+│  /** Front material per triangle of each definition's buffers, -1 for none. */
+│  faceMaterials = new Map<number, Int32Array>();
+│  /** Materials by id, for colour lookups. */
+│  materials = new Map<number, MaterialInfo>();
 │  /** Triangle corners in world space, 9 floats per triangle. */
 │  tri = new Float32Array(0);
 │  triFace = new Uint32Array(0);
-│  triItem = new Uint32Array(0);
-│  /** Edge ends in world space, 6 floats per edge. */
-│  seg = new Float32Array(0);
-│  segEdge = new Uint32Array(0);
 ⋮
 
 kernel/src/doc.rs:
@@ -77,12 +77,6 @@ kernel/src/math.rs:
 │        self.x.is_finite() && self.y.is_finite() && self.z.is_finite()
 ⋮
 
-survey/src/builder_survey/elements.py:
-# The element record every generator produces.
-⋮
-│def element(name, phase, material, ctx, parts, *, kind, notes=None):
-⋮
-
 survey/src/builder_survey/generate/fixtures/registry.py:
 # Fixture type registry.
 ⋮
@@ -106,8 +100,8 @@ survey/src/builder_survey/spec/ctx.py:
 │    def len(self, val, field):
 ⋮
 
-survey/src/builder_survey/units.py:
-# Lengths: feet-inches text <-> inches.
+survey/tests/test_capture.py:
+# The capture server on a temp project: a v2 entry with a photo and a real audio
 ⋮
-│def parse_length(val, where):
+│def get(url):
 ⋮
