@@ -51,6 +51,26 @@ Only `description`, `add` and `remove` are allowed at the top level. `survey/tes
 - `remove:` takes dotted spec paths from the same sections except `cameras`. The entry must exist and be `existing` (not already `demo` or `proposed`); it becomes `demo`.
 - Added entries use the same value rules as the spec (`~`, `MISSING`, references to base rooms and fixtures); see [spec-format.md](spec-format.md).
 
+## Drawing a plan in Builder
+
+Open the base build's `STEM.builder` in Builder (File > Open). It opens in survey mode: `Existing` and `Demo` are locked, `Proposed` is the active tag, and the survey panel on the right lists the tags and the selection's attributes.
+
+1. Draw on top of the existing geometry (Rectangle, Push/Pull) and select the new faces.
+2. Make group (G). At the root of a survey model the group lands on `Proposed`.
+3. Export plan in the survey panel, give the plan a name, and the browser downloads `NAME.yaml`. Put it in `DIR/model/plans/` and build it with `survey build --project DIR --plan NAME`.
+
+What exports: every group on `Proposed` whose geometry is an axis-aligned box (six faces, each normal on an axis, every vertex on the box's bounds, in world coordinates). Each becomes
+
+```yaml
+add:
+  objects:
+    vanity: {type: box, at: [24', 30', 0"], size: [2'6", 1'9", 2'10"], material: proposed, phase: proposed}
+```
+
+`at` is the corner with the least east, least south and lowest z (east = x, south = -y), `size` is width (east), length (south) and height, all in feet and inches. The entry name is the group's name lowercased (`[a-z0-9_]`), or `proposed_N` for an unnamed group; the material is the group's material name when it has one, else `proposed`.
+
+What is skipped: anything else on `Proposed`, by name, in the message after the export (a rotated box, a wedge, a group with a hole or a nested group). It is not approximated. Move or redraw it as a box, or write it into the plan by hand as a fixture entry. Groups on other tags are not looked at.
+
 ## What the phases produce
 
 - `proposed` elements take the `proposed` material (blue) in flat exports and the Proposed collection in Blender; `demo` elements go in the Demo collection. Scenes: before = existing + demo, after = existing + proposed. `render_before.png` and `render_after.png` are these two scenes.

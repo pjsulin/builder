@@ -336,13 +336,13 @@ Nine phases, each about a day or more and each one commit. Phases 1–2 make `su
 
 ### Phase 7: Proposed to Plan Export
 
-**Status:** pending
+**Status:** completed
 **Dependencies:** [Phase 6]
 
 #### Task 7.1: Box detection and YAML writer
 
 - **Type:** implement
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** none
 - **Files:**
   - Create: app/src/survey/plan-export.ts
@@ -352,7 +352,7 @@ Nine phases, each about a day or more and each one commit. Phases 1–2 make `su
 #### Task 7.2: Export command
 
 - **Type:** implement
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [7.1]
 - **Files:**
   - Modify: app/src/survey/mode.ts
@@ -363,7 +363,7 @@ Nine phases, each about a day or more and each one commit. Phases 1–2 make `su
 #### Task 7.3: Round-trip test
 
 - **Type:** test
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [7.1]
 - **Files:**
   - Create: app/test/plan-export.test.ts
@@ -375,7 +375,7 @@ Nine phases, each about a day or more and each one commit. Phases 1–2 make `su
 #### Task 7.4: Document the export
 
 - **Type:** document
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [7.2]
 - **Files:**
   - Modify: survey/docs/plans.md
