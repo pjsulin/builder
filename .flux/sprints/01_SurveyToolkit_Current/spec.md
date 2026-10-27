@@ -1724,10 +1724,15 @@ class Project:
     def load_spec(self) -> dict: ...
     def stem(self, spec: dict) -> str: ...   # output_stem or slug(spec["name"])
 
-# materials.py
-LIBRARY: dict[str, dict]           # name -> {"color": (r, g, b), "render": {recipe: args}?}
-def material_table(spec: dict) -> dict[str, dict]: ...   # LIBRARY merged with spec materials:
+# materials.py  (2026-10-27: colours and recipes split; see plan Task 1.2)
+LIBRARY: dict[str, tuple[int, int, int]]                  # generic name -> RGB
+RECIPES: tuple[str, ...]                                  # Blender recipe names a spec may use
+def material_table(spec: dict) -> dict[str, tuple[int, int, int]]: ...   # LIBRARY + spec colours
+def render_recipes(spec: dict) -> dict[str, dict]: ...    # name -> {recipe, label, args}
 def rgb(table: dict, name: str, alpha: float = 1.0) -> tuple[float, float, float, float]: ...
+
+# project.py
+def slug(name: str) -> str: ...
 
 # build.py
 def build(project_dir: Path, plan: str | None = None, out: Path | None = None) -> None: ...
@@ -1736,7 +1741,12 @@ def build(project_dir: Path, plan: str | None = None, out: Path | None = None) -
 def write_ruby(out: Path, stem: str, name: str, module: str, elements: list, mats: dict) -> None: ...
 def write_dae(out: Path, stem: str, name: str, elements: list, mats: dict) -> None: ...
 def write_sh3d(out: Path, stem: str, elements: list, floor_z: float, appliances: set, mats: dict) -> tuple: ...
-def write_mesh_json(out: Path, elements, cams, face, ceilings, daylight, mats: dict) -> None: ...
+def write_mesh_json(out: Path, elements, cams, face, ceilings, daylight, mats: dict,
+                    recipes: dict, stem: str) -> None: ...   # mesh.json gains "stem", "recipes", element "kind"
+def write_previews(out: Path, elements: list, mats: dict) -> None: ...
+def write_check_plan(out: Path, report: dict, mats: dict) -> None: ...
+def check_materials(elements: list, mats: dict) -> None: ...     # build.py
+def check_sources(project: Project, elements: list) -> None: ... # build.py
 def write_builder(out: Path, stem: str, name: str, elements: list, mats: dict) -> None: ...   # export/builder.py
 
 # elements.py: element() gains source
@@ -1744,7 +1754,8 @@ def element(name, phase, material, ctx, parts, *, kind, notes=None, source=None)
 
 # render/blender_build.py
 RECIPES: dict[str, Callable]       # concrete, block, painted_block, worn_paint_floor, pavers, plain, wood, pine, glass, glow
-def make_real_materials(table: dict) -> dict: ...
+def make_real_materials(recipes: dict) -> dict: ...   # mesh.json "recipes"; args lists become tuples
+# args(): --out DIR is required (survey render passes Project(...).out)
 
 # capture/serve.py
 def serve(project: Path, port: int = 8000, cert: Path | None = None, key: Path | None = None) -> None: ...
@@ -1860,10 +1871,18 @@ Survey writes element attributes on the element's definition. Part groups carry 
 
 Spec `materials:` (20SPierson; colours from today's `MATERIALS`, recipes from today's `make_real_materials`):
 
+The full snippet for 20SPierson (2026-10-27: final shape is `render: {recipe, label?, args?}`; the values are exactly the removed code's):
+
 ```yaml
 materials:
-  walnut: {color: [110, 70, 40], render: {wood: [[0.035, 0.018, 0.009], [0.07, 0.036, 0.018]]}}
-  worn grey paint: {render: {worn_paint_floor: []}}   # finish-only: no colour needed
+  walnut:          {color: [110, 70, 40],   render: {recipe: wood,  label: walnut, args: [[0.035, 0.018, 0.009], [0.07, 0.036, 0.018]]}}
+  iron:            {color: [25, 25, 25],    render: {recipe: plain, label: black iron, args: [[0.02, 0.02, 0.02], 0.5, 0.6]}}
+  landscape_block: {color: [185, 170, 145], render: {recipe: concrete, label: landscape block, args: [[0.30, 0.27, 0.22], [0.40, 0.37, 0.31], 0.9, 0.4]}}
+  boiler_green:    {color: [30, 90, 55],    render: {recipe: plain, label: boiler green, args: [[0.05, 0.20, 0.10], 0.35]}}
+  sauna_wood:      {color: [225, 195, 150], render: {recipe: pine,  label: sauna pine}}
+  wh_jacket:       {color: [200, 200, 195], render: {recipe: plain, label: water heater jacket, args: [[0.62, 0.62, 0.60], 0.35, 0.3]}}
+  worn grey paint: {render: {recipe: worn_paint_floor, label: worn grey floor paint}}   # finish only
+  stucco:          {render: {recipe: concrete, label: stucco, args: [[0.42, 0.40, 0.36], [0.55, 0.52, 0.47], 0.9, 0.35]}}
 ```
 
 `entry.json` (capture v2; v1 entries with `values` still read):

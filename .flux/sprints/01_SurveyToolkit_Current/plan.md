@@ -14,7 +14,7 @@ Nine phases, each about a day or more and each one commit. Phases 1–2 make `su
 #### Task 1.1: Output stem and out dir
 
 - **Type:** implement
-- **Status:** pending
+- **Status:** in_progress
 - **Dependencies:** none
 - **Files:**
   - Modify: survey/src/builder_survey/project.py
@@ -31,7 +31,7 @@ Nine phases, each about a day or more and each one commit. Phases 1–2 make `su
 #### Task 1.2: Material table from library and spec
 
 - **Type:** implement
-- **Status:** pending
+- **Status:** in_progress
 - **Dependencies:** none
 - **Files:**
   - Modify: survey/src/builder_survey/materials.py
@@ -45,7 +45,7 @@ Nine phases, each about a day or more and each one commit. Phases 1–2 make `su
   - Modify: survey/src/builder_survey/export/check_plan.py
   - Modify: survey/src/builder_survey/render/blender_build.py
 - **Context:** [spec.md§Data Models](spec.md#data-models)
-- **Description:** Make `LIBRARY` generic-only and add `material_table(spec)`, which merges in spec `materials:`. Pass the table to every user of `MATERIALS`/`rgb`. Blender builds its materials from the recipes named in `mesh.json`, so it has no house list of its own. An unknown material name stops the build with the element named.
+- **Description:** Make `LIBRARY` generic-only and add `material_table(spec)`, which merges in spec `materials:`. Pass the table to every user of `MATERIALS`/`rgb`. Blender builds its materials from the recipes named in `mesh.json`, so it has no house list of its own. An unknown material name stops the build with the element named. (2026-10-27: the spec's Blender recipes come from a separate `render_recipes(spec)`, since `material_table` returns colours only so the exporters keep their `name -> (r, g, b)` shape. `mesh.json` also carries `stem` and `recipes`, so the Blender script, which can't import the project code, names the `.blend` and builds the spec's materials. House materials removed from `LIBRARY` and from Blender's built-in list: walnut, iron, landscape_block, boiler_green, sauna_wood, wh_jacket, worn grey paint, stucco.)
 
 #### Task 1.3: kind and source on elements
 
@@ -59,8 +59,12 @@ Nine phases, each about a day or more and each one commit. Phases 1–2 make `su
   - Modify: survey/src/builder_survey/generate/objects.py
   - Modify: survey/src/builder_survey/generate/layout.py
   - Modify: survey/src/builder_survey/generate/pipes.py
+  - Modify: survey/src/builder_survey/generate/joists.py
+  - Modify: survey/src/builder_survey/generate/walls.py
+  - Modify: survey/src/builder_survey/generate/fixtures/place.py
+  - Modify: survey/src/builder_survey/build.py
 - **Context:** [spec.md§Proposed](spec.md#proposed)
-- **Description:** Write `kind` into each element record of `mesh.json`. Read the optional `source:` key on spec entries and fail when its folder does not exist under the project.
+- **Description:** Write `kind` into each element record of `mesh.json`. Read the optional `source:` key on spec entries and fail when its folder does not exist under the project. (2026-10-27: `kind` in mesh.json is already done as part of 1.2's `mesh.py` edit. `source` is passed explicitly at each `element()` call site from the entry dict: `o` objects, `j` joists, `w` walls, `f` fixtures, `r` rooms floor in layout.py:164, and `r.get("source", p.get("source"))` for pipe runs. Ctx paths are report labels, not spec paths, so `ctx.py` is not changed. `build.py` gets `check_sources(project, elements)`, which fails when a source folder is missing. That is why joists.py, walls.py, fixtures/place.py and build.py were added.)
 
 #### Task 1.4: Golden --write and the lock file
 
