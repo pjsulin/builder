@@ -18,6 +18,7 @@ The survey compiler (`survey/`, package `builder-survey`) moved from 20SPierson 
 - **Golden master stays the guard:** any change to survey's outputs keeps `survey/tests/golden.py` at 0 differences against 20SPierson `tests/golden/`, or updates that reference in 20SPierson with the reason for each difference.
 - **One sprint, phases of a day or more, executed without stopping between phases;** ask Patrick only on real decisions.
 - **Capture comes last:** Patrick tests it by changing the model on his return.
+- **This sprint builds the minimal survey-mode UI itself (Patrick, 2026-10-27, option a):** Milestones 1–3 have not started, so the Existing / Demo / Proposed visibility and lock, a read-only attribute view and the Proposed → plan export are built here, kept minimal, so the full Milestone 3 panels can later replace them.
 - **"Cloud" on the attributes step in the old plan is where it was sketched, not a constraint.**
 
 ## Scope
@@ -48,7 +49,7 @@ The survey compiler (`survey/`, package `builder-survey`) moved from 20SPierson 
 
 ## Open Questions
 
-- **Survey mode vs. Milestone 3 (decision for Patrick):** lock, tag visibility and attribute display need UI that Milestone 3 (Sprints 3.1–3.3) delivers, and Milestones 1–3 have not started. Does this sprint build the minimal survey-mode UI it needs (tag panel with lock and visibility, read-only attribute view), or stop at "the basement opens in Builder" and leave survey mode to a sprint after Milestone 3?
+- How small the survey-mode UI can be while still being replaceable by Milestone 3's tag panel, Entity Info and Outliner without rework.
 - Attribute model: value types (string / number / bool / nested?), namespace syntax, where they sit in the JSON, whether this bumps the format to version 2 or is an additive v1 change, and the wasm API shape.
 - Capture: where the app lives (`survey/src/builder_survey/capture/` served from the Mac, reached from the phone over the LAN?), how the phone reaches it (HTTPS is needed for in-page audio recording on iOS Safari; or use the native recorder through a file input), which local transcription model, and how a new entry reaches the model (a Claude session reading `measurements/` as today, or something that triggers it).
 - Rust/WASM boundary: confirm survey never calls the kernel (writes JSON only), and whether the Proposed → plan export runs in the browser (TS over the wasm document) or in Python reading a saved `.builder`.
