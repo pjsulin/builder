@@ -12,6 +12,8 @@ import { NavTool } from "./tools/nav";
 import { PushPullTool } from "./tools/pushpull";
 import { RectangleTool } from "./tools/rectangle";
 import { SelectTool } from "./tools/select";
+import { groupSelection, lockedMessage, surveyTags, SurveyPanel } from "./survey/mode";
+import { exportProposed } from "./survey/plan-export";
 import { errorMessage, Selection, type Overlay, type Tool, type ToolHost, type ToolPointer } from "./tools/tool";
 import { formatLength, type UnitSystem } from "./units";
 import { CameraModel } from "./view/camera";
@@ -39,8 +41,11 @@ export class App implements ToolHost {
   readonly selection = new Selection();
   readonly inference: InferenceEngine;
   units: UnitSystem = "imperial";
+  /** The tag new groups land on (Proposed in a survey model). */
+  activeTag: number | null = null;
 
   private view: Viewport;
+  private survey: SurveyPanel;
   private drawScene!: SceneIndex;
   private pickScene!: SceneIndex;
   private ctxMatrix: Mat4 = IDENTITY;
@@ -66,7 +71,12 @@ export class App implements ToolHost {
       orbit: new NavTool(this, "orbit", nav),
       pan: new NavTool(this, "pan", nav),
     };
-    this.selection.onChange = () => this.drawSelection();
+    this.survey = new SurveyPanel(this, $("survey"));
+    this.survey.onExport = () => this.exportPlan();
+    this.selection.onChange = () => {
+      this.drawSelection();
+      this.survey.update();
+    };
     this.view.onFrame = (ms) => this.frameStats(ms);
     this.bindUi();
     this.readTheme();
@@ -95,6 +105,7 @@ export class App implements ToolHost {
       this.pickScene = this.drawScene;
       this.selection.prune(this.model);
       this.updateButtons();
+      this.survey.update();
     }
     this.view.setScene(this.drawScene);
     this.drawSelection();
@@ -113,7 +124,8 @@ export class App implements ToolHost {
   private toastTimer = 0;
   flash(message: string): void {
     const t = $("toast");
-    t.textContent = message;
+    const hover = this.overlay.hoverEntity ? [this.overlay.hoverEntity] : [];
+    t.textContent = lockedMessage(this.drawScene, this.model, [...this.selection.items, ...hover], message);
     t.classList.add("show");
     clearTimeout(this.toastTimer);
     this.toastTimer = window.setTimeout(() => t.classList.remove("show"), 1800);
@@ -127,6 +139,10 @@ export class App implements ToolHost {
   enterGroup(instance: number): void {
     const info = this.model.instanceInfo(instance);
     if (!info) return;
+    if (this.model.instanceProps(instance)?.locked) {
+      this.selection.set([{ kind: "instance", id: instance }]);
+      return this.flash("that is on a locked tag");
+    }
     this.setContext(info.definition);
   }
 
@@ -181,9 +197,12 @@ export class App implements ToolHost {
     this.ctxInverse = IDENTITY;
     $("context").hidden = true;
     this.selection.clear();
+    const tags = surveyTags(model);
+    this.activeTag = tags ? tags.Proposed.id : null;
     this.refresh();
     this.savedRevision = this.model.revision;
     this.zoomExtents();
+    if (tags) this.flash("Survey model: Existing and Demo are locked, new groups go on Proposed");
   }
 
   private undo(redo = false): void {
@@ -211,10 +230,11 @@ export class App implements ToolHost {
     const s = this.selection;
     if (s.empty) return this.flash("Select something to group first");
     try {
-      const g = this.model.transact("Make Group", () => this.model.makeGroup(this.ctx, s.ids("face"), s.ids("edge"), s.ids("instance")));
+      const g = groupSelection(this.model, this.ctx, s, this.ctx === ROOT ? this.activeTag : null);
       this.refresh();
       this.selection.set([{ kind: "instance", id: g }]);
-      this.flash("Grouped");
+      const tag = this.activeTag !== null && this.ctx === ROOT ? this.model.tags().find((t) => t.id === this.activeTag) : null;
+      this.flash(tag ? `Grouped on ${tag.name}` : "Grouped");
     } catch (e) {
       this.flash(errorMessage(e));
     }
@@ -237,6 +257,19 @@ export class App implements ToolHost {
     }
     this.refresh();
     this.selection.set(out);
+  }
+
+  private exportPlan(): void {
+    const name = prompt("Plan name (model/plans/NAME.yaml)", "proposed");
+    if (!name) return;
+    const { yaml, skipped } = exportProposed(this.model, name);
+    const blob = new Blob([yaml], { type: "application/yaml" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `${name}.yaml`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    this.flash(skipped.length ? `Exported ${name}.yaml. Not exported (not axis-aligned boxes): ${skipped.join(", ")}` : `Exported ${name}.yaml`);
   }
 
   private selectAll(): void {

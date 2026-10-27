@@ -94,9 +94,9 @@ Users don't praise SketchUp for its feature count. They praise a small number of
 | --- | --- | --- |
 | Groups (make, open for editing, close, explode) | Core | Built now: make, enter, exit, explode. |
 | Components (definitions with many instances, edit one changes all, make unique) | Core | The data model supports it now. UI next. |
-| Tags/layers (visibility, color by tag) | Core | Data model only for now. |
+| Tags/layers (visibility, color by tag) | Core | Visibility and lock are in the kernel and file format, enforced by the kernel (`Error::Locked`). The survey panel's tag strip is the only UI; the full tag panel is Milestone 3. |
 | Outliner (tree of groups and components) | Core | |
-| Entity Info panel | Core | |
+| Entity Info panel | Core | The survey panel shows the selection's attributes read-only; Entity Info proper is Milestone 3. |
 | Hide, unhide, isolate | Core | |
 | Components library and 3D Warehouse equivalent | Later | An open library of doors, windows and lumber is a good community project. |
 | Dynamic or parametric components (attributes and formulas) | Later | A small expression language over component attributes. |
@@ -106,7 +106,7 @@ Users don't praise SketchUp for its feature count. They praise a small number of
 
 | Feature | Tier | Notes |
 | --- | --- | --- |
-| Materials (color, texture, opacity) and Paint Bucket | Core | |
+| Materials (color, texture, opacity) and Paint Bucket | Core | Colour and opacity render now (face material, else instance material, else theme). No Paint Bucket yet. |
 | Texture positioning on faces | Later | |
 | Styles (edge display, face style, x-ray, back edges, sketchy edges) | Later | X-ray and hidden-line are Core-lite because they help modeling. |
 | Shadows with geolocation and time of day | Later | |
@@ -147,11 +147,22 @@ Users don't praise SketchUp for its feature count. They praise a small number of
 | Hidden-line vector output (true vector PDF/SVG/DXF) | Later | Needs a hidden-line-removal pass in the kernel. |
 | Automatic plans, sections and elevations from BIM objects | Full app | |
 
+### Survey mode
+
+| Feature | Tier | Notes |
+| --- | --- | --- |
+| Open a `.builder` written by `survey build` (one group per element, Existing / Demo / Proposed tags, `survey:*` attributes) | Core | Built now. A file with those three tags is a survey model. |
+| Existing and Demo locked: no move, push/pull, erase, explode, group or drawing into them | Core | Built now, enforced by the kernel; the message names the tag (`Locked: Existing`). Locked geometry still snaps and selects. |
+| Tag strip: show/hide and lock/unlock each tag, journaled | Core | Built now, minimal. Replaced by Milestone 3's tag panel. |
+| Read-only attribute view for the selection, `~` elements marked | Core | Built now: `survey:approx` is shown in orange; placeholder elements render in the placeholder material. |
+| New groups land on Proposed | Core | Built now (`Make group` at the root of a survey model). |
+| Export Proposed boxes to a survey plan file (`model/plans/NAME.yaml`) | Core | Built now: axis-aligned box groups only; everything else is listed in the message and left out. |
+
 ### Building data (BIM)
 
 | Feature | Tier | Notes |
 | --- | --- | --- |
-| Classify groups and components (wall, door, slab, joist) | Later | Cheap way into BIM: attributes on existing objects. Maps to IFC classes. |
+| Classify groups and components (wall, door, slab, joist) | Later | Cheap way into BIM: attributes on existing objects. Maps to IFC classes. The attribute slot is built: namespaced scalar attributes on definitions, instances and faces, journaled and saved (`docs/file-format.md`). |
 | Cut lists and board-foot takeoffs from grouped parts | Later | A big win for furniture and deck builders (OpenCutList shows demand). |
 | Parametric walls, doors, windows, roofs, stairs, slabs | Full app | Built as kernel plugins that generate geometry inside components. |
 | Framing generators (studs, joists, rafters) | Full app | |

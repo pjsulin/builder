@@ -286,13 +286,13 @@ Nine phases, each about a day or more and each one commit. Phases 1–2 make `su
 
 ### Phase 6: Survey Mode in Builder
 
-**Status:** pending
+**Status:** completed
 **Dependencies:** [Phase 4, Phase 5]
 
 #### Task 6.1: Survey panel: tag strip and attribute view
 
 - **Type:** implement
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** none
 - **Files:**
   - Create: app/src/survey/mode.ts
@@ -304,7 +304,7 @@ Nine phases, each about a day or more and each one commit. Phases 1–2 make `su
 #### Task 6.2: Wire survey mode into the app
 
 - **Type:** implement
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [6.1]
 - **Files:**
   - Modify: app/src/app.ts
@@ -316,7 +316,7 @@ Nine phases, each about a day or more and each one commit. Phases 1–2 make `su
 #### Task 6.3: Survey mode tests
 
 - **Type:** test
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [6.2]
 - **Files:**
   - Create: app/test/survey.test.ts
@@ -327,7 +327,7 @@ Nine phases, each about a day or more and each one commit. Phases 1–2 make `su
 #### Task 6.4: Features doc
 
 - **Type:** document
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [6.2]
 - **Files:**
   - Modify: docs/features.md
@@ -347,7 +347,7 @@ Nine phases, each about a day or more and each one commit. Phases 1–2 make `su
 - **Files:**
   - Create: app/src/survey/plan-export.ts
 - **Context:** [spec.md§Data Models](spec.md#data-models)
-- **Description:** `exportProposed` finds the axis-aligned box groups on Proposed (world transform applied) and writes `add: objects:` entries in feet-inches. Everything else goes in `skipped`, by name.
+- **Description:** `exportProposed` finds the axis-aligned box groups on Proposed (world transform applied) and writes `add: objects:` entries in feet-inches. Everything else goes in `skipped`, by name. (2026-10-27: written with Phase 6, because the survey panel's Export plan button and `App.exportPlan` import it; the Phase 6 commit carries 7.1–7.3 and Phase 7's commit carries 7.4. `at` and `size` are both written as feet-inches by one `ftin` (`2'6"`, not `30"` as the spec example shows); survey's `parse_length` reads either. Unnamed groups (`Group#N`) become `proposed_N`; the group's instance material name is used when set, else `proposed`.)
 
 #### Task 7.2: Export command
 

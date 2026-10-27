@@ -99,6 +99,10 @@ export class MoveTool implements Tool {
       selection.set([pick.entity]);
     }
     if (!this.current) return;
+    // Locked geometry is refused before anything is previewed.
+    const locked = selection.ids("instance").some((id) => model.instanceProps(id)?.locked) ||
+      ((selection.ids("face").length || selection.ids("edge").length) && model.isLockedDef(this.host.ctx));
+    if (locked) return this.host.flash("that is on a locked tag");
     this.start(this.current.point, selection.ids("face"), selection.ids("edge"), selection.ids("instance"));
     if (this.moving) model.begin("Move");
   }

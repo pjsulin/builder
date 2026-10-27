@@ -6,6 +6,7 @@ import { apply, applyDir, IDENTITY, invert, type Mat4, type Vec3 } from "../src/
 import { Selection, type Overlay, type Tool, type ToolHost, type ToolPointer } from "../src/tools/tool";
 import { formatLength } from "../src/units";
 import { CameraModel } from "../src/view/camera";
+import { lockedMessage } from "../src/survey/mode";
 import { SceneIndex } from "../src/view/scene";
 import { newModel } from "./helpers";
 
@@ -52,7 +53,8 @@ export class TestHost implements ToolHost {
     this.vcbText = text;
   }
   flash(m: string): void {
-    this.flashes.push(m);
+    const hover = this.overlay.hoverEntity ? [this.overlay.hoverEntity] : [];
+    this.flashes.push(lockedMessage(this.pickScene, this.model, [...this.selection.items, ...hover], m));
   }
   hintChanged(): void {}
   enterGroup(instance: number): void {

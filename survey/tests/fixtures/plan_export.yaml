@@ -1,0 +1,4 @@
+description: drawn in Builder 2026-10-27, plan vanity
+add:
+  objects:
+    vanity: {type: box, at: [24', 30', 0"], size: [2'6", 1'9", 2'10"], material: proposed, phase: proposed}
