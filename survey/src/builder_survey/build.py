@@ -1,21 +1,16 @@
 #!/usr/bin/env python3
-"""Build the basement model from spec.yaml.
+"""Build a project: spec.yaml (+ optional plan) -> elements -> every output in out/.
 
-Outputs (in model/out/):
-  basement.dae  COLLADA model — SketchUp Go or Pro: File > Import
-  mesh.json     triangle meshes for blender_build.py
-  basement.rb   SketchUp Ruby script — in SketchUp: Window > Ruby Console,
-                then  load '/path/to/basement.rb'
-  plan.png      top-down preview
-  view3d.png    axonometric preview
-  report.md     every MISSING and PLACEHOLDER value, by spec path
-  bathroom_plan.html  2D layout page: drag pieces around the existing walls and
-                pipes (space_plan.py; starting pieces in space/bathroom.json)
+Outputs (in DIR/model/out/, or out/plans/NAME/ with --plan):
+  basement.dae  COLLADA model: SketchUp Go or Pro, File > Import
+  basement.sh3d Sweet Home 3D home
+  mesh.json     triangle meshes for render/blender_build.py
+  basement.rb   SketchUp Ruby script (Window > Ruby Console, then load '/path/to/basement.rb')
+  plan.png, view3d.png   quick previews
+  check_plan.png, report.md   where measurements disagree; every MISSING and ~ value
+  <room>_plan.html   2D layout page per `layout_pages:` entry of survey.yaml
 
-Nothing is inferred. MISSING values skip their element; "~" values build in
-orange. Run:  uv run survey build --project DIR
-A plan (plans/NAME.yaml, see apply_plan) layers onto the spec:
-              uv run survey build --project DIR --plan NAME   outputs in out/plans/NAME/
+Nothing is inferred. MISSING values skip their element; "~" values build in orange.
 """
 from .export.check_plan import write_check_plan
 from .export.dae import write_dae

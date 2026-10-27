@@ -31,6 +31,8 @@ def main():
     elif args.cmd == "render":
         script = Path(__file__).parent / "render" / "blender_build.py"
         extra = args.blender_args[1:] if args.blender_args[:1] == ["--"] else args.blender_args
+        if not Path(args.blender).is_file():
+            sys.exit(f"survey render: no Blender at {args.blender} (use --blender PATH)")
         cmd = [args.blender, "-b", "-P", str(script), "--", "--project", str(args.project.resolve()), *extra]
         sys.exit(subprocess.run(cmd).returncode)
     else:
