@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """Golden-master check: rebuild a project and diff every output against saved ones.
 
-    uv run python survey/tests/golden.py --golden DIR --project . [--extra-plan FILE]
+    uv run python ../builder/survey/tests/golden.py --golden DIR --project . [--extra-plan FILE]
+
+The project must have builder-survey installed (`survey` runs from its env).
 
 DIR holds `base/` (a base build's out/) and, per extra plan, `<plan name>/`
 (that plan's out/plans/<name>/). The project is copied to a scratch dir first,
@@ -63,7 +65,8 @@ def main():
              for p in args.extra_plan]
     allbad = []
     for label, extra, out in runs:
-        cmd = ["uv", "run", "--project", str(args.project / "survey"), "survey",
+        # The project's own env has builder-survey installed (a path dependency).
+        cmd = ["uv", "run", "--project", str(args.project), "survey",
                "build", "--project", str(proj), *extra]
         r = subprocess.run(cmd, capture_output=True, text=True)
         if r.returncode:
