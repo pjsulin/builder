@@ -49,4 +49,14 @@ cargo test --workspace && npm test && uv run --project survey pytest survey/test
 
 ## Phase 3 agent
 
-Still running when this was written. Its report goes to the session that started it, which appends it here.
+**Stopped part-way, with no report.** It was killed when Patrick interrupted the session at 15:39. What it left, as checked at 15:52:
+
+- It changed `kernel/src/` (doc.rs +125, format.rs +65, group.rs +45, edit.rs, heal.rs, lib.rs, line.rs, pushpull.rs, topo.rs) and created `kernel/examples/validate.rs` and `kernel/tests/attributes.rs`. `docs/` is untouched, so Task 3.5 is not done.
+- It compiles. Run `cargo` with `export PATH="$HOME/.cargo/bin:$PATH"`, because cargo is not on the default PATH here.
+- `cargo test --workspace --no-fail-fast`: every existing suite passes. `attributes.rs` has 8 passing and 2 failing:
+  - `set_and_delete_are_undone_and_redone` panics at `kernel/tests/attributes.rs:39`;
+  - `instance_and_face_attributes_are_journaled` panics at `:59`.
+  Both are an `unwrap()` on `None`. Attributes are missing after undo or redo, so either the journal does not record attribute writes or the test reads the wrong target.
+- Unknown: whether the lock checks cover every entry point in Task 3.2, whether `format.rs` tests were added, and whether kernel-wasm builds.
+
+The next session should treat it as unreviewed work. Read the diff against spec.md Interfaces (Kernel) and Tasks 3.1–3.5, fix the two failures, finish 3.2–3.5, then commit Phase 3.
