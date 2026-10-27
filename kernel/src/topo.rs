@@ -123,6 +123,7 @@ impl Document {
             plane: Plane { normal: V3::Z, d: 0.0 },
             material: None,
             back_material: None,
+            attributes: Attributes::new(),
             tris: Vec::new(),
         };
         self.prepare_face(&mut face, normal)?;

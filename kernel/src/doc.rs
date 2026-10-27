@@ -4,9 +4,12 @@
 //! slot's value before and after. A transaction is the list of those writes, so undo,
 //! redo and aborting a live preview are all just restoring slot values.
 
+use std::collections::BTreeMap;
+
 use serde::{Deserialize, Serialize};
 
 use crate::math::{Mat4, Plane, IDENTITY, V3};
+use crate::Error;
 
 macro_rules! id_type {
     ($name:ident) => {
@@ -31,6 +34,39 @@ id_type!(TagId);
 
 /// The model root's definition. Loose geometry lives here.
 pub const ROOT: DefId = DefId(0);
+
+/// An attribute value: a JSON string, number or boolean.
+pub type AttrValue = serde_json::Value;
+
+/// Attributes by namespace, then key (`{"survey": {"kind": "wall"}}`). Sorted, so
+/// they serialize the same way every time. A namespace is never left empty.
+pub type Attributes = BTreeMap<String, BTreeMap<String, AttrValue>>;
+
+/// What an attribute is attached to.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum AttrTarget {
+    Definition(DefId),
+    Instance(InstId),
+    Face(FId),
+}
+
+/// Check one attribute: the namespace is a lowercase identifier
+/// (`[a-z][a-z0-9_-]*`), the key is not empty and the value, if any, is a scalar.
+pub(crate) fn check_attribute(ns: &str, key: &str, value: Option<&AttrValue>) -> Result<(), String> {
+    let mut chars = ns.chars();
+    let ns_ok = chars.next().is_some_and(|c| c.is_ascii_lowercase())
+        && chars.all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_' || c == '-');
+    if !ns_ok {
+        return Err(format!("namespace {ns:?} must match [a-z][a-z0-9_-]*"));
+    }
+    if key.is_empty() {
+        return Err("key is empty".into());
+    }
+    if value.is_some_and(|v| !(v.is_string() || v.is_number() || v.is_boolean())) {
+        return Err("value must be a string, number or boolean".into());
+    }
+    Ok(())
+}
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Vertex {
@@ -66,6 +102,7 @@ pub struct Face {
     pub plane: Plane,
     pub material: Option<MatId>,
     pub back_material: Option<MatId>,
+    pub attributes: Attributes,
     /// Cached triangulation: indices into the concatenation of `outer` and `holes`,
     /// counter-clockwise seen from the front.
     pub tris: Vec<u32>,
@@ -93,6 +130,7 @@ pub enum DefKind {
 pub struct Definition {
     pub name: String,
     pub kind: DefKind,
+    pub attributes: Attributes,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -104,6 +142,7 @@ pub struct Instance {
     pub name: String,
     pub material: Option<MatId>,
     pub tag: Option<TagId>,
+    pub attributes: Attributes,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -118,6 +157,9 @@ pub struct Material {
 pub struct Tag {
     pub name: String,
     pub visible: bool,
+    /// Instances on a locked tag, and the geometry inside them, refuse edits.
+    #[serde(default)]
+    pub locked: bool,
 }
 
 /// Slot storage. Ids are indexes and are never reused; deleted slots are `None`.
@@ -204,7 +246,7 @@ macro_rules! setter {
 impl Document {
     pub fn new() -> Self {
         let mut d = Document::default();
-        d.set_definition(DefId(0), Some(Definition { name: "Model".into(), kind: DefKind::Root }));
+        d.set_definition(DefId(0), Some(Definition { name: "Model".into(), kind: DefKind::Root, attributes: Attributes::new() }));
         d.pending.clear();
         d
     }
@@ -215,7 +257,7 @@ impl Document {
     setter!(set_definition, definition, definitions, Definition, DefId, Definition);
     setter!(set_instance, instance, instances, Instance, InstId, Instance);
     setter!(set_material, material, materials, Material, MatId, Material);
-    setter!(set_tag, tag, tags, Tag, TagId, Tag);
+    setter!(set_tag_record, tag, tags, Tag, TagId, Tag);
 
     pub fn next_vid(&self) -> VId {
         VId(self.vertices.len_slots() as u32)
@@ -375,8 +417,87 @@ impl Document {
                 name: String::new(),
                 material: None,
                 tag: None,
+                attributes: Attributes::new(),
             }),
         );
         id
+    }
+
+    // ---- attributes and tags ----
+
+    pub fn attributes(&self, t: AttrTarget) -> Option<&Attributes> {
+        match t {
+            AttrTarget::Definition(d) => self.definition(d).map(|x| &x.attributes),
+            AttrTarget::Instance(i) => self.instance(i).map(|x| &x.attributes),
+            AttrTarget::Face(f) => self.face(f).map(|x| &x.attributes),
+        }
+    }
+
+    /// Set one attribute, or delete it with `None`. A namespace left empty is removed.
+    pub fn set_attribute(
+        &mut self,
+        t: AttrTarget,
+        ns: &str,
+        key: &str,
+        value: Option<AttrValue>,
+    ) -> Result<(), Error> {
+        check_attribute(ns, key, value.as_ref()).map_err(|why| Error::Attribute(format!("{ns}.{key}: {why}")))?;
+        let edit = |attrs: &mut Attributes| match value {
+            Some(v) => {
+                attrs.entry(ns.to_string()).or_default().insert(key.to_string(), v);
+            }
+            None => {
+                if let Some(keys) = attrs.get_mut(ns) {
+                    keys.remove(key);
+                    if keys.is_empty() {
+                        attrs.remove(ns);
+                    }
+                }
+            }
+        };
+        match t {
+            AttrTarget::Definition(d) => {
+                let mut x = self.definition(d).cloned().ok_or(Error::Missing("definition"))?;
+                edit(&mut x.attributes);
+                self.set_definition(d, Some(x));
+            }
+            AttrTarget::Instance(i) => {
+                let mut x = self.instance(i).cloned().ok_or(Error::Missing("instance"))?;
+                edit(&mut x.attributes);
+                self.set_instance(i, Some(x));
+            }
+            AttrTarget::Face(f) => {
+                let mut x = self.face(f).cloned().ok_or(Error::Missing("face"))?;
+                edit(&mut x.attributes);
+                self.set_face(f, Some(x));
+            }
+        }
+        Ok(())
+    }
+
+    /// Add a visible, unlocked tag.
+    pub fn new_tag(&mut self, name: &str) -> TagId {
+        let id = TagId(self.tags.len_slots() as u32);
+        self.set_tag_record(id, Some(Tag { name: name.to_string(), visible: true, locked: false }));
+        id
+    }
+
+    /// Put an instance on a tag, or on none.
+    pub fn set_tag(&mut self, inst: InstId, tag: Option<TagId>) -> Result<(), Error> {
+        let mut x = self.instance(inst).cloned().ok_or(Error::Missing("instance"))?;
+        if let Some(t) = tag {
+            self.tag(t).ok_or(Error::Missing("tag"))?;
+        }
+        x.tag = tag;
+        self.set_instance(inst, Some(x));
+        Ok(())
+    }
+
+    pub fn set_tag_flags(&mut self, tag: TagId, visible: bool, locked: bool) -> Result<(), Error> {
+        let mut x = self.tag(tag).cloned().ok_or(Error::Missing("tag"))?;
+        x.visible = visible;
+        x.locked = locked;
+        self.set_tag_record(tag, Some(x));
+        Ok(())
     }
 }

@@ -13,6 +13,7 @@ impl Document {
     /// in is healed, which creates faces for closed loops and splits faces the line
     /// crosses. Returns the edges that make up the line, in order from `a` to `b`.
     pub fn add_line(&mut self, ctx: DefId, a: V3, b: V3) -> Result<Vec<EId>, Error> {
+        self.check_def_unlocked(ctx)?;
         let edges = self.insert_segment(ctx, a, b)?;
         self.heal_around(ctx, &edges)?;
         Ok(edges)

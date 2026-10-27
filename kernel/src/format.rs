@@ -1,8 +1,9 @@
 //! The `.builder` file format, version 1. See docs/file-format.md.
 
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 
 use crate::doc::*;
 use crate::math::{Mat4, V3};
@@ -37,7 +38,12 @@ struct FileDefinition {
     edges: Vec<[u32; 2]>,
     #[serde(default)]
     faces: Vec<FileFace>,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    attributes: FileAttributes,
 }
+
+/// Attributes as written: checked on read so errors can name their path.
+type FileAttributes = BTreeMap<String, Value>;
 
 #[derive(Serialize, Deserialize)]
 struct FileFace {
@@ -48,6 +54,8 @@ struct FileFace {
     material: Option<u32>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     back_material: Option<u32>,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    attributes: FileAttributes,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -61,6 +69,8 @@ struct FileInstance {
     material: Option<u32>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     tag: Option<u32>,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    attributes: FileAttributes,
 }
 
 impl Document {
@@ -97,9 +107,17 @@ impl Document {
                         holes: f.holes.iter().map(lp).collect(),
                         material: mat(f.material),
                         back_material: mat(f.back_material),
+                        attributes: write_attributes(&f.attributes),
                     })
                     .collect();
-                FileDefinition { name: def.name.clone(), kind: def.kind, vertices, edges, faces }
+                FileDefinition {
+                    name: def.name.clone(),
+                    kind: def.kind,
+                    vertices,
+                    edges,
+                    faces,
+                    attributes: write_attributes(&def.attributes),
+                }
             })
             .collect();
         let instances = self
@@ -113,6 +131,7 @@ impl Document {
                 name: i.name.clone(),
                 material: mat(i.material),
                 tag: i.tag.and_then(|t| tag_index.get(&t).copied()),
+                attributes: write_attributes(&i.attributes),
             })
             .collect();
         let file = File {
@@ -156,7 +175,7 @@ impl Document {
         }
         for t in &file.tags {
             let id = TagId(doc.tags.len_slots() as u32);
-            doc.set_tag(id, Some(t.clone()));
+            doc.set_tag_record(id, Some(t.clone()));
         }
         let nmat = file.materials.len() as u32;
         let check_mat = |m: Option<u32>| -> Result<Option<MatId>, Error> {
@@ -167,11 +186,16 @@ impl Document {
         };
         for (di, fd) in file.definitions.iter().enumerate() {
             let def = DefId(di as u32);
+            let attributes = read_attributes(&fd.attributes, &format!("definitions[{di}].attributes"))?;
             if di > 0 {
                 if fd.kind == DefKind::Root {
                     return Err(Error::Format("only the first definition can be the root".into()));
                 }
-                doc.set_definition(def, Some(Definition { name: fd.name.clone(), kind: fd.kind }));
+                doc.set_definition(def, Some(Definition { name: fd.name.clone(), kind: fd.kind, attributes }));
+            } else {
+                let mut root = doc.definition(ROOT).cloned().expect("new documents have a root");
+                root.attributes = attributes;
+                doc.set_definition(ROOT, Some(root));
             }
             let mut verts = Vec::with_capacity(fd.vertices.len());
             for p in &fd.vertices {
@@ -190,7 +214,9 @@ impl Document {
             for [a, b] in &fd.edges {
                 doc.add_edge(v(*a)?, v(*b)?).map_err(|e| Error::Format(format!("bad edge: {e}")))?;
             }
-            for ff in &fd.faces {
+            for (fi, ff) in fd.faces.iter().enumerate() {
+                let attributes =
+                    read_attributes(&ff.attributes, &format!("definitions[{di}].faces[{fi}].attributes"))?;
                 let outer = ff.outer.iter().map(|&i| v(i)).collect::<Result<Vec<_>, _>>()?;
                 let holes = ff
                     .holes
@@ -204,6 +230,7 @@ impl Document {
                 doc.with_face(f, |x| {
                     x.material = m;
                     x.back_material = bm;
+                    x.attributes = attributes;
                 });
             }
             // Drop vertices no edge uses (the format has no loose points).
@@ -223,7 +250,8 @@ impl Document {
         {
             return Err(Error::Format("a definition contains itself".into()));
         }
-        for fi in &file.instances {
+        for (ii, fi) in file.instances.iter().enumerate() {
+            let attributes = read_attributes(&fi.attributes, &format!("instances[{ii}].attributes"))?;
             let t: Mat4 = fi
                 .transform
                 .clone()
@@ -239,11 +267,36 @@ impl Document {
             inst.name = fi.name.clone();
             inst.material = check_mat(fi.material)?;
             inst.tag = fi.tag.filter(|&t| (t as usize) < file.tags.len()).map(TagId);
+            inst.attributes = attributes;
             doc.set_instance(id, Some(inst));
         }
         doc.clear_history();
         Ok(doc)
     }
+}
+
+fn write_attributes(attrs: &Attributes) -> FileAttributes {
+    attrs
+        .iter()
+        .map(|(ns, keys)| (ns.clone(), Value::Object(keys.iter().map(|(k, v)| (k.clone(), v.clone())).collect())))
+        .collect()
+}
+
+/// Check attributes read from a file. Errors name the JSON path, such as
+/// `instances[3].attributes.survey.kind`. Empty namespaces are dropped.
+fn read_attributes(raw: &FileAttributes, path: &str) -> Result<Attributes, Error> {
+    let mut out = Attributes::new();
+    for (ns, keys) in raw {
+        let Value::Object(keys) = keys else {
+            return Err(Error::Attribute(format!("{path}.{ns}: namespace must be an object")));
+        };
+        for (key, value) in keys {
+            check_attribute(ns, key, Some(value))
+                .map_err(|why| Error::Attribute(format!("{path}.{ns}.{key}: {why}")))?;
+            out.entry(ns.clone()).or_default().insert(key.clone(), value.clone());
+        }
+    }
+    Ok(out)
 }
 
 /// True if the parent → child definition graph has a cycle.

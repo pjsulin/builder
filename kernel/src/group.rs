@@ -25,6 +25,10 @@ impl Document {
         edges: &[EId],
         instances: &[InstId],
     ) -> Result<InstId, Error> {
+        self.check_def_unlocked(ctx)?;
+        for &i in instances {
+            self.check_instance_unlocked(i)?;
+        }
         let faces: Vec<FId> =
             faces.iter().copied().filter(|&f| self.face(f).is_some_and(|x| x.owner == ctx)).collect();
         let mut edge_set: BTreeSet<EId> =
@@ -44,7 +48,7 @@ impl Document {
 
         let def = self.next_def();
         let n = self.definitions.count();
-        self.set_definition(def, Some(Definition { name: format!("Group#{n}"), kind: DefKind::Group }));
+        self.set_definition(def, Some(Definition { name: format!("Group#{n}"), kind: DefKind::Group, attributes: Attributes::new() }));
         let inst = self.new_instance(def, ctx);
 
         let mut vmap: HashMap<VId, VId> = HashMap::new();
@@ -67,6 +71,7 @@ impl Document {
             self.with_face(nf, |x| {
                 x.material = face.material;
                 x.back_material = face.back_material;
+                x.attributes = face.attributes.clone();
             });
         }
 
@@ -90,6 +95,7 @@ impl Document {
     /// copy welds to touching geometry there. A group's definition is deleted.
     pub fn explode(&mut self, inst: InstId) -> Result<Exploded, Error> {
         let instance = self.instance(inst).cloned().ok_or(Error::Missing("instance"))?;
+        self.check_instance_unlocked(inst)?;
         let (def, parent, m) = (instance.definition, instance.parent, instance.transform);
         let mut out = Exploded::default();
 
@@ -115,6 +121,7 @@ impl Document {
                 self.with_face(nf, |x| {
                     x.material = face.material.or(instance.material);
                     x.back_material = face.back_material;
+                    x.attributes = face.attributes.clone();
                 });
                 out.faces.push(nf);
             }
@@ -160,6 +167,7 @@ impl Document {
     /// Delete an instance. A group's definition goes with it.
     pub fn erase_instance(&mut self, inst: InstId) -> Result<(), Error> {
         let def = self.instance(inst).ok_or(Error::Missing("instance"))?.definition;
+        self.check_instance_unlocked(inst)?;
         self.set_instance(inst, None);
         if self.instances_of(def).count() == 0 {
             let children: Vec<InstId> = self.instances_in(def).map(|(i, _)| i).collect();
@@ -174,8 +182,43 @@ impl Document {
 
     pub fn set_transform(&mut self, inst: InstId, m: Mat4) -> Result<(), Error> {
         let mut x = self.instance(inst).cloned().ok_or(Error::Missing("instance"))?;
+        self.check_instance_unlocked(inst)?;
         x.transform = m;
         self.set_instance(inst, Some(x));
+        Ok(())
+    }
+
+    /// True when the definition's geometry is locked: an instance of it, or of a
+    /// definition it is placed in, is on a locked tag.
+    pub fn is_locked_def(&self, def: DefId) -> bool {
+        self.instances_of(def).any(|(_, i)| self.tag_locked(i.tag) || self.is_locked_def(i.parent))
+    }
+
+    fn tag_locked(&self, tag: Option<TagId>) -> bool {
+        tag.and_then(|t| self.tag(t)).is_some_and(|t| t.locked)
+    }
+
+    /// True when anything placed inside `def`, at any depth, is on a locked tag.
+    fn contains_locked(&self, def: DefId) -> bool {
+        self.instances_in(def).any(|(_, i)| self.tag_locked(i.tag) || self.contains_locked(i.definition))
+    }
+
+    /// `Error::Locked` if edits to geometry in `def` are refused.
+    pub(crate) fn check_def_unlocked(&self, def: DefId) -> Result<(), Error> {
+        if self.is_locked_def(def) {
+            return Err(Error::Locked);
+        }
+        Ok(())
+    }
+
+    /// `Error::Locked` if moving, erasing, exploding or regrouping `inst` would change a
+    /// locked instance: it is on a locked tag, sits in locked geometry, or carries a
+    /// locked instance inside it.
+    pub(crate) fn check_instance_unlocked(&self, inst: InstId) -> Result<(), Error> {
+        let i = self.instance(inst).ok_or(Error::Missing("instance"))?;
+        if self.tag_locked(i.tag) || self.is_locked_def(i.parent) || self.contains_locked(i.definition) {
+            return Err(Error::Locked);
+        }
         Ok(())
     }
 

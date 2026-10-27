@@ -28,6 +28,7 @@ impl Document {
     /// Move a face `distance` inches along its normal (negative pushes it in).
     pub fn push_pull(&mut self, f: FId, distance: f64) -> Result<PushPullResult, Error> {
         let face = self.face(f).cloned().ok_or(Error::Missing("face"))?;
+        self.check_def_unlocked(face.owner)?;
         if !distance.is_finite() {
             return Err(Error::Degenerate("distance is not a number"));
         }
@@ -130,6 +131,7 @@ impl Document {
         self.with_face(cap, |c| {
             c.material = material;
             c.back_material = face.back_material;
+            c.attributes = face.attributes.clone();
         });
         let mut created = vec![cap];
         for lp in face.loops() {
@@ -138,7 +140,10 @@ impl Document {
                 let (a2, b2) = (map[&a], map[&b]);
                 let dir = (self.pos(b) - self.pos(a)).cross(n) * wall_sign;
                 let wall = self.add_face(ctx, vec![a, b, b2, a2], Vec::new(), Some(dir))?;
-                self.with_face(wall, |w| w.material = material);
+                self.with_face(wall, |w| {
+                    w.material = material;
+                    w.attributes = face.attributes.clone();
+                });
                 created.push(wall);
             }
         }
@@ -185,6 +190,7 @@ impl Document {
                 && a.plane.normal.dot(b.plane.normal) > 0.0
                 && a.material == b.material
                 && a.back_material == b.back_material
+                && a.attributes == b.attributes
             {
                 self.erase(&[], &[e])?;
             }

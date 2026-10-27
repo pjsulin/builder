@@ -137,13 +137,13 @@ Nine phases, each about a day or more and each one commit. Phases 1–2 make `su
 
 ### Phase 3: Kernel Attributes and Tag Lock
 
-**Status:** pending
+**Status:** completed
 **Dependencies:** none
 
 #### Task 3.1: Attribute and tag types in the document
 
 - **Type:** implement
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** none
 - **Files:**
   - Modify: kernel/src/doc.rs
@@ -157,7 +157,7 @@ Nine phases, each about a day or more and each one commit. Phases 1–2 make `su
 #### Task 3.2: Lock checks on every edit
 
 - **Type:** implement
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [3.1]
 - **Files:**
   - Modify: kernel/src/line.rs
@@ -170,7 +170,7 @@ Nine phases, each about a day or more and each one commit. Phases 1–2 make `su
 #### Task 3.3: Format read and write
 
 - **Type:** implement
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [3.1]
 - **Files:**
   - Modify: kernel/src/format.rs
@@ -181,7 +181,7 @@ Nine phases, each about a day or more and each one commit. Phases 1–2 make `su
 #### Task 3.4: Kernel tests
 
 - **Type:** test
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [3.2, 3.3]
 - **Files:**
   - Create: kernel/tests/attributes.rs
@@ -192,7 +192,7 @@ Nine phases, each about a day or more and each one commit. Phases 1–2 make `su
 #### Task 3.5: Format and architecture docs
 
 - **Type:** document
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [3.3]
 - **Files:**
   - Modify: docs/file-format.md

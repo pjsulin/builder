@@ -17,6 +17,7 @@ pub struct OldRegion {
     pub front: bool,
     pub material: Option<MatId>,
     pub back_material: Option<MatId>,
+    pub attributes: Attributes,
 }
 
 impl OldRegion {
@@ -46,6 +47,7 @@ impl Document {
             front: face.plane.normal.dot(plane.normal) > 0.0,
             material: face.material,
             back_material: face.back_material,
+            attributes: face.attributes.clone(),
         })
     }
 
@@ -67,7 +69,8 @@ impl Document {
     ///   split, and new closed regions bounded by them get faces.
     /// * `extra`: more edges to start the search from, without counting as fresh.
     /// * `old`: regions to refill (with their material and orientation) wherever the
-    ///   new arrangement has a region inside them, as when merging faces.
+    ///   new arrangement has a region inside them, as when merging faces. Refilled
+    ///   faces keep the old face's materials and attributes.
     ///
     /// Returns the faces created.
     pub fn heal(
@@ -178,6 +181,7 @@ impl Document {
                         let mut face = self.face(f).cloned().ok_or(Error::Missing("face"))?;
                         face.material = o.material;
                         face.back_material = o.back_material;
+                        face.attributes = o.attributes.clone();
                         self.set_face(f, Some(face));
                     }
                     created.push(f);

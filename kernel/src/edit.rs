@@ -13,6 +13,9 @@ impl Document {
     /// their facing; otherwise the move fails and the caller should abort.
     pub fn move_vertices(&mut self, verts: &[VId], offset: V3) -> Result<(), Error> {
         let set: BTreeSet<VId> = verts.iter().copied().collect();
+        for &v in &set {
+            self.check_def_unlocked(self.vertex(v).ok_or(Error::Missing("vertex"))?.owner)?;
+        }
         let mut touched: BTreeSet<FId> = BTreeSet::new();
         for &v in &set {
             let mut vx = self.vertex(v).cloned().ok_or(Error::Missing("vertex"))?;
@@ -47,6 +50,13 @@ impl Document {
     /// Erase faces and edges. Erasing an edge removes the faces it bounds; when the
     /// edge divided two coplanar faces facing the same way, they merge into one.
     pub fn erase(&mut self, faces: &[FId], edges: &[EId]) -> Result<(), Error> {
+        let owners = faces
+            .iter()
+            .filter_map(|&f| self.face(f).map(|x| x.owner))
+            .chain(edges.iter().filter_map(|&e| self.edge(e).map(|x| x.owner)));
+        for def in owners.collect::<BTreeSet<DefId>>() {
+            self.check_def_unlocked(def)?;
+        }
         let erased_faces: HashSet<FId> = faces.iter().copied().collect();
         for &f in faces {
             self.remove_face(f);
@@ -69,7 +79,8 @@ impl Document {
                         let same = a.plane.same_surface(&b.plane)
                             && a.plane.normal.dot(b.plane.normal) > 0.0
                             && a.material == b.material
-                            && a.back_material == b.back_material;
+                            && a.back_material == b.back_material
+                            && a.attributes == b.attributes;
                         if same {
                             let plane = a.plane;
                             let mut boundary: Vec<EId> = self.face_edges(a);

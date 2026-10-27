@@ -8,6 +8,7 @@
 //! * [`Document::push_pull`] extrudes or stretches any planar face.
 //! * [`Document::move_vertices`], [`Document::erase`] edit geometry.
 //! * [`Document::make_group`], [`Document::explode`] isolate geometry.
+//! * [`Document::set_attribute`], [`Document::set_tag_flags`] attach data and lock tags.
 //! * [`Document::begin`], [`Document::commit`], [`Document::abort`],
 //!   [`Document::undo`], [`Document::redo`] manage history.
 //! * [`Document::to_json`], [`Document::from_json`] read and write `.builder` files.
@@ -42,6 +43,10 @@ pub enum Error {
     Empty,
     /// A file could not be read.
     Format(String),
+    /// The edit would change an instance on a locked tag or the geometry inside it.
+    Locked,
+    /// A bad attribute namespace, key or value, with its path.
+    Attribute(String),
 }
 
 impl std::fmt::Display for Error {
@@ -53,6 +58,8 @@ impl std::fmt::Display for Error {
             Error::Missing(what) => write!(f, "that {what} no longer exists"),
             Error::Empty => write!(f, "nothing selected"),
             Error::Format(why) => write!(f, "can't read file: {why}"),
+            Error::Locked => write!(f, "that is on a locked tag"),
+            Error::Attribute(why) => write!(f, "bad attribute: {why}"),
         }
     }
 }

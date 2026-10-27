@@ -55,6 +55,7 @@ A definition is a self-contained piece of geometry: the model root, a group, or 
 | `vertices` | array of `[x, y, z]` | Positions in the definition's own coordinates. |
 | `edges` | array of `[a, b]` | Vertex indices (into this definition's `vertices`). Includes the edges of faces as well as loose edges. |
 | `faces` | array of face objects | Planar polygons with optional holes. |
+| `attributes` | object | Optional. See [Attributes](#attributes). |
 
 Indices in a definition refer only to that definition's arrays.
 
@@ -66,6 +67,7 @@ Indices in a definition refer only to that definition's arrays.
 | `holes` | array of loops | Optional. Inner loops. Readers must accept either winding and re-wind them. Writers should write them clockwise seen from the front. |
 | `material` | integer | Optional. Index into `materials` for the front side. |
 | `back_material` | integer | Optional. Index for the back side. |
+| `attributes` | object | Optional. See [Attributes](#attributes). |
 
 Rules every face must satisfy:
 
@@ -86,8 +88,33 @@ Readers should reject a file that breaks these rules rather than repairing it si
 | `name` | string | Optional. |
 | `material` | integer | Optional. Applied to faces in the definition that have no material. |
 | `tag` | integer | Optional. Index into `tags`. |
+| `attributes` | object | Optional. See [Attributes](#attributes). |
 
 Instances must not form a cycle (a definition may not contain itself, directly or indirectly).
+
+## Attributes
+
+A definition, instance or face may carry `attributes`: an object of **namespaces**, each an object of keys to scalar values.
+
+```json
+"attributes": {
+  "survey": { "kind": "wall", "approx": false, "phase": "existing",
+              "source": "measurements/2026-10-23/103127-zone_b_return" },
+  "x-myplugin": { "revision": 3 }
+}
+```
+
+| Rule | |
+| --- | --- |
+| Namespace | Matches `[a-z][a-z0-9_-]*`. Pick one per application or plugin (`survey`, `x-myplugin`); Builder itself reserves none yet. |
+| Key | A non-empty string. |
+| Value | A JSON string, number or boolean. Arrays, objects and `null` are rejected, with the path named (`definitions[3].attributes.survey.size: value must be a string, number or boolean`). |
+| Order | Writers sort namespaces and keys. Builder writes them that way, so a file saved twice is byte-identical. |
+| Absence | An empty `attributes` object, or an empty namespace, is not written. Readers treat a missing key as no attributes. |
+
+Readers keep every namespace, including ones they do not understand, and write them back unchanged. In Builder, attribute writes are journaled like geometry (undo and redo restore them), a split face gives each half its attributes, and push/pull copies the pulled face's attributes to the faces it creates. Attributes do not take part in welding; two coplanar faces with different attributes are not merged.
+
+Attributes are part of version 1 as an additive change: a version 1 file without them is unchanged, and a reader from before this section ignores the key under the compatibility rules below.
 
 ## Materials
 
@@ -103,6 +130,7 @@ Instances must not form a cycle (a definition may not contain itself, directly o
 | --- | --- | --- |
 | `name` | string | Display name. |
 | `visible` | boolean | Whether tagged instances are shown. |
+| `locked` | boolean | Optional, default `false`. Instances on a locked tag, the geometry in their definitions, and anything placed inside them refuse edits (move, push/pull, erase, explode, group, draw into). A group that contains a locked instance cannot be moved, exploded or erased either. Builder always writes the key; readers default a missing key to `false`. |
 
 ## Compatibility rules
 
