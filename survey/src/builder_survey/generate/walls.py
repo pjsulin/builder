@@ -78,4 +78,4 @@ def build_walls(spec, report, out):
             u = h1
         if u < length:
             parts.append(piece(u, length, z0, z1))
-        out.append(element(name, w["phase"], w.get("material", "block"), ctx, parts))
+        out.append(element(name, w["phase"], w.get("material", "block"), ctx, parts, kind="named_wall"))

@@ -185,7 +185,7 @@ def glazing(dr, report, out):
     tag = type("C", (), {"placeholder": dr["placeholder"] or ctx.placeholder})()
     for mat, ps in (("white_paint", white), ("glass", glass), ("wood", wood)):
         if ps:
-            out.append(element(f"door {dr['name']} {mat}", dr["phase"], mat, tag, ps))
+            out.append(element(f"door {dr['name']} {mat}", dr["phase"], mat, tag, ps, kind="door"))
     for a0, a1, z0, z1, q0, q1 in skies:
         def sk(a, z, q):
             e, s, zz = to3d(a, z, q)

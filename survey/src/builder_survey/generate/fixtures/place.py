@@ -39,10 +39,10 @@ def place_fixtures(spec, report, placed):
                 continue
             phase = f.get("phase", "existing")
             if groups is not None:
-                els = [element(f"{name} {mat}", phase, mat, ctx, ps)
+                els = [element(f"{name} {mat}", phase, mat, ctx, ps, kind="fixture")
                        for mat, ps in groups.items() if ps]
             else:
-                els = [element(name, phase, f.get("material", "wood"), ctx, parts)]
+                els = [element(name, phase, f.get("material", "wood"), ctx, parts, kind="fixture")]
             p.update(placeholder=ctx.placeholder, type=f["type"], elements=els)
             fixtures[name] = refs[name] = p
             del todo[name]

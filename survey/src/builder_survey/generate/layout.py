@@ -17,7 +17,7 @@ def build_layout(spec, report, out):
     lay = spec["layout"]
     for name, p in placed.items():
         el = element(f"{name} floor", "existing", "slab", p["ctx"],
-                     [prism(rect(p["west"], p["north"], p["east"], p["south"]), p["fz"] - 4, p["fz"])])
+                     [prism(rect(p["west"], p["north"], p["east"], p["south"]), p["fz"] - 4, p["fz"])], kind="floor")
         el["label"] = xy((p["west"] + p["east"]) / 2, (p["north"] + p["south"]) / 2)
         el["finish_of"] = (name, "floor")
         out.append(el)
@@ -94,7 +94,7 @@ def build_layout(spec, report, out):
             # opening is filled in (proposed). The cut wall shows neither.
             fill = element(f"door {dr['name']} {'opening' if dr['phase'] == 'proposed' else 'infill'}",
                            "demo" if dr["phase"] == "proposed" else "proposed", "block", dr["ctx"],
-                           [prism(rect(*box), max(dr["zb"], z0), min(top, z1))])
+                           [prism(rect(*box), max(dr["zb"], z0), min(top, z1))], kind="door")
             fill["finish_of"] = "probe"
             out.append(fill)
         room = placed[dr["room"]]
@@ -102,7 +102,7 @@ def build_layout(spec, report, out):
             # A door at floor level: the room's floor runs out through the
             # opening to the far face of the wall (no threshold gap).
             sill = element(f"door {dr['name']} sill", dr["phase"], "slab", dr["ctx"],
-                           [prism(rect(*box), room["fz"] - 4, room["fz"])])
+                           [prism(rect(*box), room["fz"] - 4, room["fz"])], kind="sill")
             sill["finish_of"] = (dr["room"], "floor")
             out.append(sill)
         f = dr["frame"]
@@ -111,7 +111,7 @@ def build_layout(spec, report, out):
                 return prism(rect(*((c0, u0, c1, u1) if ns else (u0, c0, u1, c1))), za, zb_)
             out.append(element(f"door {dr['name']} frame", dr["phase"], "wood", dr["ctx"], [
                 piece(lo, lo + f, dr["zb"], top), piece(hi - f, hi, dr["zb"], top),
-                piece(lo + f, hi - f, top - f, top)]))
+                piece(lo + f, hi - f, top - f, top)], kind="door"))
         glazing(dr, report, out)
 
     def profile(x, y):
@@ -145,7 +145,7 @@ def build_layout(spec, report, out):
              for (x0, x1, prof), spans in runs.items() for s0, s1 in spans for za, zb_ in prof]
     ctx.placeholder = any(p["placeholder"] or any(ph for _, ph in p["sides"].values())
                           for p in placed.values() if not p["outside"])
-    walls = element("walls", "existing", "block", ctx, parts)
+    walls = element("walls", "existing", "block", ctx, parts, kind="wall")
     walls["finish_of"] = "probe"   # each face takes the finish of the room it faces
     out.append(walls)
 
@@ -161,4 +161,5 @@ def build_rooms(spec, report, out):
             pts = [xy(*ctx.pt(p, f"floor[{i}]")) for i, p in enumerate(r["floor"])]
         except Missing:
             continue
-        out.append(element(f"{name} floor", r["phase"], "slab", ctx, [prism(pts, fz - 4, fz)]))
+        out.append(element(f"{name} floor", r["phase"], "slab", ctx, [prism(pts, fz - 4, fz)],
+                           kind="floor"))

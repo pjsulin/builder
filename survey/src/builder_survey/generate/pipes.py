@@ -152,6 +152,7 @@ def build_pipes(spec, report, out):
             run.update(a=a, b=b, placeholder=ctx.placeholder)
             out.append(element(f"pipe {name} {r['from']}-{r['to']}", p.get("phase", "existing"),
                                material, ctx, [{"kind": "cylinder", "a": [*xy(a[0], a[1]), a[2]],
-                                                "b": [*xy(b[0], b[1]), b[2]], "r": rad}]))
+                                                "b": [*xy(b[0], b[1]), b[2]], "r": rad}],
+                               kind="pipe"))
     report["pipes"] = runs
     report["pipe_corners"] = corners

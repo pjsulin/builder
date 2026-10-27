@@ -26,4 +26,4 @@ def build_objects(spec, report, out):
                 sys.exit(f"objects.{name}: unknown type {o['type']!r}")
         except Missing:
             continue
-        out.append(element(name, o["phase"], mat, ctx, parts))
+        out.append(element(name, o["phase"], mat, ctx, parts, kind="object"))

@@ -51,7 +51,7 @@ def ledge(name, p, lg, doors):
             ztop.append(back if at_wall else front)
         part = prism(pts, p["fz"], front)
         part["ztop"] = ztop
-        el = element(f"{name} {side} ledge{tag}", ph, "block", ctx, [part])
+        el = element(f"{name} {side} ledge{tag}", ph, "block", ctx, [part], kind="ledge")
         el["finish_of"] = (name, side)
         out.append(el)
     return out

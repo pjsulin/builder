@@ -9,7 +9,7 @@ Heights are above the room's floor; a piece only hits what overlaps its height.
 import json
 import math
 
-SKIP = (" floor", " joists", " sill")   # slabs, joists, door sills: not in the way
+SKIP = ("floor", "joists", "sill")   # element kinds: slabs, joists, door sills are not in the way
 
 
 def _part_shapes(part):
@@ -63,11 +63,9 @@ def write_space_plan(space_dir, report, elements, ceiling_z, out_dir, room, marg
     obstacles = []
     for el in elements:
         name = el["name"]
-        if el["phase"] not in ("existing",) or name.endswith(SKIP) or el["base"] == "slab":
+        if el["phase"] not in ("existing",) or el["kind"] in SKIP or el["base"] == "slab":
             continue
-        kind = ("wall" if name == "walls" else "pipe" if name.startswith("pipe ")
-                else "door" if name.startswith("door ") else "ledge" if " ledge" in name
-                else "fixture")
+        kind = el["kind"] if el["kind"] in ("wall", "pipe", "door", "ledge") else "fixture"
         for part in el["parts"]:
             for s in _part_shapes(part):
                 if not in_view(_bbox(s)):

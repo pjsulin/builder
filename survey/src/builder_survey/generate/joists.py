@@ -44,4 +44,4 @@ def build_joists(spec, report, out):
                 parts.append(prism(rect(*((a, s0, b, s1) if ns else (e0, a, e1, b))), zb, zb + depth))
             u += spacing
         report.setdefault("joist_regions", []).append((e0, s0, e1, s1, zb + depth))
-        out.append(element(f"{name} joists", j["phase"], "joist", ctx, parts))
+        out.append(element(f"{name} joists", j["phase"], "joist", ctx, parts, kind="joists"))
