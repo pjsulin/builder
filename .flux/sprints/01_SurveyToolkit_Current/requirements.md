@@ -1,9 +1,10 @@
 ---
-sprint: "SurveyToolkit"
 created: 2026-10-27
-start: null    # commit; set by `flux sprint move <Name> Current`, close diffs against it
-started: null  # date; set by the same move
+sprint: SurveyToolkit
+start: e444aa9
+started: '2026-10-27'
 ---
+
 # Requirements: SurveyToolkit
 
 ## Background
