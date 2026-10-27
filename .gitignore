@@ -1,0 +1,7 @@
+/target
+node_modules/
+/dist
+app/src/kernel/pkg/
+*.log
+.DS_Store
+/.run/

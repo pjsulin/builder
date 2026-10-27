@@ -1,0 +1,280 @@
+//! WebAssembly bindings for the Builder kernel.
+//!
+//! The boundary is deliberately narrow: commands go in as ids and numbers, and
+//! results come back as ids, flat typed arrays, or small JSON strings for rare
+//! queries. Errors become JavaScript exceptions with a readable message.
+
+use builder_kernel::math::{Mat4, V3};
+use builder_kernel::*;
+use wasm_bindgen::prelude::*;
+
+fn js(e: Error) -> JsError {
+    JsError::new(&e.to_string())
+}
+
+fn ids<T>(v: &[u32], f: impl Fn(u32) -> T) -> Vec<T> {
+    v.iter().map(|&x| f(x)).collect()
+}
+
+/// Triangles and edges of one definition, in its own coordinates.
+#[wasm_bindgen]
+pub struct Buffers {
+    positions: Vec<f32>,
+    normals: Vec<f32>,
+    face_ids: Vec<u32>,
+    edge_positions: Vec<f32>,
+    edge_ids: Vec<u32>,
+}
+
+#[wasm_bindgen]
+impl Buffers {
+    #[wasm_bindgen(getter)]
+    pub fn positions(&self) -> Vec<f32> {
+        self.positions.clone()
+    }
+    #[wasm_bindgen(getter)]
+    pub fn normals(&self) -> Vec<f32> {
+        self.normals.clone()
+    }
+    #[wasm_bindgen(getter, js_name = faceIds)]
+    pub fn face_ids(&self) -> Vec<u32> {
+        self.face_ids.clone()
+    }
+    #[wasm_bindgen(getter, js_name = edgePositions)]
+    pub fn edge_positions(&self) -> Vec<f32> {
+        self.edge_positions.clone()
+    }
+    #[wasm_bindgen(getter, js_name = edgeIds)]
+    pub fn edge_ids(&self) -> Vec<u32> {
+        self.edge_ids.clone()
+    }
+}
+
+#[wasm_bindgen]
+pub struct Kernel {
+    doc: Document,
+}
+
+impl Default for Kernel {
+    fn default() -> Self {
+        Kernel::new()
+    }
+}
+
+#[wasm_bindgen]
+impl Kernel {
+    #[wasm_bindgen(constructor)]
+    pub fn new() -> Kernel {
+        Kernel { doc: Document::new() }
+    }
+
+    #[wasm_bindgen(js_name = fromJson)]
+    pub fn from_json(text: &str) -> Result<Kernel, JsError> {
+        Ok(Kernel { doc: Document::from_json(text).map_err(js)? })
+    }
+
+    #[wasm_bindgen(js_name = toJson)]
+    pub fn to_json(&self) -> String {
+        self.doc.to_json()
+    }
+
+    // ---- history ----
+
+    pub fn begin(&mut self, name: &str) {
+        self.doc.begin(name);
+    }
+    pub fn commit(&mut self) -> bool {
+        self.doc.commit()
+    }
+    pub fn abort(&mut self) {
+        self.doc.abort();
+    }
+    pub fn undo(&mut self) -> Option<String> {
+        self.doc.undo()
+    }
+    pub fn redo(&mut self) -> Option<String> {
+        self.doc.redo()
+    }
+    #[wasm_bindgen(js_name = canUndo)]
+    pub fn can_undo(&self) -> bool {
+        self.doc.can_undo()
+    }
+    #[wasm_bindgen(js_name = canRedo)]
+    pub fn can_redo(&self) -> bool {
+        self.doc.can_redo()
+    }
+
+    // ---- edits ----
+
+    /// Draw a line in definition `ctx`. Returns the edge ids along it.
+    #[wasm_bindgen(js_name = addLine)]
+    #[allow(clippy::too_many_arguments)]
+    pub fn add_line(
+        &mut self,
+        ctx: u32,
+        ax: f64,
+        ay: f64,
+        az: f64,
+        bx: f64,
+        by: f64,
+        bz: f64,
+    ) -> Result<Vec<u32>, JsError> {
+        let e = self.doc.add_line(DefId(ctx), V3::new(ax, ay, az), V3::new(bx, by, bz)).map_err(js)?;
+        Ok(e.iter().map(|e| e.0).collect())
+    }
+
+    /// Push or pull a face along its normal. Returns the face at the new position, or
+    /// -1 if the push cut an opening.
+    #[wasm_bindgen(js_name = pushPull)]
+    pub fn push_pull(&mut self, face: u32, distance: f64) -> Result<i32, JsError> {
+        let r = self.doc.push_pull(FId(face), distance).map_err(js)?;
+        Ok(r.face.map(|f| f.0 as i32).unwrap_or(-1))
+    }
+
+    #[wasm_bindgen(js_name = verticesOf)]
+    pub fn vertices_of(&self, faces: Vec<u32>, edges: Vec<u32>) -> Vec<u32> {
+        self.doc.vertices_of(&ids(&faces, FId), &ids(&edges, EId)).iter().map(|v| v.0).collect()
+    }
+
+    #[wasm_bindgen(js_name = moveVertices)]
+    pub fn move_vertices(&mut self, verts: Vec<u32>, dx: f64, dy: f64, dz: f64) -> Result<(), JsError> {
+        self.doc.move_vertices(&ids(&verts, VId), V3::new(dx, dy, dz)).map_err(js)
+    }
+
+    pub fn erase(&mut self, faces: Vec<u32>, edges: Vec<u32>, instances: Vec<u32>) -> Result<(), JsError> {
+        for i in instances {
+            if self.doc.instance(InstId(i)).is_some() {
+                self.doc.erase_instance(InstId(i)).map_err(js)?;
+            }
+        }
+        self.doc.erase(&ids(&faces, FId), &ids(&edges, EId)).map_err(js)
+    }
+
+    #[wasm_bindgen(js_name = makeGroup)]
+    pub fn make_group(
+        &mut self,
+        ctx: u32,
+        faces: Vec<u32>,
+        edges: Vec<u32>,
+        instances: Vec<u32>,
+    ) -> Result<u32, JsError> {
+        let g = self
+            .doc
+            .make_group(DefId(ctx), &ids(&faces, FId), &ids(&edges, EId), &ids(&instances, InstId))
+            .map_err(js)?;
+        Ok(g.0)
+    }
+
+    /// Explode an instance. Returns JSON `{ faces, edges, instances }` of what it left.
+    pub fn explode(&mut self, inst: u32) -> Result<String, JsError> {
+        let out = self.doc.explode(InstId(inst)).map_err(js)?;
+        let list = |v: Vec<u32>| v.iter().map(|x| x.to_string()).collect::<Vec<_>>().join(",");
+        Ok(format!(
+            r#"{{"faces":[{}],"edges":[{}],"instances":[{}]}}"#,
+            list(out.faces.iter().map(|x| x.0).collect()),
+            list(out.edges.iter().map(|x| x.0).collect()),
+            list(out.instances.iter().map(|x| x.0).collect()),
+        ))
+    }
+
+    /// Set an instance's column-major 4×4 transform.
+    #[wasm_bindgen(js_name = setTransform)]
+    pub fn set_transform(&mut self, inst: u32, m: Vec<f64>) -> Result<(), JsError> {
+        let m: Mat4 = m.try_into().map_err(|_| JsError::new("a transform needs 16 numbers"))?;
+        self.doc.set_transform(InstId(inst), m).map_err(js)
+    }
+
+    // ---- queries ----
+
+    pub fn buffers(&self, def: u32) -> Buffers {
+        let f = self.doc.face_buffers(DefId(def));
+        let e = self.doc.edge_buffers(DefId(def));
+        Buffers {
+            positions: f.positions,
+            normals: f.normals,
+            face_ids: f.face_ids,
+            edge_positions: e.positions,
+            edge_ids: e.edge_ids,
+        }
+    }
+
+    /// Ids of every live definition (0 is the model root).
+    pub fn definitions(&self) -> Vec<u32> {
+        self.doc.definitions.iter().map(|(i, _)| i as u32).collect()
+    }
+
+    /// Instances placed in `def`, flattened as `[id, definition, m0..m15]` per instance.
+    pub fn instances(&self, def: u32) -> Vec<f64> {
+        let mut out = Vec::new();
+        for (id, inst) in self.doc.instances_in(DefId(def)) {
+            out.push(id.0 as f64);
+            out.push(inst.definition.0 as f64);
+            out.extend_from_slice(&inst.transform);
+        }
+        out
+    }
+
+    /// `[definition, parent]` of an instance, or empty if it no longer exists.
+    #[wasm_bindgen(js_name = instanceInfo)]
+    pub fn instance_info(&self, inst: u32) -> Vec<u32> {
+        self.doc.instance(InstId(inst)).map(|i| vec![i.definition.0, i.parent.0]).unwrap_or_default()
+    }
+
+    /// Transform from a definition's coordinates to world coordinates.
+    #[wasm_bindgen(js_name = worldTransform)]
+    pub fn world_transform(&self, def: u32) -> Vec<f64> {
+        self.doc.world_transform(DefId(def)).to_vec()
+    }
+
+    /// `[nx, ny, nz, d, owner, area]` for a face, or empty if it no longer exists.
+    #[wasm_bindgen(js_name = facePlane)]
+    pub fn face_plane(&self, face: u32) -> Vec<f64> {
+        match self.doc.face(FId(face)) {
+            Some(f) => {
+                let n = f.plane.normal;
+                vec![n.x, n.y, n.z, f.plane.d, f.owner.0 as f64, self.doc.face_area(FId(face))]
+            }
+            None => Vec::new(),
+        }
+    }
+
+    /// Edge ids bounding a face (outer loop and holes).
+    #[wasm_bindgen(js_name = faceEdges)]
+    pub fn face_edges(&self, face: u32) -> Vec<u32> {
+        self.doc
+            .face(FId(face))
+            .map(|f| self.doc.face_edges(f).iter().map(|e| e.0).collect())
+            .unwrap_or_default()
+    }
+
+    /// Outer loop of a face as flat xyz, for highlighting.
+    #[wasm_bindgen(js_name = faceOuter)]
+    pub fn face_outer(&self, face: u32) -> Vec<f64> {
+        let Some(f) = self.doc.face(FId(face)) else { return Vec::new() };
+        f.outer.iter().flat_map(|&v| <[f64; 3]>::from(self.doc.pos(v))).collect()
+    }
+
+    /// `[ax, ay, az, bx, by, bz, owner]` for an edge, or empty.
+    #[wasm_bindgen(js_name = edgeInfo)]
+    pub fn edge_info(&self, edge: u32) -> Vec<f64> {
+        let Some(e) = self.doc.edge(EId(edge)) else { return Vec::new() };
+        let (a, b) = (self.doc.pos(e.v[0]), self.doc.pos(e.v[1]));
+        vec![a.x, a.y, a.z, b.x, b.y, b.z, e.owner.0 as f64]
+    }
+
+    /// Faces bordering an edge.
+    #[wasm_bindgen(js_name = edgeFaces)]
+    pub fn edge_faces(&self, edge: u32) -> Vec<u32> {
+        self.doc.edge(EId(edge)).map(|e| e.faces.iter().map(|f| f.0).collect()).unwrap_or_default()
+    }
+
+    /// `[faces, edges, vertices, instances]` across the whole document.
+    pub fn stats(&self) -> Vec<u32> {
+        vec![
+            self.doc.faces.count() as u32,
+            self.doc.edges.count() as u32,
+            self.doc.vertices.count() as u32,
+            self.doc.instances.count() as u32,
+        ]
+    }
+}
