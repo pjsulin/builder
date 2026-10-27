@@ -133,5 +133,6 @@ path keeps its own lock.
 - [docs/plans.md](docs/plans.md): `model/plans/NAME.yaml` (`add:` / `remove:`), `survey build --plan`, and the phases a plan produces.
 - [docs/contract.md](docs/contract.md): the geometry rule for survey mode and for agents editing a spec.
 - [docs/render.md](docs/render.md): `survey render` options, outputs, materials and recipes, Metal kernel cache and GUI-Blender notes.
+- [docs/walkthrough.md](docs/walkthrough.md): the end-to-end run on a real house: build, validate, open in Builder, lock, tags, attributes, draw, export, build the plan.
 - [docs/capture.md](docs/capture.md): phone photo + voice note capture, the mkcert HTTPS setup, the entry layout, `survey entries` and the loop from entry to `source:`.
 - [docs/exports.md](docs/exports.md): each output file including `STEM.builder`, who reads it, the Sweet Home 3D `dropOnTopElevation` finding, the 2D layout page.

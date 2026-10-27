@@ -13,8 +13,24 @@ Early, but the core loop works on real geometry:
 - Tools: Select (click, Shift-toggle, window and crossing boxes), Line, Rectangle, Push/Pull, Move, Eraser, Orbit and Pan.
 - **Groups**: make, double-click to edit inside, explode. Grouped geometry stops sticking to everything else.
 - Undo/redo for every change, and save/open in the open `.builder` format.
+- **Attributes and tags** in the kernel and format: namespaced key–value data on definitions, instances and faces; tags with visibility and a lock the kernel enforces; material colours in the viewport.
+- **Survey mode**: a model written by `survey/` (below) opens with existing conditions locked, a tag strip, an attribute panel, and an export of what you draw back to a survey plan file.
 
 `prototype/index.html` is the original single-file demo, kept as a reference for how the app should feel.
+
+## Survey toolkit (`survey/`)
+
+`survey/` is a Python package, `builder-survey`, that compiles measured facts (a YAML spec; nothing inferred) into a checked 3D model: a `.builder` file for this app, plus COLLADA, Sweet Home 3D, SketchUp Ruby, Blender renders, reports and 2D layout pages. It is the measured half of the tool; Builder is the drawn half, and survey mode is where they meet. A house project depends on it by path (`uv add --editable ../builder/survey`).
+
+```sh
+uv run --project survey survey build --project ../house        # writes ../house/model/out/<stem>.builder and the rest
+cargo run -p builder-kernel --example validate -- ../house/model/out/<stem>.builder
+make start                                                     # then File > Open the .builder in the app
+uv run --project survey survey capture --project ../house --cert ... --key ...   # phone photo + voice note capture
+uv run --project survey pytest survey/tests                    # its tests
+```
+
+See [survey/README.md](survey/README.md) and [survey/docs/](survey/docs/) (spec format, plans, the survey contract, render, exports, capture).
 
 ## Run it
 
@@ -34,7 +50,7 @@ make stop      # stop it
 | `make start` / `make stop` / `make restart` | Run the dev server in the background. Its pid and log are in `.run/`. |
 | `make status` / `make logs` | Check whether it is running, or follow its log. |
 | `make dev` | Run the dev server in the foreground (Ctrl+C stops it). |
-| `make test` | Kernel tests, type-check, and app tests (including tools driven against the real kernel). |
+| `make test` | Kernel tests, type-check, app tests (including tools driven against the real kernel), and the survey toolkit's tests. |
 | `make build` | Production build into `dist/`. |
 | `make clean` | Stop the server and remove build output. |
 | `cargo run --release --example bench` | Kernel timings on a 2,000-box model. |
@@ -64,6 +80,7 @@ kernel/        Rust geometry kernel (no rendering, no JS) and its tests
 kernel-wasm/   wasm-bindgen bindings
 app/           TypeScript app: tools, inference, viewport, UI
 docs/          features.md, architecture.md, file-format.md
+survey/        the survey toolkit (Python): spec -> .builder and other outputs, phone capture
 prototype/     the original single-file prototype
 ```
 

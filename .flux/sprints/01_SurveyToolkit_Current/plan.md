@@ -446,13 +446,13 @@ Nine phases, each about a day or more and each one commit. Phases 1–2 make `su
 
 ### Phase 9: Project Docs and End-to-End Walkthrough
 
-**Status:** pending
+**Status:** completed
 **Dependencies:** [Phase 2, Phase 7, Phase 8]
 
 #### Task 9.1: Roadmap, README and handoff
 
 - **Type:** document
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** none
 - **Files:**
   - Modify: docs/roadmap.md
@@ -464,7 +464,7 @@ Nine phases, each about a day or more and each one commit. Phases 1–2 make `su
 #### Task 9.2: End-to-end walkthrough
 
 - **Type:** test
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [9.1]
 - **Files:**
   - Create: survey/docs/walkthrough.md

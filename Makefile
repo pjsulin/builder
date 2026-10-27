@@ -84,10 +84,11 @@ logs: ## Follow the dev server log
 dev: kernel ## Run the dev server in the foreground
 	$(VITE) --host $(HOST) --port $(PORT)
 
-test: kernel ## Run kernel and app tests
+test: kernel ## Run kernel, app and survey tests
 	cargo test --workspace
 	npm run typecheck
 	npm test
+	uv run --project survey pytest survey/tests
 
 build: kernel ## Production build into dist/
 	npm run typecheck

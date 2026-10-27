@@ -172,6 +172,8 @@ Done when:
 
 Open questions: naming and numbering rules; whether groups become components behind the scenes later.
 
+Survey mode (sprint SurveyToolkit, 2026-10, `.flux/sprints/`) built a minimal version of parts of 3.2 and 3.3 ahead of time: tag visibility and lock, a read-only attribute view and material colour rendering. Sprints 3.2 and 3.3 replace that UI with the full panels; the kernel and format work carries over.
+
 ### Sprint 3.2: See and find what's in the model
 
 **Goal:** answer "what is this and how big is it?" and find parts in a large model.

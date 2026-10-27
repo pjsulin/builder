@@ -57,6 +57,8 @@ Bigger models need structure, and building from them needs numbers.
 
 **Test project:** a bookcase built from board components with real thicknesses, colored by material, each part named, with the board list readable from Entity Info and the Outliner.
 
+**Survey mode (built ahead of this milestone, sprint SurveyToolkit, 2026-10):** the `survey/` toolkit writes `.builder` files with Existing / Demo / Proposed tags and `survey:*` attributes, and the app opens them in survey mode: a minimal tag strip (show/hide, lock), a read-only attribute view, material colours in the viewport, tag lock enforced by the kernel, and a Proposed → plan export. That UI is deliberately small; 3.2 (Entity Info) replaces the attribute view, 3.4 (Tags) replaces the tag strip, and 3.5 (Materials) adds the picker on top of the colour rendering already done. The kernel pieces they need (attributes, `Tag.locked`, material colours in the scene) are in place.
+
 ## Milestone 4: Share and build from it
 
 Getting the model out of the app.

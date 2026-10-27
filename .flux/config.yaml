@@ -7,6 +7,6 @@
 # after changing it.
 # A list adds its entries to the defaults; {replace: [...]} drops them.
 test:
-  command: null
+  command: cargo test --workspace && npm test && uv run --project survey pytest survey/tests
   junit: []
   timeout: 900
