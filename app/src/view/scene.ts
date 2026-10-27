@@ -2,7 +2,7 @@
 // per-definition buffers. Rendering uses the same buffers; this is kept separate so
 // it can be tested in Node and queried without touching the GPU.
 
-import type { DefBuffers, Model } from "../kernel/model";
+import type { DefBuffers, MaterialInfo, Model } from "../kernel/model";
 import type { CameraModel } from "./camera";
 import { ROOT } from "../kernel/model";
 import { applyDir, IDENTITY, mul, norm, type Mat4, type Ray, type Vec3 } from "../math";
@@ -19,7 +19,15 @@ export interface DrawItem {
   active: boolean;
   /** The instance directly inside the active context that a click here selects. */
   pickInstance: number | null;
+  /** Tag of the instance that placed this item (null for the root). */
+  tag: number | null;
+  /** Nearest instance material on the path to this item, applied to faces without one. */
+  material: number | null;
+  /** On a locked tag, or inside one: not an edit target, but still drawn and snapped to. */
+  locked: boolean;
 }
+
+export type RGBA = [number, number, number, number];
 
 export interface FaceHit {
   item: number;
@@ -33,6 +41,10 @@ export interface FaceHit {
 export class SceneIndex {
   items: DrawItem[] = [];
   buffers = new Map<number, DefBuffers>();
+  /** Front material per triangle of each definition's buffers, -1 for none. */
+  faceMaterials = new Map<number, Int32Array>();
+  /** Materials by id, for colour lookups. */
+  materials = new Map<number, MaterialInfo>();
   /** Triangle corners in world space, 9 floats per triangle. */
   tri = new Float32Array(0);
   triFace = new Uint32Array(0);
@@ -49,15 +61,33 @@ export class SceneIndex {
 
   static build(model: Model, activeCtx: number): SceneIndex {
     const s = new SceneIndex();
-    const raw: { def: number; matrix: Mat4; path: number[] }[] = [];
-    const walk = (def: number, matrix: Mat4, path: number[], depth: number) => {
-      raw.push({ def, matrix, path });
+    for (const m of model.materials()) s.materials.set(m.id, m);
+    const tags = new Map(model.tags().map((t) => [t.id, t]));
+    type Raw = { def: number; matrix: Mat4; path: number[]; tag: number | null; material: number | null; locked: boolean };
+    const raw: Raw[] = [];
+    const walk = (r: Raw, depth: number) => {
+      raw.push(r);
       if (depth > 32) return;
-      for (const inst of model.instances(def)) {
-        walk(inst.definition, mul(matrix, inst.transform), [...path, inst.id], depth + 1);
+      for (const inst of model.instances(r.def)) {
+        const props = model.instanceProps(inst.id);
+        const tag = props?.tag ?? null;
+        const t = tag === null ? null : tags.get(tag);
+        // An instance on a hidden tag is skipped with everything inside it.
+        if (t && !t.visible) continue;
+        walk(
+          {
+            def: inst.definition,
+            matrix: mul(r.matrix, inst.transform),
+            path: [...r.path, inst.id],
+            tag,
+            material: props?.material ?? r.material,
+            locked: r.locked || !!t?.locked,
+          },
+          depth + 1,
+        );
       }
     };
-    walk(ROOT, IDENTITY, [], 0);
+    walk({ def: ROOT, matrix: IDENTITY, path: [], tag: null, material: null, locked: false }, 0);
     const activeItem = raw.find((r) => r.def === activeCtx) ?? raw[0];
     s.activePath = activeItem.path;
     const ap = s.activePath;
@@ -71,7 +101,10 @@ export class SceneIndex {
         pickInstance: inside && !editable ? r.path[ap.length] : null,
       });
     }
-    for (const def of new Set(raw.map((r) => r.def))) s.buffers.set(def, model.buffers(def));
+    for (const def of new Set(raw.map((r) => r.def))) {
+      s.buffers.set(def, model.buffers(def));
+      s.faceMaterials.set(def, model.faceMaterials(def));
+    }
     s.flatten();
     return s;
   }
@@ -117,6 +150,19 @@ export class SceneIndex {
     this.empty = nt + ns === 0;
     this.min = this.empty ? [0, 0, 0] : min;
     this.max = this.empty ? [0, 0, 0] : max;
+  }
+
+  /**
+   * Colour of a triangle of an item: its face's material, else the nearest instance
+   * material, else null for the theme's face colour. Components 0–1, alpha last.
+   */
+  triColor(item: number, triInDef: number): RGBA | null {
+    const it = this.items[item];
+    const fm = this.faceMaterials.get(it.def);
+    const id = fm && fm[triInDef] >= 0 ? fm[triInDef] : it.material;
+    const m = id === null || id === undefined ? undefined : this.materials.get(id);
+    if (!m) return null;
+    return [m.color[0] / 255, m.color[1] / 255, m.color[2] / 255, m.opacity];
   }
 
   triCorner(t: number, c: number): Vec3 {

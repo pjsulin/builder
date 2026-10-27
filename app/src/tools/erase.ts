@@ -30,7 +30,7 @@ export class EraseTool implements Tool {
 
   private under(p: ToolPointer): Entity | null {
     const pick = pickEntity(this.host.scene(), this.host.camera, p.x, p.y);
-    return pick && !pick.outside ? pick.entity : null;
+    return pick && !pick.outside && !pick.locked ? pick.entity : null;
   }
 
   move(p: ToolPointer): void {

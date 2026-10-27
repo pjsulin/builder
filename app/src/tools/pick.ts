@@ -12,6 +12,8 @@ export interface EntityPick {
   item: number;
   /** The click landed outside the context being edited. */
   outside: boolean;
+  /** The entity is on a locked tag (or inside one): selectable, not editable. */
+  locked: boolean;
 }
 
 /** The entity under the cursor. Edges win when the cursor is right on one. */
@@ -43,9 +45,10 @@ export function pickEntity(scene: SceneIndex, cam: CameraModel, x: number, y: nu
 
 function entityFor(scene: SceneIndex, item: number, raw: Entity): EntityPick {
   const it = scene.items[item];
-  if (it.editable) return { entity: raw, item, outside: false };
-  if (it.pickInstance !== null) return { entity: { kind: "instance", id: it.pickInstance }, item, outside: false };
-  return { entity: raw, item, outside: true };
+  const locked = it.locked;
+  if (it.editable) return { entity: raw, item, outside: false, locked };
+  if (it.pickInstance !== null) return { entity: { kind: "instance", id: it.pickInstance }, item, outside: false, locked };
+  return { entity: raw, item, outside: true, locked };
 }
 
 /**

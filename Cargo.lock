@@ -22,6 +22,7 @@ name = "builder-kernel-wasm"
 version = "0.1.0"
 dependencies = [
  "builder-kernel",
+ "serde_json",
  "wasm-bindgen",
 ]
 

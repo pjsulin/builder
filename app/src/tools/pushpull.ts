@@ -47,7 +47,7 @@ export class PushPullTool implements Tool {
 
   private pickFace(p: ToolPointer) {
     const ray = this.host.camera.ray(p.x, p.y);
-    const hit = this.host.scene().pick(ray, (it) => it.active);
+    const hit = this.host.scene().pick(ray, (it) => it.active && !it.locked);
     if (!hit) return null;
     return this.host.scene().items[hit.item].editable ? hit : null;
   }

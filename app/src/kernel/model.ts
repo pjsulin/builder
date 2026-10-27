@@ -33,6 +33,30 @@ export interface FacePlane {
   area: number;
 }
 
+export type AttrKind = "definition" | "instance" | "face";
+export type AttrValue = string | number | boolean;
+/** Namespace → key → scalar, as stored in the file. */
+export type Attributes = Record<string, Record<string, AttrValue>>;
+export interface TagInfo {
+  id: number;
+  name: string;
+  visible: boolean;
+  locked: boolean;
+}
+export interface MaterialInfo {
+  id: number;
+  name: string;
+  color: [number, number, number];
+  opacity: number;
+}
+export interface InstanceProps {
+  name: string;
+  tag: number | null;
+  material: number | null;
+  /** On a locked tag, or inside or around locked geometry. */
+  locked: boolean;
+}
+
 /** Load the kernel in a browser (fetches the .wasm next to the module). */
 export async function loadKernel(): Promise<void> {
   await init();
@@ -129,6 +153,43 @@ export class Model {
   }
   setTransform(inst: number, m: Mat4): void {
     this.changed(this.k.setTransform(inst, Float64Array.from(m)));
+  }
+
+  // ---- attributes, tags, materials ----
+  attributes(kind: AttrKind, id: number): Attributes {
+    return JSON.parse(this.k.attributes(kind, id));
+  }
+  /** `null` deletes the attribute. */
+  setAttribute(kind: AttrKind, id: number, ns: string, key: string, v: AttrValue | null): void {
+    this.changed(this.k.setAttribute(kind, id, ns, key, JSON.stringify(v)));
+  }
+  tags(): TagInfo[] {
+    return JSON.parse(this.k.tags());
+  }
+  newTag(name: string): number {
+    return this.changed(this.k.newTag(name));
+  }
+  setInstanceTag(inst: number, tag: number | null): void {
+    this.changed(this.k.setInstanceTag(inst, tag ?? -1));
+  }
+  setTagFlags(tag: number, visible: boolean, locked: boolean): void {
+    this.changed(this.k.setTagFlags(tag, visible, locked));
+  }
+  instanceProps(inst: number): InstanceProps | null {
+    return JSON.parse(this.k.instanceProps(inst));
+  }
+  materials(): MaterialInfo[] {
+    return JSON.parse(this.k.materials());
+  }
+  /** Front material id per triangle of `buffers(def)`, -1 for none. */
+  faceMaterials(def: number): Int32Array {
+    return this.k.faceMaterials(def);
+  }
+  definitionName(def: number): string {
+    return this.k.definitionName(def);
+  }
+  isLockedDef(def: number): boolean {
+    return this.k.isLockedDef(def);
   }
 
   // ---- queries ----

@@ -6,6 +6,7 @@
 
 use builder_kernel::math::{Mat4, V3};
 use builder_kernel::*;
+use serde_json::{json, Value};
 use wasm_bindgen::prelude::*;
 
 fn js(e: Error) -> JsError {
@@ -184,6 +185,103 @@ impl Kernel {
         self.doc.set_transform(InstId(inst), m).map_err(js)
     }
 
+
+    // ---- attributes, tags, materials ----
+
+    /// Attributes of a definition, instance or face as a JSON object
+    /// (`{"survey": {"kind": "wall"}}`). `kind` is "definition", "instance" or "face".
+    pub fn attributes(&self, kind: &str, id: u32) -> Result<String, JsError> {
+        let t = target(kind, id)?;
+        let a = self.doc.attributes(t).ok_or_else(|| JsError::new(&format!("that {kind} no longer exists")))?;
+        Ok(serde_json::to_string(a).expect("attributes are JSON"))
+    }
+
+    /// Set one attribute from its JSON value (`"wall"`, `4.5`, `true`); `"null"` deletes it.
+    #[wasm_bindgen(js_name = setAttribute)]
+    pub fn set_attribute(&mut self, kind: &str, id: u32, ns: &str, key: &str, value_json: &str) -> Result<(), JsError> {
+        let v: Value = serde_json::from_str(value_json).map_err(|e| JsError::new(&format!("bad attribute value: {e}")))?;
+        let v = if v.is_null() { None } else { Some(v) };
+        self.doc.set_attribute(target(kind, id)?, ns, key, v).map_err(js)
+    }
+
+    /// Every tag as JSON `[{id, name, visible, locked}]`.
+    pub fn tags(&self) -> String {
+        let list: Vec<Value> = self
+            .doc
+            .tags
+            .iter()
+            .map(|(i, t)| json!({"id": i as u32, "name": t.name, "visible": t.visible, "locked": t.locked}))
+            .collect();
+        Value::Array(list).to_string()
+    }
+
+    #[wasm_bindgen(js_name = newTag)]
+    pub fn new_tag(&mut self, name: &str) -> u32 {
+        self.doc.new_tag(name).0
+    }
+
+    /// Put an instance on a tag; -1 clears it.
+    #[wasm_bindgen(js_name = setInstanceTag)]
+    pub fn set_instance_tag(&mut self, inst: u32, tag: i32) -> Result<(), JsError> {
+        let tag = if tag < 0 { None } else { Some(TagId(tag as u32)) };
+        self.doc.set_tag(InstId(inst), tag).map_err(js)
+    }
+
+    #[wasm_bindgen(js_name = setTagFlags)]
+    pub fn set_tag_flags(&mut self, tag: u32, visible: bool, locked: bool) -> Result<(), JsError> {
+        self.doc.set_tag_flags(TagId(tag), visible, locked).map_err(js)
+    }
+
+    /// JSON `{name, tag, material, locked}` of an instance (`tag` and `material` null
+    /// when unset; `locked` when it, or geometry around or inside it, is on a locked
+    /// tag), or `null` if it no longer exists.
+    #[wasm_bindgen(js_name = instanceProps)]
+    pub fn instance_props(&self, inst: u32) -> String {
+        let Some(i) = self.doc.instance(InstId(inst)) else { return "null".into() };
+        let on_locked = i.tag.and_then(|t| self.doc.tag(t)).is_some_and(|t| t.locked);
+        json!({
+            "name": i.name,
+            "tag": i.tag.map(|t| t.0),
+            "material": i.material.map(|m| m.0),
+            "locked": on_locked || self.doc.is_locked_def(i.definition) || self.doc.is_locked_def(i.parent),
+        })
+        .to_string()
+    }
+
+    /// Every material as JSON `[{id, name, color: [r, g, b], opacity}]`.
+    pub fn materials(&self) -> String {
+        let list: Vec<Value> = self
+            .doc
+            .materials
+            .iter()
+            .map(|(i, m)| json!({"id": i as u32, "name": m.name, "color": m.color, "opacity": m.opacity}))
+            .collect();
+        Value::Array(list).to_string()
+    }
+
+    /// Front material per triangle of `buffers(def)`, in the same order; -1 for none.
+    #[wasm_bindgen(js_name = faceMaterials)]
+    pub fn face_materials(&self, def: u32) -> Vec<i32> {
+        let mut out = Vec::new();
+        for (_, face) in self.doc.faces_in(DefId(def)) {
+            let m = face.material.map(|m| m.0 as i32).unwrap_or(-1);
+            out.extend(std::iter::repeat_n(m, face.tris.len() / 3));
+        }
+        out
+    }
+
+    #[wasm_bindgen(js_name = definitionName)]
+    pub fn definition_name(&self, def: u32) -> String {
+        self.doc.definition(DefId(def)).map(|d| d.name.clone()).unwrap_or_default()
+    }
+
+    /// True when the definition's geometry refuses edits (an instance of it, or of a
+    /// definition it sits in, is on a locked tag).
+    #[wasm_bindgen(js_name = isLockedDef)]
+    pub fn is_locked_def(&self, def: u32) -> bool {
+        self.doc.is_locked_def(DefId(def))
+    }
+
     // ---- queries ----
 
     pub fn buffers(&self, def: u32) -> Buffers {
@@ -277,4 +375,13 @@ impl Kernel {
             self.doc.instances.count() as u32,
         ]
     }
+}
+
+fn target(kind: &str, id: u32) -> Result<AttrTarget, JsError> {
+    Ok(match kind {
+        "definition" => AttrTarget::Definition(DefId(id)),
+        "instance" => AttrTarget::Instance(InstId(id)),
+        "face" => AttrTarget::Face(FId(id)),
+        _ => return Err(JsError::new("kind must be definition, instance or face")),
+    })
 }

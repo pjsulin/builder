@@ -202,7 +202,7 @@ Nine phases, each about a day or more and each one commit. Phases 1–2 make `su
 
 ### Phase 4: WASM API and Scene Colours
 
-**Status:** pending
+**Status:** completed
 **Dependencies:** [Phase 3]
 
 #### Task 4.1: WASM bindings
@@ -213,7 +213,7 @@ Nine phases, each about a day or more and each one commit. Phases 1–2 make `su
 - **Files:**
   - Modify: kernel-wasm/src/lib.rs
 - **Context:** [spec.md§Interfaces](spec.md#interfaces)
-- **Description:** Add `attributes`, `set_attribute`, `tags`, `new_tag`, `set_instance_tag`, `set_tag_flags`, `instance_props`, `materials`, `face_materials` and `definition_name`.
+- **Description:** Add `attributes`, `set_attribute`, `tags`, `new_tag`, `set_instance_tag`, `set_tag_flags`, `instance_props`, `materials`, `face_materials` and `definition_name`. (2026-10-27: `instance_props` also returns `locked`, and `is_locked_def` is bound, so the scene can mark locked draw items and tools can skip them without walking tags in TS. `face_materials` is per triangle of `buffers(def)`, matching `faceIds`. Opacity is applied per item from the lowest material opacity among its triangles, with a shared translucent material; per-face opacity within one item is not rendered.)
 
 #### Task 4.2: Model wrapper
 
@@ -228,7 +228,7 @@ Nine phases, each about a day or more and each one commit. Phases 1–2 make `su
 #### Task 4.3: Tag visibility and material colours in the scene
 
 - **Type:** implement
-- **Status:** in_progress
+- **Status:** completed
 - **Dependencies:** [4.2]
 - **Files:**
   - Modify: app/src/view/scene.ts
@@ -240,7 +240,7 @@ Nine phases, each about a day or more and each one commit. Phases 1–2 make `su
 #### Task 4.4: Scene tests
 
 - **Type:** test
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [4.3]
 - **Files:**
   - Create: app/test/scene.test.ts

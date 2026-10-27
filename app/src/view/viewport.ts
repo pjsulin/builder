@@ -23,6 +23,13 @@ interface DefGeometry {
   edges: THREE.BufferGeometry;
 }
 
+/** Face geometry with the item's resolved colours baked in; keyed per definition and instance material. */
+interface ColouredGeometry {
+  faces: THREE.BufferGeometry;
+  /** Lowest material opacity used; below 1 the item draws translucent. */
+  opacity: number;
+}
+
 export class Viewport {
   readonly renderer: THREE.WebGLRenderer;
   readonly scene = new THREE.Scene();
@@ -36,6 +43,7 @@ export class Viewport {
 
   readonly mat = {
     front: new THREE.MeshLambertMaterial({ side: THREE.FrontSide, polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1 }),
+    frontColoured: new THREE.MeshLambertMaterial({ side: THREE.FrontSide, vertexColors: true, polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1 }),
     back: new THREE.MeshLambertMaterial({ side: THREE.BackSide, polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1 }),
     edge: new THREE.LineBasicMaterial(),
     frontFaded: new THREE.MeshLambertMaterial({ side: THREE.FrontSide, transparent: true, opacity: 0.35, depthWrite: false }),
@@ -72,7 +80,12 @@ export class Viewport {
     }
   }
 
+  /** The theme face colour as 0–1 RGB, for faces without a material in coloured items. */
+  private themeFace: [number, number, number, number] = [0.9, 0.9, 0.9, 1];
+
   setTheme(t: Theme): void {
+    const f = new THREE.Color(t.face);
+    this.themeFace = [f.r, f.g, f.b, 1];
     this.mat.front.color.set(t.face);
     this.mat.frontFaded.color.set(t.face);
     this.mat.back.color.set(t.back);
@@ -110,13 +123,59 @@ export class Viewport {
     this.request();
   }
 
+  private coloured = new Map<string, ColouredGeometry>();
+  private translucent = new Map<number, THREE.MeshLambertMaterial>();
+
+  /** A translucent front material for a material opacity, shared by every item that needs it. */
+  private translucentFor(opacity: number): THREE.MeshLambertMaterial {
+    const key = Math.round(opacity * 100);
+    let m = this.translucent.get(key);
+    if (!m) {
+      m = new THREE.MeshLambertMaterial({ side: THREE.DoubleSide, vertexColors: true, transparent: true, opacity: key / 100, depthWrite: false, polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1 });
+      this.translucent.set(key, m);
+    }
+    return m;
+  }
+
+  /**
+   * Face geometry for an item whose triangles take material colours: a copy of the
+   * definition's positions and normals with a colour attribute. Items of the same
+   * definition and instance material share one.
+   */
+  private colouredFor(index: SceneIndex, item: number, base: THREE.BufferGeometry): ColouredGeometry | null {
+    const it = index.items[item];
+    const fm = index.faceMaterials.get(it.def);
+    if (it.material === null && !(fm && fm.some((m) => m >= 0))) return null;
+    const key = `${it.def}:${it.material ?? ""}`;
+    const cached = this.coloured.get(key);
+    if (cached) return cached;
+    const n = index.buffers.get(it.def)!.faceIds.length;
+    const colors = new Float32Array(n * 9);
+    let opacity = 1;
+    for (let t = 0; t < n; t++) {
+      const c = index.triColor(item, t) ?? this.themeFace;
+      if (c[3] < opacity) opacity = c[3];
+      for (let k = 0; k < 3; k++) colors.set([c[0], c[1], c[2]], t * 9 + k * 3);
+    }
+    const faces = new THREE.BufferGeometry();
+    faces.setAttribute("position", base.getAttribute("position"));
+    faces.setAttribute("normal", base.getAttribute("normal"));
+    faces.setAttribute("color", new THREE.BufferAttribute(colors, 3));
+    faces.boundingSphere = base.boundingSphere;
+    const g = { faces, opacity };
+    this.coloured.set(key, g);
+    return g;
+  }
+
   /** Rebuild draw objects from a scene index. Geometry is shared per definition. */
   setScene(index: SceneIndex): void {
     for (const g of this.geometries.values()) {
       g.faces.dispose();
       g.edges.dispose();
     }
+    for (const g of this.coloured.values()) g.faces.dispose();
     this.geometries.clear();
+    this.coloured.clear();
     this.modelGroup.clear();
     for (const [def, b] of index.buffers) {
       const faces = new THREE.BufferGeometry();
@@ -128,10 +187,17 @@ export class Viewport {
       edges.computeBoundingSphere();
       this.geometries.set(def, { faces, edges });
     }
-    for (const it of index.items) {
+    index.items.forEach((it, idx) => {
       const g = this.geometries.get(it.def)!;
       const m = new THREE.Matrix4().fromArray(it.matrix);
-      const objs = it.active
+      const c = it.active ? this.colouredFor(index, idx, g.faces) : null;
+      const objs = c
+        ? [
+            new THREE.Mesh(c.faces, c.opacity < 1 ? this.translucentFor(c.opacity) : this.mat.frontColoured),
+            ...(c.opacity < 1 ? [] : [new THREE.Mesh(c.faces, this.mat.back)]),
+            new THREE.LineSegments(g.edges, this.mat.edge),
+          ]
+        : it.active
         ? [new THREE.Mesh(g.faces, this.mat.front), new THREE.Mesh(g.faces, this.mat.back), new THREE.LineSegments(g.edges, this.mat.edge)]
         : [new THREE.Mesh(g.faces, this.mat.frontFaded), new THREE.Mesh(g.faces, this.mat.backFaded), new THREE.LineSegments(g.edges, this.mat.edgeFaded)];
       for (const o of objs) {
@@ -139,7 +205,7 @@ export class Viewport {
         o.matrix.copy(m);
         this.modelGroup.add(o);
       }
-    }
+    });
     this.request();
   }
 
