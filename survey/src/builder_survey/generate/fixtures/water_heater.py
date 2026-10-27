@@ -2,8 +2,10 @@
 import math
 
 from ...geometry import local_frame, prism, xy
+from .registry import fixture_type
 
 
+@fixture_type("water_heater")
 def water_heater_parts(ctx, p, f, z0, z1):
     """An upright tank inscribed in the placed rectangle: jacket, top cap, base
     ring, and on the front (`facing`) the burner access cover and the gas

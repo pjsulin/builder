@@ -2,8 +2,10 @@
 import sys
 
 from ...geometry import local_frame
+from .registry import fixture_type
 
 
+@fixture_type("cabinet_doors")
 def cabinet_door_parts(ctx, p, f, z0, z1):
     """Two cabinet doors closing an opening, their fronts on the fixture's
     front face (`facing`). `left` = the left door's width (seen facing them);

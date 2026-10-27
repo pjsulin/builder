@@ -3,6 +3,7 @@ import sys
 
 from ...geometry import extrude, prism, rect
 from ...spec.refs import zval
+from .registry import fixture_type
 
 
 def stair_parts(p, up, risers, zb, rise):
@@ -109,3 +110,17 @@ def stair_detail(ctx, p, f, zb, rise):
                 white.append(solid([(u0, L(u0)), (u1, L(u1)), (u1, Hc(u1)), (u0, Hc(u0))], w0, w1))
                 u += sp
     return {dt.get("material", "white_paint"): white, "rubber": black}
+
+
+@fixture_type("stairs", own_z=True)
+def stairs(ctx, p, f):
+    """A flight: solid steps, or open stairs built from boards when `detail:` is given."""
+    if int(f["risers"]) < 2:
+        sys.exit(f"{ctx.path}: a flight needs at least 2 risers")
+    zb = zval(ctx, f["bottom"], "bottom")
+    rise = ctx.len(f["rise"], "rise")
+    if "detail" in f:
+        built = stair_detail(ctx, p, f, zb, rise)
+    else:
+        built = stair_parts(p, f["up"], int(f["risers"]), zb, rise)
+    return built, (zb, zb + rise)

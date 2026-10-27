@@ -1,7 +1,7 @@
 """Layout -> elements: room floors, ledges, doors / glazing, fixtures."""
 from ..elements import element
 from .doors import glazing, place_doors
-from .fixtures.place import place_fixtures
+from .fixtures import place_fixtures
 from .ledges import ledge
 from ..geometry import prism, rect, xy
 from ..spec.checks import conflict

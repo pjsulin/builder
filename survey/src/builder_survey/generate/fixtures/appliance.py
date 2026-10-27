@@ -2,8 +2,10 @@
 import sys
 
 from ...geometry import disc, local_frame
+from .registry import fixture_type
 
 
+@fixture_type("appliance")
 def appliance_parts(ctx, p, f, z0, z1):
     """A washer (top-loader) or dryer (front door), front toward `facing`. The
     placed box is its width x depth, z to the top of the console (the raised

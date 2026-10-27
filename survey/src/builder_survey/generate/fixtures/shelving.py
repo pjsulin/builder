@@ -1,7 +1,9 @@
 """Fixture type `shelving`."""
 from ...geometry import local_frame
+from .registry import fixture_type
 
 
+@fixture_type("shelving")
 def shelving_parts(ctx, p, f, z0, z1):
     """An open shelving unit, front toward `facing`: an angle-iron post at each
     corner (casters under them), boards at `shelves` heights (their tops,

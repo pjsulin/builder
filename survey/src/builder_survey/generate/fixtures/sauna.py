@@ -3,8 +3,10 @@ import sys
 
 from ...geometry import local_frame
 from ...units import ftin
+from .registry import fixture_type
 
 
+@fixture_type("sauna")
 def sauna_parts(ctx, p, f, z0, z1):
     """A sauna cabin in the placed rectangle, its front (door side) toward
     `facing`. Parts are laid out in the cabin's own frame: u across the front

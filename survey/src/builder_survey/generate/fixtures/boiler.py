@@ -1,7 +1,9 @@
 """Fixture type `boiler`."""
 from ...geometry import local_frame
+from .registry import fixture_type
 
 
+@fixture_type("boiler")
 def boiler_parts(ctx, p, f, z0, z1):
     """A cabinet boiler, front toward `facing`: jacket, front access panel, a
     top cover with a small overhang, a recessed base, a name plate. All inside
