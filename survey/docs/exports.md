@@ -14,7 +14,7 @@ All go in the out dir (`--out`, else `survey.yaml` `out_dir`, else `DIR/model/ou
 | `plan.png`, `view3d.png` | `export/previews.py` | quick look, no Blender needed |
 | `check_plan.png` | `export/check_plan.py` | the main review view for measurements |
 | `<room>_plan.html` | `layout2d/space_plan.py` | a browser, one per `layout_pages:` entry |
-| `STEM.builder` | | see the Builder file format docs; written by a later phase |
+| `STEM.builder` | `export/builder.py` | Builder (File > Open); `cargo run -p builder-kernel --example validate -- FILE` checks it |
 
 ## `mesh.json`
 
@@ -35,6 +35,18 @@ A Sweet Home 3D home (cm; x east, y south) for laying out furniture by hand:
 - `sh3d_floor_z` (inches, `survey.yaml`) shifts everything down so that height is Sweet Home 3D's floor 0. Flat-bottomed prisms are cut at 0; any other part below it stops the export with `write_sh3d: a <kind> part goes below the floor datum`.
 
 `dropOnTopElevation`: while a piece at elevation exactly 0 is dragged, Sweet Home 3D lifts it onto the highest piece whose footprint contains all its corners (from the decompiled `FurnitureController.getSurroundingFurniture` and `PlanController.adjustPieceOfFurnitureElevation`), unless that piece has `dropOnTopElevation < 0`. Overhead pipes and stair landings have footprints that cover whole rooms, so a dropped box kept jumping onto them. The export therefore writes `dropOnTopElevation='-1'` on every piece except raised floors (`* floor` pieces) and the movable appliances: a dropped box lands only on those. A piece already at a non-zero elevation is never re-lifted while moving. Grouping pipes into one piece per pipe was tried first and was not enough, because a grouped piece acts as its whole bounding box.
+
+## `STEM.builder`
+
+The model as a Builder file (`docs/file-format.md` in the builder repo), inches, x east, y north, z up: the same coordinates the parts are built in.
+
+- One group per element, named by the element, placed in the root on the tag of its phase. The tags are `Existing`, `Demo` and `Proposed`; the first two are written `locked`, so Builder refuses to move, push, erase or draw into them until the tag is unlocked. Builder treats a file with these three tags as a survey model.
+- Each part is a child group (`<element> part N`) inside its element, so parts never weld to each other. A prism becomes its bottom and top loops and side quads (the top is triangulated when `ztop` makes it non-planar); a cylinder a 16-segment prism along its axis; a mesh part its triangles. Faces are wound counter-clockwise seen from outside.
+- The element's material (`placeholder` orange, `proposed` blue, else its own) is the group instance's material, so faces take it in Builder. `materials` is the merged table in order. Per-face finishes are not exported.
+- The element's provenance is on its definition as attributes in the `survey` namespace: `kind`, `approx` (true when a `~` value placed it), `phase`, `base_material` (the real material behind `placeholder` or `proposed`), and `source` when the spec entry has one. Part groups carry no attributes.
+- `generator` is `builder-survey <version>`. Floats are rounded to 1e-6 and keys sorted, so a rebuild of the same spec is byte-identical; the golden check compares it like any other output. Elements with no parts are left out.
+
+Open it in Builder with File > Open. Everything on `Proposed` is editable; what is drawn there can be exported back as a plan file (see [plans.md](plans.md)).
 
 ## `STEM.rb`
 

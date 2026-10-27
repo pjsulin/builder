@@ -249,13 +249,13 @@ Nine phases, each about a day or more and each one commit. Phases 1–2 make `su
 
 ### Phase 5: Survey Writes .builder
 
-**Status:** pending
+**Status:** completed
 **Dependencies:** [Phase 1, Phase 3]
 
 #### Task 5.1: The .builder exporter
 
 - **Type:** implement
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** none
 - **Files:**
   - Create: survey/src/builder_survey/export/builder.py
@@ -266,7 +266,7 @@ Nine phases, each about a day or more and each one commit. Phases 1–2 make `su
 #### Task 5.2: Exporter tests and kernel validation
 
 - **Type:** test
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [5.1]
 - **Files:**
   - Create: survey/tests/test_builder_export.py
@@ -276,7 +276,7 @@ Nine phases, each about a day or more and each one commit. Phases 1–2 make `su
 #### Task 5.3: Document the export
 
 - **Type:** document
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [5.1]
 - **Files:**
   - Modify: survey/docs/exports.md

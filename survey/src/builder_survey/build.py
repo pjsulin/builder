@@ -5,6 +5,7 @@ Outputs (in the out dir, default DIR/model/out/, or out/plans/NAME/ with --plan;
 STEM is survey.yaml `output_stem`, else the spec name slugged):
   STEM.dae      COLLADA model: SketchUp Go or Pro, File > Import
   STEM.sh3d     Sweet Home 3D home
+  STEM.builder  Builder file: one group per element, phases as tags, survey:* attributes
   mesh.json     triangle meshes for render/blender_build.py
   STEM.rb       SketchUp Ruby script (Window > Ruby Console, then load '/path/to/STEM.rb')
   plan.png, view3d.png   quick previews
@@ -15,6 +16,7 @@ Nothing is inferred. MISSING values skip their element; "~" values build in oran
 """
 import sys
 
+from .export.builder import write_builder
 from .export.check_plan import write_check_plan
 from .export.dae import write_dae
 from .export.mesh import write_mesh_json
@@ -58,6 +60,7 @@ def build(project_dir, plan=None, out=None):
     check_sources(project, elements)
     write_ruby(out, stem, spec["name"], cfg.get("ruby_module", "Survey"), elements, mats)
     write_dae(out, stem, spec["name"], elements, mats)
+    write_builder(out, stem, spec["name"], elements, mats)
     print(f"{stem}.sh3d: %d walls, %d pieces, %d rooms" % write_sh3d(
         out, stem, elements, float(cfg.get("sh3d_floor_z", 0)),
         {n for n, f in report["fixtures"].items() if f["type"] == "appliance"}, mats))

@@ -11,8 +11,8 @@ uv run survey render  --project DIR [--out DIR] -- [options]    # runs Blender (
 uv run survey capture --project DIR [--port N]                  # photo + measurement web app
 ```
 
-`survey build` writes `mesh.json`, `STEM.dae`, `STEM.sh3d`, `STEM.rb`, `report.md`, `plan.png`, `view3d.png`,
-`check_plan.png`, and one `<room>_plan.html` per `layout_pages:` entry. `STEM` is `output_stem` from `survey.yaml`,
+`survey build` writes `mesh.json`, `STEM.dae`, `STEM.sh3d`, `STEM.rb`, `STEM.builder` (opens in Builder; one group
+per element, phases as tags, `survey:*` attributes), `report.md`, `plan.png`, `view3d.png`, `check_plan.png`, and one `<room>_plan.html` per `layout_pages:` entry. `STEM` is `output_stem` from `survey.yaml`,
 else the spec `name:` slugged (lowercase, runs of other characters become `-`: `Elm St garage` -> `elm-st-garage`).
 The out dir is `--out`, else `survey.yaml` `out_dir`, else `DIR/model/out`.
 `survey render` needs Blender at `/Applications/Blender.app/Contents/MacOS/Blender` (`--blender PATH` to change)
@@ -86,7 +86,7 @@ build fails when that folder is not under the project. `mesh.json` records each 
 | `spec/ctx.py`, `checks.py`, `refs.py` | MISSING / `~` bookkeeping and levels; CONFLICT severity; edge references with chained offsets, rectangle placement |
 | `spec/layout.py`, `plan.py` | the room solver (list-valued edges are checks); plan overlay |
 | `generate/` | rooms -> walls, ledges, doors / glazing, joists, pipes, objects, finishes, cameras; `fixtures/` is a registry, one module per type |
-| `export/` | `mesh`, `dae`, `sh3d`, `ruby`, `previews`, `check_plan`, `report` |
+| `export/` | `mesh`, `dae`, `sh3d`, `ruby`, `builder`, `previews`, `check_plan`, `report` |
 | `render/blender_build.py` | run by Blender; reads `out/mesh.json` |
 | `layout2d/space_plan.py` | the 2D layout page with clearance checks |
 | `capture/` | `serve.py` + `index.html` |
@@ -130,4 +130,4 @@ path keeps its own lock.
 - [docs/plans.md](docs/plans.md): `model/plans/NAME.yaml` (`add:` / `remove:`), `survey build --plan`, and the phases a plan produces.
 - [docs/contract.md](docs/contract.md): the geometry rule for survey mode and for agents editing a spec.
 - [docs/render.md](docs/render.md): `survey render` options, outputs, materials and recipes, Metal kernel cache and GUI-Blender notes.
-- [docs/exports.md](docs/exports.md): each output file, who reads it, the Sweet Home 3D `dropOnTopElevation` finding, the 2D layout page.
+- [docs/exports.md](docs/exports.md): each output file including `STEM.builder`, who reads it, the Sweet Home 3D `dropOnTopElevation` finding, the 2D layout page.
