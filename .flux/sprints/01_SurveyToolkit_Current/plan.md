@@ -384,13 +384,13 @@ Nine phases, each about a day or more and each one commit. Phases 1–2 make `su
 
 ### Phase 8: Phone and Voice Capture
 
-**Status:** pending
+**Status:** completed
 **Dependencies:** [Phase 1]
 
 #### Task 8.1: HTTPS serving and v2 entries
 
 - **Type:** implement
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** none
 - **Files:**
   - Modify: survey/src/builder_survey/capture/serve.py
@@ -402,7 +402,7 @@ Nine phases, each about a day or more and each one commit. Phases 1–2 make `su
 #### Task 8.2: Phone-first page
 
 - **Type:** implement
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [8.1]
 - **Files:**
   - Modify: survey/src/builder_survey/capture/index.html
@@ -412,7 +412,7 @@ Nine phases, each about a day or more and each one commit. Phases 1–2 make `su
 #### Task 8.3: Transcription and entries command
 
 - **Type:** implement
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [8.1]
 - **Files:**
   - Create: survey/src/builder_survey/capture/transcribe.py
@@ -421,12 +421,12 @@ Nine phases, each about a day or more and each one commit. Phases 1–2 make `su
   - Modify: survey/pyproject.toml
   - Modify: survey/uv.lock
 - **Context:** [spec.md§Interfaces](spec.md#interfaces)
-- **Description:** Run faster-whisper in a background thread after each save, writing `transcript_error` when the extra is not installed. Add `survey entries [--uncited]`.
+- **Description:** Run faster-whisper in a background thread after each save, writing `transcript_error` when the extra is not installed. Add `survey entries [--uncited]`. (2026-10-27: audio is decoded with PyAV in `transcribe.decode` and passed to the model as samples, because faster-whisper 1.2's `decode_audio` calls `av.open(metadata_errors=...)`, which PyAV 19 (what uv resolved) no longer accepts; this avoids pinning `av`. Cached models load with `local_files_only=True` first, so a Mac without internet still transcribes. The test project sets `transcribe_model: tiny.en` (75 MB) so the suite does not fetch the 480 MB default; the real transcription check was run by hand on a `say`-generated m4a: "Return pipe is 32 and a half inches to the top at the West Wall". `make_server(host=...)` was split from `serve()` so the test can bind 127.0.0.1 on a free port.)
 
 #### Task 8.4: Capture tests
 
 - **Type:** test
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [8.2, 8.3]
 - **Files:**
   - Create: survey/tests/test_capture.py
@@ -436,7 +436,7 @@ Nine phases, each about a day or more and each one commit. Phases 1–2 make `su
 #### Task 8.5: Capture docs
 
 - **Type:** document
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [8.3]
 - **Files:**
   - Create: survey/docs/capture.md

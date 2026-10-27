@@ -18,6 +18,10 @@ survey.yaml keys:
     layout_pages:            2D layout pages written as out/<room>_plan.html
       - room: bathroom
         ceiling: joist_bottom    a spec level: the ceiling height above the room's floor
+    capture_tls:             HTTPS for `survey capture` (iOS needs it to record audio)
+      cert: ~/certs/mac.pem
+      key: ~/certs/mac-key.pem
+    transcribe_model: small.en   faster-whisper model for voice notes; default small.en
 """
 import re
 import sys
@@ -25,7 +29,8 @@ from pathlib import Path
 
 import yaml
 
-CONFIG_KEYS = {"ruby_module", "sh3d_floor_z", "layout_pages", "output_stem", "out_dir"}
+CONFIG_KEYS = {"ruby_module", "sh3d_floor_z", "layout_pages", "output_stem", "out_dir",
+               "capture_tls", "transcribe_model"}
 
 
 def slug(name):

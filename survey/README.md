@@ -8,7 +8,8 @@ Nothing is inferred; unknown values are `MISSING`, guesses are `~value`, disagre
 ```bash
 uv run survey build   --project DIR [--plan NAME] [--out DIR]   # spec -> out dir (or out/plans/NAME/)
 uv run survey render  --project DIR [--out DIR] -- [options]    # runs Blender (-b -P) on out/mesh.json; options after --
-uv run survey capture --project DIR [--port N]                  # photo + measurement web app
+uv run survey capture --project DIR [--port N] [--cert F --key F]   # phone capture page (HTTPS for voice notes)
+uv run survey entries --project DIR [--uncited]                 # entries with transcripts; which the spec cites
 ```
 
 `survey build` writes `mesh.json`, `STEM.dae`, `STEM.sh3d`, `STEM.rb`, `STEM.builder` (opens in Builder; one group
@@ -31,7 +32,7 @@ DIR/model/spec.yaml          the only source of geometry; needs a top-level `nam
 DIR/model/plans/NAME.yaml    plans layered onto the spec (add: -> proposed, remove: -> demo)
 DIR/model/space/ROOM.json    starting pieces for a 2D layout page
 DIR/model/out/               outputs (see out_dir)
-DIR/measure/checklist.yaml   capture app items; DIR/photos/, DIR/measurements/
+DIR/measure/checklist.yaml   capture questions; DIR/photos/ reference photos; DIR/measurements/ entries
 DIR/survey.yaml              optional settings, see below
 ```
 
@@ -44,6 +45,8 @@ DIR/survey.yaml              optional settings, see below
 | `ruby_module` | SketchUp Ruby module name | `Survey` |
 | `sh3d_floor_z` | inches; what Sweet Home 3D treats as its floor. Everything is shifted down by it and parts below it are an error | `0` |
 | `layout_pages` | `- {room: bathroom, ceiling: joist_bottom}`: the room and the spec level that is its ceiling | none |
+| `capture_tls` | `{cert, key}` PEM files for `survey capture` over HTTPS (iOS needs it to record); `--cert`/`--key` override | none (HTTP) |
+| `transcribe_model` | faster-whisper model for voice notes (`uv sync --extra transcribe`) | `small.en` |
 
 Unknown keys stop the build.
 
@@ -89,7 +92,7 @@ build fails when that folder is not under the project. `mesh.json` records each 
 | `export/` | `mesh`, `dae`, `sh3d`, `ruby`, `builder`, `previews`, `check_plan`, `report` |
 | `render/blender_build.py` | run by Blender; reads `out/mesh.json` |
 | `layout2d/space_plan.py` | the 2D layout page with clearance checks |
-| `capture/` | `serve.py` + `index.html` |
+| `capture/` | `serve.py` (HTTP/HTTPS server, v2 entries) + `index.html` (phone page); `transcribe.py` (faster-whisper); `entries.py` (`survey entries`) |
 
 Each generator appends elements (`elements.element(...)`, with a `kind` and `source`) to one list; exporters only
 read that list and the material table.
@@ -130,4 +133,5 @@ path keeps its own lock.
 - [docs/plans.md](docs/plans.md): `model/plans/NAME.yaml` (`add:` / `remove:`), `survey build --plan`, and the phases a plan produces.
 - [docs/contract.md](docs/contract.md): the geometry rule for survey mode and for agents editing a spec.
 - [docs/render.md](docs/render.md): `survey render` options, outputs, materials and recipes, Metal kernel cache and GUI-Blender notes.
+- [docs/capture.md](docs/capture.md): phone photo + voice note capture, the mkcert HTTPS setup, the entry layout, `survey entries` and the loop from entry to `source:`.
 - [docs/exports.md](docs/exports.md): each output file including `STEM.builder`, who reads it, the Sweet Home 3D `dropOnTopElevation` finding, the 2D layout page.

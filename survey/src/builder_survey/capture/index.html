@@ -2,197 +2,240 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Measure — {{name}}</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Capture — {{name}}</title>
 <style>
-  :root { --ink:#1d1d1f; --mute:#6e6e73; --line:#d2d2d7; --accent:#d4380d; --ok:#237a3b; }
+  :root { --ink:#1d1d1f; --mute:#6e6e73; --line:#d2d2d7; --accent:#d4380d; --ok:#237a3b; --warn:#9a6700; }
   * { box-sizing: border-box; }
   [hidden] { display:none !important; }
-  body { margin:0; font:17px -apple-system, system-ui, sans-serif; color:var(--ink); background:#f5f5f7; }
+  body { margin:0; font:17px -apple-system, system-ui, sans-serif; color:var(--ink); background:#f5f5f7; padding-bottom: env(safe-area-inset-bottom); }
   header { position:sticky; top:0; background:#fff; border-bottom:1px solid var(--line); padding:12px 16px; display:flex; gap:12px; align-items:center; z-index:2; }
   header h1 { font-size:19px; margin:0; flex:1; }
-  main { max-width:1000px; margin:0 auto; padding:16px; }
-  h2 { font-size:14px; text-transform:uppercase; letter-spacing:.05em; color:var(--mute); margin:24px 0 8px; }
+  main { max-width:640px; margin:0 auto; padding:12px 12px 120px; }
+  h2 { font-size:14px; text-transform:uppercase; letter-spacing:.05em; color:var(--mute); margin:20px 0 8px; }
+  .banner { background:#fff4d6; color:var(--warn); border:1px solid #f0d08a; border-radius:10px; padding:10px 12px; font-size:15px; margin-bottom:12px; }
   .item { background:#fff; border:1px solid var(--line); border-radius:12px; padding:14px 16px; margin-bottom:8px; display:flex; align-items:center; gap:12px; cursor:pointer; }
   .item .t { flex:1; }
   .item img { width:72px; height:54px; object-fit:cover; border-radius:6px; background:#ddd; flex:none; }
   .badge { font-size:13px; padding:3px 9px; border-radius:10px; background:#eee; color:var(--mute); white-space:nowrap; }
   .badge.done { background:#e3f3e7; color:var(--ok); }
-  button { font:inherit; border:1px solid var(--line); background:#fff; border-radius:10px; padding:10px 16px; cursor:pointer; }
+  button { font:inherit; border:1px solid var(--line); background:#fff; border-radius:12px; padding:12px 16px; cursor:pointer; -webkit-user-select:none; user-select:none; }
   button.primary { background:var(--accent); color:#fff; border-color:var(--accent); }
+  button.big { font-size:19px; padding:18px; width:100%; }
   button:disabled { opacity:.4; }
-  .card { background:#fff; border:1px solid var(--line); border-radius:12px; padding:16px; margin-bottom:12px; }
+  .card { background:#fff; border:1px solid var(--line); border-radius:12px; padding:14px; margin-bottom:12px; }
   .ask { color:var(--mute); margin:6px 0 0; }
   .row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+  .shots { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
+  .shots img { width:96px; height:72px; object-fit:cover; border-radius:8px; border:2px solid transparent; }
+  .shots img.on { border-color:var(--accent); }
+  #rec { background:#fff; border-color:var(--accent); color:var(--accent); }
+  #rec.on { background:var(--accent); color:#fff; animation: pulse 1s infinite alternate; }
+  @keyframes pulse { from { opacity:1 } to { opacity:.75 } }
+  .took { font-size:15px; color:var(--mute); margin-top:6px; min-height:1em; }
   canvas { width:100%; height:auto; display:block; border-radius:8px; touch-action:none; background:#ddd; margin-top:12px; }
-  label { display:block; margin:12px 0 4px; font-size:15px; }
-  input[type=text], textarea, select { width:100%; font:inherit; padding:10px; border:1px solid var(--line); border-radius:8px; background:#fff; }
   .hint { font-size:14px; color:var(--mute); margin-top:4px; min-height:1em; }
   .hint.bad { color:var(--accent); }
   .marks li { margin:4px 0; }
+  .marks label { display:block; margin:8px 0 4px; font-size:15px; }
+  .marks input { width:100%; font:inherit; padding:10px; border:1px solid var(--line); border-radius:8px; }
   .prev { font-size:14px; color:var(--mute); margin-top:2px; }
-  .saved { background:#e3f3e7; color:var(--ok); border-radius:8px; padding:8px 10px; font-size:15px; margin:10px 0 0; }
-  .check { font-weight:600; margin-top:10px; }
+  .entry { border-top:1px solid var(--line); padding:8px 0; font-size:15px; }
+  .entry .when { color:var(--mute); font-size:13px; }
+  .entry audio { width:100%; margin-top:4px; }
+  .fields { font-size:15px; color:var(--mute); }
+  .fields dt { display:inline; } .fields dd { display:inline; margin:0 0 0 6px; color:var(--ink); }
+  .save { position:fixed; left:0; right:0; bottom:0; padding:10px 12px calc(10px + env(safe-area-inset-bottom)); background:#fff; border-top:1px solid var(--line); display:flex; gap:8px; align-items:center; }
+  .save .hint { flex:1; margin:0; }
   #file { display:none; }
 </style>
 </head>
 <body>
-<header><h1 id="title">Measure</h1><button id="back" hidden>Back</button></header>
+<header><h1 id="title">Capture</h1><button id="back" hidden>Back</button></header>
 <main id="app"></main>
-<input id="file" type="file" accept="image/*">
+<input id="file" type="file" accept="image/*" capture="environment">
 <script>
 const app = document.getElementById('app');
+const canRecord = window.isSecureContext && 'MediaRecorder' in window && navigator.mediaDevices?.getUserMedia;
 let items = [], cur = null, st = null;
-
-// ── feet-inches parsing (10'8.5", 10' 8 1/2", 8 1/2", 6, 2'7") ─────────────
-function inches(s) {
-  s = s.trim().replace(/[”″]/g, '"').replace(/[’′]/g, "'");
-  if (!s) return null;
-  const m = s.match(/^(?:(\d+(?:\.\d+)?)\s*')?\s*(?:(\d+(?:\.\d+)?)?(?:\s*(\d+)\/(\d+))?)\s*"?$/);
-  if (!m || (m[1] == null && m[2] == null && m[3] == null)) return NaN;
-  return (+(m[1] || 0)) * 12 + (+(m[2] || 0)) + (m[3] ? m[3] / m[4] : 0);
-}
-function fmt(n) {
-  const sign = n < 0 ? '-' : ''; n = Math.abs(n);
-  const f = Math.floor(n / 12), i = +(n - f * 12).toFixed(3);
-  return sign + (f ? `${f}'${i}"` : `${i}"`);
-}
 
 async function load() {
   items = await (await fetch('/api/checklist')).json();
   list();
 }
 
+function esc(s) { return String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
+
+function banner() {
+  return canRecord ? '' : `<div class="banner">Voice notes need HTTPS (this page is ${location.protocol.replace(':', '')}). Photos still save. See survey/docs/capture.md for the certificate.</div>`;
+}
+
 function list() {
   cur = null; st = null;
-  document.getElementById('title').textContent = 'Measure — open items';
+  document.getElementById('title').textContent = 'Capture — open questions';
   document.getElementById('back').hidden = true;
-  const rooms = [...new Set(items.map(i => i.room))];
-  app.innerHTML = rooms.map(r => `<h2>${r}</h2>` + items.filter(i => i.room === r).map(i => {
-    const n = i.answers.length;
-    return `<div class="item" data-id="${i.id}">${i.photo ? `<img src="/photos/${i.photo}" alt="">` : ''}<div class="t">${i.title}${n ? `<div class="prev">${summary(i.answers.at(-1))}</div>` : ''}</div>
+  const groups = [...new Set(items.map(i => i.room || ''))];
+  app.innerHTML = banner() + groups.map(r => (r ? `<h2>${esc(r)}</h2>` : '') + items.filter(i => (i.room || '') === r).map(i => {
+    const n = i.entries.length, last = i.entries.at(-1);
+    return `<div class="item" data-id="${esc(i.id)}">${i.photo ? `<img src="/photos/${esc(i.photo)}" alt="">` : ''}<div class="t">${esc(i.question)}${n ? `<div class="prev">${esc(summary(last))}</div>` : ''}</div>
       <span class="badge ${n ? 'done' : ''}">${n ? 'answered' + (n > 1 ? ' ×' + n : '') : 'open'}</span></div>`;
-  }).join('')).join('');
+  }).join('')).join('') + (items.length ? '' : '<p class="hint">No open questions in measure/checklist.yaml.</p>');
   app.querySelectorAll('.item').forEach(el => el.onclick = () => open(el.dataset.id));
+}
+
+function summary(e) {
+  if (e.transcript) return e.transcript;
+  if (e.transcript_error) return 'note not transcribed';
+  if (e.audio) return 'transcribing…';
+  if (e.values) return Object.entries(e.values).filter(([k, v]) => v).map(([k, v]) => `${k} ${v}`).join(' · ') || e.note || 'no values';
+  return e.photos?.length ? `${e.photos.length} photo${e.photos.length > 1 ? 's' : ''}` : 'saved';
 }
 
 function open(id) {
   cur = items.find(i => i.id === id);
-  st = { img: null, file: null, base: null, marks: [], pending: null };
-  document.getElementById('title').textContent = cur.title;
+  st = { photos: [], shown: -1, img: null, base: null, marks: [], pending: null, insets: [], sel: -1, mode: 'line', drag: null, audio: null, rec: null };
+  document.getElementById('title').textContent = 'Capture';
   document.getElementById('back').hidden = false;
-  const prev = cur.answers.at(-1);
-  app.innerHTML = `
-    <div class="card"><b>${cur.title}</b><p class="ask">${cur.ask || ''}</p>
-      ${prev ? `<p class="saved">Submitted ${prev.saved.replace('T', ' ')}${cur.answers.length > 1 ? ` (answer ${cur.answers.length})` : ''}. Its values, note, photo and lines are filled in below; submitting again saves a new answer and keeps this one.</p>` : ''}
+  app.innerHTML = banner() + `
+    <div class="card"><b>${esc(cur.question)}</b>
+      ${cur.photo ? `<div class="row" style="margin-top:8px"><img src="/photos/${esc(cur.photo)}" alt="" style="width:100%;border-radius:8px"><button id="markref">Mark up this reference photo</button><button id="unref">Remove reference photo</button></div>` : ''}
+      ${cur.fields?.length ? `<dl class="fields">${cur.fields.map(f => `<div><dt>${esc(f.label)}</dt><dd>${esc(f.kind === 'choice' ? (f.choices || []).join(' / ') : f.kind)}</dd></div>`).join('')}</dl><p class="hint">Say the values in the voice note; typed fields are no longer used.</p>` : ''}
     </div>
     <div class="card">
+      <button class="big" id="take">Take photo</button>
+      <div class="shots" id="shots"></div>
+      <div class="took" id="took"></div>
+    </div>
+    <div class="card">
+      <button class="big" id="rec" ${canRecord ? '' : 'disabled'}>Hold to record a voice note</button>
+      <div class="took" id="audioState">${canRecord ? 'Hold the button and talk; let go to stop. Or tap once to start and again to stop.' : 'Recording unavailable over HTTP.'}</div>
+      <audio id="play" controls hidden></audio>
+    </div>
+    <div class="card" id="markcard" hidden>
       <div class="row">
-        <button id="take">Take / choose photo</button>
-        ${cur.photo ? `<button id="ref">Back to the reference photo</button><button id="unref">Remove reference photo</button>` : ''}
-        <button id="clear" hidden>Clear photo</button>
         <button id="undo" disabled>Undo</button>
-      </div>
-      <div class="row" style="margin-top:8px">
         <button id="detail">Add detail</button>
-        <button id="bigger" disabled>Detail bigger</button>
-        <button id="smaller" disabled>Detail smaller</button>
+        <button id="bigger" disabled>Bigger</button>
+        <button id="smaller" disabled>Smaller</button>
         <button id="rmdetail" disabled>Remove detail</button>
       </div>
-      <div class="hint" id="taphint">Tap two points to draw a measurement line.</div>
-      <canvas id="cv" hidden></canvas>
+      <div class="hint" id="taphint">Optional: tap two points to draw a line on the photo.</div>
+      <canvas id="cv"></canvas>
       <ul class="marks" id="marks"></ul>
     </div>
-    <div class="card">
-      ${cur.fields.map(f => `<label for="f_${f.key}">${f.label}</label>` + (
-        f.kind === 'choice'
-          ? `<select id="f_${f.key}"><option value=""></option>${f.choices.map(c => `<option>${c}</option>`).join('')}</select>`
-          : `<input type="text" id="f_${f.key}" autocomplete="off" autocapitalize="off" spellcheck="false"
-               placeholder="${f.kind === 'length' ? 'e.g. 10\'8.5&quot;' : ''}">`
-      ) + `<div class="hint" id="h_${f.key}"></div>`).join('')}
-      <div class="check" id="check"></div>
-      <label for="note">Note</label><textarea id="note" rows="3"></textarea>
-      <div class="row" style="margin-top:14px"><button class="primary" id="submit">Submit</button><span class="hint" id="status"></span></div>
-    </div>`;
+    ${cur.entries.length ? `<div class="card"><h2 style="margin-top:0">Earlier entries</h2>${cur.entries.slice().reverse().map(entryHtml).join('')}</div>` : ''}
+    <div class="save"><span class="hint" id="status"></span><button class="primary" id="submit">Save</button></div>`;
   document.getElementById('take').onclick = () => document.getElementById('file').click();
-  if (cur.photo) document.getElementById('ref').onclick = () => useImage('/photos/' + cur.photo, null, cur.photo);
-  if (cur.photo) document.getElementById('unref').onclick = async () => {
-    if (!confirm('Remove the reference photo from this item for good?')) return;
-    const r = await fetch('/api/unref', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: cur.id }) });
-    if (!r.ok) { alert((await r.json()).error); return; }
-    const id = cur.id; items = await (await fetch('/api/checklist')).json(); open(id);
-  };
-  document.getElementById('clear').onclick = () => {
-    Object.assign(st, { img: null, file: null, base: null, marks: [], pending: null, insets: [], sel: -1 });
-    document.getElementById('cv').hidden = true; document.getElementById('clear').hidden = true; marks();
-  };
+  if (cur.photo) {
+    document.getElementById('markref').onclick = () => useImage('/photos/' + cur.photo, cur.photo);
+    document.getElementById('unref').onclick = async () => {
+      if (!confirm('Remove the reference photo from this question for good?')) return;
+      const r = await fetch('/api/unref', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: cur.id }) });
+      if (!r.ok) { alert((await r.json()).error); return; }
+      items = await (await fetch('/api/checklist')).json(); open(id);
+    };
+  }
   document.getElementById('undo').onclick = () => { if (st.pending) st.pending = null; else st.marks.pop(); draw(); marks(); };
   document.getElementById('submit').onclick = submit;
   document.getElementById('detail').onclick = () => { st.mode = st.mode === 'detail' ? 'line' : 'detail'; st.pending = null; draw(); };
   document.getElementById('bigger').onclick = () => resizeInset(1.25);
   document.getElementById('smaller').onclick = () => resizeInset(0.8);
   document.getElementById('rmdetail').onclick = () => { st.insets.splice(st.sel, 1); st.sel = -1; draw(); };
-  cur.fields.filter(f => f.kind === 'length').forEach(f => {
-    document.getElementById('f_' + f.key).oninput = e => {
-      const v = inches(e.target.value), h = document.getElementById('h_' + f.key);
-      h.className = 'hint' + (Number.isNaN(v) ? ' bad' : '');
-      h.textContent = v == null ? '' : Number.isNaN(v) ? 'not a length' : `= ${+v.toFixed(3)}"`;
-      checks();
-    };
-  });
-  if (prev) {
-    for (const f of cur.fields) {
-      const el = document.getElementById('f_' + f.key);
-      el.value = prev.values[f.key] || '';
-      el.dispatchEvent(new Event('input'));
-    }
-    document.getElementById('note').value = prev.note || '';
-    // The photo it was drawn on: a reference photo, an earlier answer's photo, or its own.
-    const base = prev.base || (prev.photo ? `${prev.dir}/${prev.photo}` : null);
-    if (base) useImage(base.startsWith('measurements/') ? '/' + base : '/photos/' + base, null, base, prev);
-    else if (cur.photo) useImage('/photos/' + cur.photo, null, cur.photo);
-  } else if (cur.photo) useImage('/photos/' + cur.photo, null, cur.photo);
+  bindRecorder();
 }
 
-function summary(a) {
-  return Object.entries(a.values).filter(([k, v]) => v).map(([k, v]) => `${k} ${v}`).join(' · ') || (a.note ? 'note only' : 'no values');
+function entryHtml(e) {
+  const dir = '/' + e.dir;
+  const photos = (e.photos || (e.photo ? [e.photo] : [])).map(p => `<img src="${dir}/${esc(p)}" alt="" style="width:96px;height:72px;object-fit:cover;border-radius:8px;margin:6px 6px 0 0">`).join('');
+  const text = e.transcript ? esc(e.transcript) : e.transcript_error ? `<span class="hint bad">${esc(e.transcript_error)}</span>` : e.audio ? '<span class="hint">transcribing…</span>' : e.values ? esc(summary(e)) : '';
+  return `<div class="entry"><div class="when">${esc(e.saved.replace('T', ' '))} · ${esc(e.dir)}</div><div>${text}</div>${photos}${e.audio ? `<audio controls preload="none" src="${dir}/${esc(e.audio)}"></audio>` : ''}</div>`;
 }
 
-// Arithmetic only: top − bottom = what the ledges add up to.
-function checks() {
-  const el = document.getElementById('check');
-  const t = document.getElementById('f_top'), b = document.getElementById('f_bottom');
-  if (!t || !b) return;
-  const tv = inches(t.value), bv = inches(b.value);
-  el.textContent = (tv > 0 && bv > 0) ? `Top − bottom = ${fmt(tv - bv)} (two 4" ledges = 8")` : '';
-}
-
+// ── Photos: the phone camera through a file input; several per entry. ───────
 document.getElementById('file').onchange = e => {
   const file = e.target.files[0]; e.target.value = '';
-  if (file) useImage(URL.createObjectURL(file), file, null);
+  if (!file || !st) return;
+  st.photos.push({ file, url: URL.createObjectURL(file) });
+  shots();
+  useImage(st.photos.at(-1).url, null, st.photos.length - 1);
 };
-document.getElementById('back').onclick = () => load();
+document.getElementById('back').onclick = () => { stopRecording(); load(); };
 
-function useImage(src, file, base, restore) {
+function shots() {
+  const box = document.getElementById('shots');
+  box.innerHTML = st.photos.map((p, i) => `<img src="${p.url}" data-i="${i}" class="${i === st.shown ? 'on' : ''}" alt="">`).join('');
+  box.querySelectorAll('img').forEach(el => el.onclick = () => useImage(st.photos[+el.dataset.i].url, null, +el.dataset.i));
+  document.getElementById('took').textContent = st.photos.length ? `${st.photos.length} photo${st.photos.length > 1 ? 's' : ''}. Tap one to mark it up.` : '';
+}
+
+// ── Voice note: MediaRecorder, hold or toggle. ──────────────────────────────
+function bindRecorder() {
+  const b = document.getElementById('rec');
+  if (!canRecord) return;
+  let held = false, timer = 0;
+  b.onpointerdown = (e) => { e.preventDefault(); held = false; timer = setTimeout(() => { held = true; startRecording(); }, 250); };
+  b.onpointerup = (e) => {
+    e.preventDefault(); clearTimeout(timer);
+    if (held) stopRecording();            // hold to record: release stops
+    else if (st.rec) stopRecording();     // tap while recording stops
+    else startRecording();                // tap starts
+  };
+  b.onpointercancel = () => { clearTimeout(timer); stopRecording(); };
+}
+
+async function startRecording() {
+  if (st.rec) return;
+  const state = document.getElementById('audioState');
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    const type = ['audio/mp4', 'audio/webm;codecs=opus', 'audio/webm', 'audio/ogg'].find(t => MediaRecorder.isTypeSupported(t)) || '';
+    const rec = new MediaRecorder(stream, type ? { mimeType: type } : {});
+    const chunks = [];
+    rec.ondataavailable = e => { if (e.data.size) chunks.push(e.data); };
+    rec.onstop = () => {
+      stream.getTracks().forEach(t => t.stop());
+      const blob = new Blob(chunks, { type: rec.mimeType || type || 'audio/mp4' });
+      st.audio = blob;
+      const play = document.getElementById('play');
+      play.src = URL.createObjectURL(blob); play.hidden = false;
+      state.textContent = `Voice note recorded (${Math.round(blob.size / 1024)} KB). Record again to replace it.`;
+    };
+    rec.start();
+    st.rec = rec;
+    document.getElementById('rec').classList.add('on');
+    document.getElementById('rec').textContent = 'Recording… let go or tap to stop';
+    state.textContent = 'Recording.';
+  } catch (e) {
+    state.textContent = `Microphone unavailable: ${e.message}`;
+  }
+}
+
+function stopRecording() {
+  if (!st || !st.rec) return;
+  st.rec.stop(); st.rec = null;
+  const b = document.getElementById('rec');
+  b.classList.remove('on'); b.textContent = 'Hold to record a voice note';
+}
+
+// ── Optional marks on a photo (lines, magnified details). ───────────────────
+function useImage(src, base, shown = -1) {
   const img = new Image();
   img.onload = () => {
-    Object.assign(st, { img, file, base, marks: [], pending: null, insets: [], sel: -1, mode: 'line', drag: null });
-    if (restore) { st.marks = structuredClone(restore.marks || []); st.insets = structuredClone(restore.insets || []); }
+    Object.assign(st, { img, base, shown, marks: [], pending: null, insets: [], sel: -1, mode: 'line', drag: null });
     const cv = document.getElementById('cv');
-    const k = Math.min(1, 4000 / Math.max(img.naturalWidth, img.naturalHeight));   // iPad canvas limit
+    const k = Math.min(1, 4000 / Math.max(img.naturalWidth, img.naturalHeight));   // canvas size limit on iOS
     cv.width = Math.round(img.naturalWidth * k); cv.height = Math.round(img.naturalHeight * k);
-    cv.hidden = false; document.getElementById('clear').hidden = false;
+    document.getElementById('markcard').hidden = false;
     cv.onpointerdown = down; cv.onpointermove = move; cv.onpointerup = up;
     cv.onpointercancel = () => { st.drag = null; draw(); };
-    draw(); marks();
+    draw(); marks(); shots();
   };
   img.src = src;
 }
 
-// ── Pointer handling. All positions are 0–1 of the image, [x, y]. ─────────
-// A tap places a point; a tap inside a detail inset places it at the matching
-// spot on the full photo. Dragging an inset moves it. In detail mode, a drag
-// outlines the area to magnify.
+// Pointer handling. All positions are 0–1 of the image, [x, y]. A tap places a
+// point; a tap inside a detail inset places it at the matching spot on the full
+// photo. Dragging an inset moves it. In detail mode, a drag outlines the area.
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 const inRect = (p, r) => p[0] >= r[0] && p[0] <= r[0] + r[2] && p[1] >= r[1] && p[1] <= r[1] + r[3];
 function pos(e) { const r = e.target.getBoundingClientRect(); return [(e.clientX - r.left) / r.width, (e.clientY - r.top) / r.height]; }
@@ -235,8 +278,6 @@ function point(p) {
   if (!st.pending) { st.pending = p; draw(); return; }
   st.marks.push({ a: st.pending, b: p, label: '' }); st.pending = null;
   draw(); marks();
-  const inputs = document.querySelectorAll('#marks input');
-  inputs[inputs.length - 1].focus();
 }
 
 // Magnify up to 3x, at most 45% of the photo; start in the corner farthest from the area.
@@ -256,7 +297,6 @@ function resizeInset(f) {
   draw();
 }
 
-// ── Drawing. live = on screen (selection, pending dot, outline being dragged). ─
 function drawMarks(g, map, u, live) {
   const dot = (p) => { const q = map(p); g.beginPath(); g.arc(q[0], q[1], 8 * u, 0, 7); g.fill(); };
   g.strokeStyle = g.fillStyle = '#ff2d00'; g.lineWidth = 4 * u;
@@ -266,7 +306,7 @@ function drawMarks(g, map, u, live) {
     dot(m.a); dot(m.b);
     if (m.label) {
       g.font = `600 ${22 * u}px -apple-system, sans-serif`;
-      const x = (a[0] + b[0]) / 2, y = Math.min(a[1], b[1]) - 30 * u, w = g.measureText(m.label).width;   // above the line, so it stays visible
+      const x = (a[0] + b[0]) / 2, y = Math.min(a[1], b[1]) - 30 * u, w = g.measureText(m.label).width;
       g.fillStyle = 'rgba(255,255,255,.92)'; g.fillRect(x - w / 2 - 6 * u, y - 16 * u, w + 12 * u, 30 * u);
       g.fillStyle = '#c00'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(m.label, x, y);
       g.fillStyle = '#ff2d00';
@@ -314,13 +354,12 @@ function draw() {
   document.getElementById('taphint').textContent =
     st.mode === 'detail' ? 'Drag a box around the area to magnify.' :
     st.pending ? 'Tap the second point (inside a detail works too).' :
-    'Tap two points to draw a line. Drag a detail to move it.';
+    'Optional: tap two points to draw a line. Drag a detail to move it.';
 }
 
-// One label box per line; typing redraws the label on the photo.
 function marks() {
   const ul = document.getElementById('marks');
-  ul.innerHTML = st.marks.map((m, i) => `<li><label>Line ${i + 1} label (the value, e.g. 10'8.5")</label>
+  ul.innerHTML = st.marks.map((m, i) => `<li><label>Line ${i + 1} label (say the value in the note, or type it)</label>
     <div class="row"><input type="text" data-i="${i}" autocomplete="off" autocapitalize="off" spellcheck="false" style="flex:1;width:auto">
     <button data-del="${i}">Delete</button></div></li>`).join('');
   ul.querySelectorAll('input').forEach(el => {
@@ -330,29 +369,25 @@ function marks() {
   ul.querySelectorAll('[data-del]').forEach(el => el.onclick = () => { st.marks.splice(+el.dataset.del, 1); draw(); marks(); });
 }
 
-const dataURL = (file) => new Promise((ok, no) => { const r = new FileReader(); r.onload = () => ok(r.result); r.onerror = no; r.readAsDataURL(file); });
+const dataURL = (blob) => new Promise((ok, no) => { const r = new FileReader(); r.onload = () => ok(r.result); r.onerror = no; r.readAsDataURL(blob); });
 
 async function submit() {
+  stopRecording();
   const status = document.getElementById('status'), btn = document.getElementById('submit');
-  const values = {};
-  for (const f of cur.fields) {
-    const v = document.getElementById('f_' + f.key).value.trim();
-    if (f.kind === 'length' && v && Number.isNaN(inches(v))) { status.textContent = `${f.label}: not a length`; status.className = 'hint bad'; return; }
-    values[f.key] = v;
-  }
-  const body = { id: cur.id, values, note: document.getElementById('note').value.trim(),
-                 marks: st.marks, insets: st.insets, base: st.base };
-  if (st.file) { body.photo = await dataURL(st.file); body.photo_type = st.file.type; }
+  if (!st.photos.length && !st.audio && !st.base) { status.className = 'hint bad'; status.textContent = 'Take a photo or record a note first.'; return; }
+  btn.disabled = true; status.className = 'hint'; status.textContent = 'Saving…';
+  const body = { id: cur.id, marks: st.marks, insets: st.insets, base: st.base, photos: [] };
+  for (const p of st.photos) body.photos.push({ data: await dataURL(p.file), type: p.file.type });
+  if (st.audio) body.audio = { data: await dataURL(st.audio), type: st.audio.type };
   if (st.img && (st.marks.length || st.insets.length)) {
     const cv = document.getElementById('cv');
     render(cv, false); body.annotated = cv.toDataURL('image/jpeg', 0.88); draw();
   }
-  btn.disabled = true; status.className = 'hint'; status.textContent = 'Saving…';
   const r = await fetch('/api/submit', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
   const out = await r.json();
   btn.disabled = false;
   if (!r.ok) { status.className = 'hint bad'; status.textContent = out.error; return; }
-  status.textContent = 'Saved ✓ ' + out.saved;
+  status.textContent = 'Saved ' + out.saved;
   setTimeout(load, 900);
 }
 
