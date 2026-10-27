@@ -1,0 +1,12 @@
+# Project overrides. Every key and its default is in the flux package's
+# config-defaults.yaml. Keys: paths.*, patterns.*, sprint.statuses,
+# sprint.standard_files, repomap.budget, repomap.ignore, test.command,
+# test.junit, test.timeout, flux.command. /health proposes test.command and
+# test.junit. flux.command is how skills and docs invoke flux (e.g. `uv run
+# flux` when the project pins flux as a dependency); re-run `flux init --sync`
+# after changing it.
+# A list adds its entries to the defaults; {replace: [...]} drops them.
+test:
+  command: null
+  junit: []
+  timeout: 900

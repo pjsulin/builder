@@ -1,0 +1,221 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Extracting the modeling pipeline from 20SPierson into Builder</title>
+<style>
+  :root { --fg:#1d1f23; --muted:#5b6170; --line:#d9dce3; --bg:#ffffff; --soft:#f4f5f8;
+          --gen:#2f6fd6; --proj:#c46a12; --bld:#2e8b57; }
+  @media (prefers-color-scheme: dark) {
+    :root { --fg:#e6e7ea; --muted:#a2a7b3; --line:#3a3e47; --bg:#17191d; --soft:#22252b; }
+  }
+  body { font: 15px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+         color: var(--fg); background: var(--bg); max-width: 960px; margin: 2rem auto; padding: 0 1.25rem; }
+  h1 { font-size: 1.6rem; margin-bottom: .2rem; }
+  h2 { font-size: 1.2rem; margin-top: 2.2rem; border-bottom: 1px solid var(--line); padding-bottom: .3rem; }
+  h3 { font-size: 1rem; margin-top: 1.4rem; }
+  .sub { color: var(--muted); margin-top: 0; }
+  code { font: 13px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; background: var(--soft); padding: 0 .25em; border-radius: 3px; }
+  pre { background: var(--soft); padding: .8rem 1rem; border-radius: 6px; overflow-x: auto; }
+  pre code { background: none; padding: 0; }
+  table { border-collapse: collapse; width: 100%; margin: .6rem 0 1rem; font-size: 14px; }
+  th, td { text-align: left; vertical-align: top; padding: .4rem .55rem; border-bottom: 1px solid var(--line); }
+  th { background: var(--soft); font-weight: 600; }
+  .tag { display:inline-block; font-size: 12px; padding: 0 .45em; border-radius: 3px; color:#fff; }
+  .g { background: var(--gen); } .p { background: var(--proj); } .b { background: var(--bld); }
+  .callout { border-left: 4px solid var(--gen); background: var(--soft); padding: .6rem 1rem; margin: 1rem 0; }
+  figure { margin: 1.2rem 0; }
+  figcaption { color: var(--muted); font-size: 13px; margin-top: .3rem; }
+  svg text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+</style>
+</head>
+<body>
+
+<h1>Extracting the modeling pipeline into Builder</h1>
+<p class="sub">2026-10-27. How the generic capture / spec / 3D / 2D code in 20SPierson fits Builder, and how to move it so 20SPierson is just a project.</p>
+
+<h2>1. What each repo actually has</h2>
+
+<p><strong>Builder is further along than "a prototype and a plan".</strong> Besides <code>prototype/index.html</code> it has a tested Rust kernel
+(planar B-rep with sticky lines, auto faces, face splitting, push/pull on any planar face, groups, undo journal, <code>.builder</code> JSON format),
+a wasm wrapper, and a TypeScript app with Line / Rectangle / Push-Pull / Select / Move / Erase tools, an inference engine and the Measurements box, with CI.
+It is a <em>direct-manipulation</em> modeler: the person draws the geometry.</p>
+
+<p><strong>20SPierson's pipeline is the opposite half:</strong> a <em>survey compiler</em>. Geometry is never drawn; it is compiled from measured facts
+and every number keeps its provenance. About 4,000 lines of Python plus one HTML app:</p>
+
+<table>
+<tr><th>Piece</th><th>Where</th><th>What it does</th><th>Generic?</th></tr>
+<tr><td>Capture app</td><td><code>measure/serve.py</code>, <code>index.html</code>, <code>checklist.yaml</code></td><td>Web page: photo, tap-two-points marks, insets, note → <code>measurements/&lt;date&gt;/&lt;time&gt;-&lt;id&gt;/entry.json</code> + annotated photo. In practice: used on the phone (better camera), form fields abandoned, answers given as plain text. See section 4a.</td><td><span class="tag g">generic</span> (paths hardcoded; redesign planned)</td></tr>
+<tr><td>Spec language + solver</td><td><code>build.py</code> ~L60–310, 690–830, 2209–2270</td><td>Length parser (<code>10'11.5"</code>), edge references with chained offsets (<code>office.east + 4 1/2"</code>), list-valued checks → CONFLICTS with severity, <code>MISSING</code> / <code>~</code> provenance, levels, plan overlays (<code>add:</code> / <code>remove:</code> → proposed / demo)</td><td><span class="tag g">generic</span></td></tr>
+<tr><td>Generators</td><td><code>build.py</code> ~L308–1455, 1640–1710</td><td>Rooms → generated walls, ledges, doors / windows / glazing, typed fixtures (<code>BUILDERS</code>: stairs, appliance, boiler, water heater, cabinet doors, shelving, sauna), pipes (corners + runs, face-to-centre), joists, finishes per wall face, cameras</td><td><span class="tag g">generic</span> (a few product-specific types)</td></tr>
+<tr><td>Exporters</td><td><code>build.py</code> ~L1456–2208</td><td><code>mesh.json</code>, DAE, Sweet Home 3D <code>.sh3d</code> (incl. the <code>dropOnTopElevation</code> fix), SketchUp Ruby, matplotlib previews, <code>check_plan.png</code>, <code>report.md</code></td><td><span class="tag g">generic</span> (house name hardcoded)</td></tr>
+<tr><td>Renderer</td><td><code>blender_build.py</code></td><td>Existing / Demo / Proposed collections, procedural material library, render-only ceilings + room lights, daylight in windows, before/after and camera renders on Metal</td><td><span class="tag g">generic</span></td></tr>
+<tr><td>2D layout + clearance checks</td><td><code>space_plan.py</code>, <code>space/bathroom.json</code></td><td>Self-contained HTML plan page: existing obstacles with height ranges, person places pieces, tool flags hits / clearance cuts</td><td><span class="tag g">generic</span> (room and ceiling level hardcoded)</td></tr>
+<tr><td>House data</td><td><code>spec.yaml</code>, <code>plans/</code>, <code>space/*.json</code>, <code>measurements/</code>, <code>photos/</code>, <code>out/</code></td><td>The 20 S Pierson basement</td><td><span class="tag p">project</span></td></tr>
+<tr><td>Renovation docs</td><td>plans, worksheets, <code>rooms.md</code>, <code>wall-guesses.md</code>, Notion sync</td><td>Costs, tasks, notes. <code>notion_sync.py</code> has the page id and areas baked in.</td><td><span class="tag p">project</span></td></tr>
+</table>
+
+<h2>2. How it fits Builder</h2>
+
+<div class="callout">
+Builder's own roadmap already has the slots this code fills: <em>classification attributes on groups</em>, <em>parametric walls/doors/stairs generated by plugins inside components</em>,
+<em>levels and rooms</em>, <em>images as reference</em>, <em>tags</em>, and <em>"photoreal rendering: export to Blender"</em> (<code>docs/features.md</code>).
+20SPierson built those for one real house first. So the pipeline becomes Builder's <strong>existing-conditions / survey layer</strong>:
+measured, checked, read-only geometry that the person then designs on top of, by drawing.
+</div>
+
+<figure>
+<svg viewBox="0 0 900 400" width="100%" role="img" aria-label="Layer diagram">
+  <defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#7a8090"/></marker></defs>
+  <!-- project -->
+  <rect x="10" y="20" width="200" height="360" rx="8" fill="none" stroke="#c46a12" stroke-width="2"/>
+  <text x="110" y="44" text-anchor="middle" font-size="15" font-weight="600" fill="#c46a12">20SPierson (project)</text>
+  <g font-size="13" fill="currentColor">
+    <text x="28" y="80">photos/</text>
+    <text x="28" y="110">measurements/</text>
+    <text x="28" y="140">spec.yaml</text>
+    <text x="28" y="170">plans/*.yaml</text>
+    <text x="28" y="200">space/*.json</text>
+    <text x="28" y="230">out/ (built)</text>
+    <text x="28" y="270">renovation docs,</text>
+    <text x="28" y="288">costs, Notion</text>
+  </g>
+  <!-- survey toolkit -->
+  <rect x="250" y="20" width="300" height="360" rx="8" fill="none" stroke="#2f6fd6" stroke-width="2"/>
+  <text x="400" y="44" text-anchor="middle" font-size="15" font-weight="600" fill="#2f6fd6">builder/survey (Python, extracted)</text>
+  <g font-size="13">
+    <rect x="270" y="62" width="260" height="40" rx="5" fill="#2f6fd6" opacity=".12"/><text x="282" y="87" fill="currentColor">capture: phone photo + voice note</text>
+    <rect x="270" y="112" width="260" height="40" rx="5" fill="#2f6fd6" opacity=".12"/><text x="282" y="137" fill="currentColor">spec: refs, checks, MISSING / ~, plans</text>
+    <rect x="270" y="162" width="260" height="40" rx="5" fill="#2f6fd6" opacity=".12"/><text x="282" y="187" fill="currentColor">generate: walls, ledges, doors, types, pipes</text>
+    <rect x="270" y="212" width="260" height="40" rx="5" fill="#2f6fd6" opacity=".12"/><text x="282" y="237" fill="currentColor">export: .builder (new), sh3d, dae, report</text>
+    <rect x="270" y="262" width="260" height="40" rx="5" fill="#2f6fd6" opacity=".12"/><text x="282" y="287" fill="currentColor">render: Blender materials + scenes</text>
+    <rect x="270" y="312" width="260" height="40" rx="5" fill="#2f6fd6" opacity=".12"/><text x="282" y="337" fill="currentColor">layout2d: plan page + clearance rules</text>
+  </g>
+  <!-- builder app -->
+  <rect x="590" y="20" width="300" height="360" rx="8" fill="none" stroke="#2e8b57" stroke-width="2"/>
+  <text x="740" y="44" text-anchor="middle" font-size="15" font-weight="600" fill="#2e8b57">builder app (Rust kernel + TS)</text>
+  <g font-size="13" fill="currentColor">
+    <text x="610" y="87">.builder file: groups, tags,</text>
+    <text x="610" y="105">materials, attributes</text>
+    <text x="610" y="145">Existing (locked, from survey)</text>
+    <text x="610" y="185">Proposed: drawn with Line,</text>
+    <text x="610" y="203">Rectangle, Push/Pull, Move</text>
+    <text x="610" y="243">Checks overlay: CONFLICTS,</text>
+    <text x="610" y="261">~ values, clearance rules</text>
+    <text x="610" y="301">Export proposed → plans/NAME.yaml</text>
+    <text x="610" y="341">Export → Blender for photoreal</text>
+  </g>
+  <!-- arrows -->
+  <line x1="150" y1="105" x2="268" y2="82" stroke="#7a8090" stroke-width="1.5" marker-end="url(#a)"/>
+  <line x1="150" y1="135" x2="268" y2="132" stroke="#7a8090" stroke-width="1.5" marker-end="url(#a)"/>
+  <line x1="530" y1="232" x2="604" y2="100" stroke="#7a8090" stroke-width="1.5" marker-end="url(#a)"/>
+  <path d="M604,296 C560,296 230,330 150,170" fill="none" stroke="#7a8090" stroke-width="1.5" stroke-dasharray="5 4" marker-end="url(#a)"/>
+</svg>
+<figcaption>Blue is what moves into Builder. Orange stays in 20SPierson as data. Dashed: proposed work drawn in Builder comes back as a plan file the survey build understands.</figcaption>
+</figure>
+
+<h3>Mapping the data model</h3>
+<table>
+<tr><th>Survey pipeline today</th><th>Builder (<code>docs/architecture.md</code>)</th></tr>
+<tr><td>Element (<code>name</code>, <code>phase</code>, <code>material</code>, <code>parts</code>)</td><td>Group: one definition + one instance, faces from the parts (prisms, extrusions, segmented cylinders are all planar)</td></tr>
+<tr><td>Phase existing / demo / proposed</td><td>Tags <code>Existing</code> / <code>Demo</code> / <code>Proposed</code> (visibility = before / after)</td></tr>
+<tr><td>Element kind (wall, ledge, door, pipe, fixture type)</td><td><code>classification</code> attribute (maps to IFC classes later)</td></tr>
+<tr><td><code>~</code> values, <code>MISSING</code>, source folder in <code>measurements/</code></td><td>Namespaced attributes, e.g. <code>survey:approx</code>, <code>survey:source</code> → colour-by-attribute in the viewport, like orange in the renders</td></tr>
+<tr><td>Spec materials + finishes per face</td><td>Materials on faces (front/back); Blender keeps the procedural versions</td></tr>
+<tr><td>Coordinates <code>[east, south, z]</code>, inches, origin at a room corner</td><td>X / Y / Z inches, Z up. East = +X, south = −Y. Same unit, no scaling.</td></tr>
+<tr><td><code>cameras:</code></td><td>Scenes (Later tier in Builder)</td></tr>
+</table>
+
+<h3>The one rule carries over as a product principle</h3>
+<p>The working method in <code>CLAUDE.md</code> (geometry only from the person's numbers, unknown = <code>MISSING</code>, guesses = <code>~</code>,
+conflicts reported never adjusted; the person places, the tool checks) is what makes the survey layer trustworthy.
+It belongs in Builder's docs as the contract for survey mode and for any agent that edits a spec.</p>
+
+<h2>3. Coupling to fix during extraction</h2>
+<p>The code is mostly generic already. These are the concrete places that tie it to this house:</p>
+<table>
+<tr><th>Where</th><th>Today</th><th>Change</th></tr>
+<tr><td><code>build.py:28-29</code>, <code>blender_build.py:31</code>, <code>measure/serve.py:26-29</code></td><td>Paths relative to the script (<code>HERE</code>, <code>OUT</code>, <code>ROOT/photos</code>, <code>ROOT/measurements</code>)</td><td><code>--project DIR</code> argument; outputs to <code>DIR/out</code></td></tr>
+<tr><td><code>build.py:1457-1543</code>, <code>1780</code></td><td>"20 S Pierson basement", <code>module Pierson</code> in Ruby / DAE</td><td>A <code>name:</code> key in the spec</td></tr>
+<tr><td><code>build.py:1816, 1842</code></td><td>SH3D floor = "the storage slab", z = 0</td><td>A named datum level in the spec</td></tr>
+<tr><td><code>build.py:2301</code>, <code>space_plan.py:43</code></td><td>Plan page only for <code>room="bathroom"</code>, ceiling from level <code>joist_bottom</code></td><td>A <code>layout_pages:</code> list in the spec (room, ceiling level, view)</td></tr>
+<tr><td><code>space_plan.py:14</code></td><td>Obstacles filtered by name suffix (<code>" floor"</code>, <code>" joists"</code>, <code>" sill"</code>)</td><td>Filter on element kind, which the exporter needs anyway</td></tr>
+<tr><td><code>build.py:31</code> <code>MATERIALS</code>, <code>blender_build.py:374</code></td><td>Library mixes generic (concrete, drywall, steel) with house ones (walnut shelving, worn grey paint, sauna pine)</td><td>Library in the toolkit; a spec <code>materials:</code> section can add or override</td></tr>
+<tr><td><code>build.py:569</code> <code>BUILDERS</code></td><td>Fixture types in one dict</td><td>A type registry (one module per type). Product presets (the 51x74 sauna) stay in the project.</td></tr>
+<tr><td><code>build.py</code></td><td>2,308 lines, one file</td><td>Split along the rows of the table in section 1</td></tr>
+<tr><td><code>notion_sync.py</code></td><td>Parent page id and areas hardcoded</td><td>Leave in 20SPierson; it's project tooling</td></tr>
+</table>
+
+<h2>4. Extraction steps</h2>
+
+<h3>Step 0. Golden master first</h3>
+<p>Before moving anything, keep today's outputs as the reference: <code>mesh.json</code>, <code>report.md</code>, the <code>.dae</code>, <code>.sh3d</code> contents and <code>bathroom_plan.html</code>, base and each plan.
+After every step, rebuild 20SPierson and diff. The extraction is done when the diffs are empty (only the house name moves from code to spec).</p>
+
+<h3>Step 1. Move the code with its history</h3>
+<pre><code># in a scratch clone of 20SPierson
+git filter-repo --path model/build.py --path model/blender_build.py --path model/space_plan.py \
+                --path measure/ --path-rename model/:survey/src/builder_survey/ \
+                --path-rename measure/:survey/src/builder_survey/capture/
+# in builder
+git remote add pierson ../scratch && git fetch pierson
+git merge --allow-unrelated-histories pierson/main</code></pre>
+<p>Builder gets <code>survey/</code> as its own uv project (Python stays Python; Builder already has non-Rust tooling in <code>scripts/</code>).
+Entry points: <code>survey build</code>, <code>survey render</code> (wraps <code>blender -b -P</code>), <code>survey capture</code>.</p>
+
+<h3>Step 2. Make 20SPierson a project</h3>
+<pre><code># 20SPierson/pyproject.toml
+[project]
+dependencies = ["builder-survey", "matplotlib>=3.8", "pyyaml>=6.0"]
+[tool.uv.sources]
+builder-survey = { path = "../builder/survey", editable = true }
+# from 0.1.0:
+# builder-survey = { git = "https://github.com/pjsulin/builder", subdirectory = "survey", tag = "survey-v0.1.0" }</code></pre>
+<pre><code>uv run survey build --project .                 # was: uv run model/build.py
+uv run survey build --project . --plan NAME
+uv run survey render --project . -- --render all
+uv run survey capture --project .               # was: uv run measure/serve.py</code></pre>
+<p>Then delete <code>model/*.py</code> and <code>measure/serve.py</code> / <code>index.html</code> from 20SPierson. <code>measure/checklist.yaml</code> stays (it's house data).
+Move <code>model/spec.yaml</code>, <code>plans/</code>, <code>space/</code> to the repo root or keep <code>model/</code>, whichever reads better.</p>
+
+<h3>Step 3. Split the docs</h3>
+<table>
+<tr><th>Goes to Builder (<code>survey/docs/</code>)</th><th>Stays in 20SPierson</th></tr>
+<tr><td>Spec format (the "Spec conventions" section of <code>model/HANDOFF.md</code>), <code>plans/README.md</code> format, measure app README, <code>measure-app-process.md</code>, <code>2d-modeler-idea.md</code>, the SH3D <code>dropOnTopElevation</code> finding, render notes (Metal kernel cache, close GUI Blender)</td><td>Session history, what's measured, open questions, <code>wall-guesses.md</code>, <code>to-measure.md</code>, renovation plans, the CLAUDE.md limitation (now pointing at the toolkit docs)</td></tr>
+</table>
+
+<h3>Step 4a. Capture: phone, photo + voice</h3>
+<p><strong>Order (2026-10-27):</strong> after the move into Builder, not before. The model is frozen during the refactor and move;
+the freeze ends when the move lands, because this step is tested by using the app to change the model.</p>
+<p>What actually happened with the measure app: it was used on the phone, not the iPad, because the camera is much better and easier to use,
+and the per-item form fields were dropped in favour of plain-text answers. So the extracted capture tool should be built around that, not the current form:</p>
+<ul>
+<li><strong>Phone-first.</strong> The native camera (the page's file input already opens it); layout for one hand.</li>
+<li><strong>Photo + voice note</strong> as the unit of record: record audio alongside each photo (or a burst of photos), keep the audio file, and store a transcription next to it in the entry (<code>note.m4a</code> + <code>transcript.txt</code>).
+Transcription runs on the Mac when the entry arrives (e.g. a local Whisper model through the uv project), so the phone only records.</li>
+<li><strong>Marks optional.</strong> Tap-two-points lines and insets stay available for when a photo needs a pointer, but nothing is required except the photo.</li>
+<li><strong>No form fields.</strong> The checklist becomes a list of open questions with an optional reference photo; the answer is the transcript. Claude takes the plain reading into the spec, citing the entry folder, as today.</li>
+</ul>
+
+<h2>5. Integration with the Builder app, in order</h2>
+<table>
+<tr><th>#</th><th>Work</th><th>Needs in Builder</th><th>What it gives</th></tr>
+<tr><td>1</td><td><code>.builder</code> exporter in <code>survey/export</code>: one group per element, tags per phase, materials, <code>survey:*</code> attributes</td><td>Already in kernel + format: groups, tags, materials. Attributes slot is designed, not yet in the format.</td><td>Open the basement in Builder.</td></tr>
+<tr><td>2</td><td>Tags / materials panels, lock on the Existing tag, colour-by-attribute</td><td>Tags, materials, Entity Info are Builder Milestone 3 (Sprints 3.2-3.3), not next: survey mode is a new milestone after it (see <code>.flux/plan.md</code> step 9)</td><td>Existing conditions are visible and can't be pushed around by accident; <code>~</code> items show orange.</td></tr>
+<tr><td>3</td><td>Proposed work drawn in Builder → <code>plans/NAME.yaml</code> <code>add:</code> entries (boxes and typed fixtures as numbers; free geometry as a mesh object)</td><td>Export command over groups on the Proposed tag</td><td>Design in Builder, photoreal before/after in Blender, same plan file.</td></tr>
+<tr><td>4</td><td>Types + clearance rules (2d-modeler-idea step 1) as a Builder plugin: checks overlay in plan view (top, parallel projection, cut at a height)</td><td>Standard views, observer on transaction commit (plugin API, designed)</td><td>The bathroom plan page, inside the modeler, for any room.</td></tr>
+<tr><td>5</td><td>Capture as Builder's companion: photos as reference images, measurement marks linked to spec values</td><td>Images as reference (Later tier)</td><td>Click a wall, see the photo and mark it came from.</td></tr>
+<tr><td>6 (optional)</td><td>Port the spec solver to Rust (a <code>survey</code> crate next to <code>kernel</code>)</td><td>Only if the spec should regenerate live in the browser</td><td>No Python in the loop. Not needed until steps 1–3 prove out.</td></tr>
+</table>
+
+<h2>6. Recommendation and decisions for you</h2>
+<ul>
+<li><strong>Put the toolkit in the Builder repo</strong> (<code>survey/</code>), not a third repo. The <code>.builder</code> exporter and the file format have to change together, and survey mode is a Builder feature.</li>
+<li><strong>Keep it Python</strong> through step 3. Porting the solver to Rust only pays off if you want in-browser regeneration.</li>
+<li><strong>Order:</strong> golden master → move code with history → 20SPierson on the package with identical outputs → <code>.builder</code> export. Steps 0–2 are mechanical and low risk; nothing changes for how you work on the basement.</li>
+<li><strong>Decided (2026-10-27):</strong> the package is <code>builder-survey</code> (command <code>survey</code>). 20SPierson uses it as a local path dependency (<code>{ path = "../builder/survey", editable = true }</code>) until <code>builder-survey</code> 0.1.0, then switches to the git dependency. <code>model/out/</code> stays committed as today; where outputs go becomes a config option later.</li>
+</ul>
+
+</body>
+</html>

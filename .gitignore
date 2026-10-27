@@ -6,3 +6,5 @@ app/src/kernel/pkg/
 .DS_Store
 /.run/
 __pycache__/
+.flux/cache/
+.flux/results/
