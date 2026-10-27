@@ -5,3 +5,4 @@ app/src/kernel/pkg/
 *.log
 .DS_Store
 /.run/
+__pycache__/
