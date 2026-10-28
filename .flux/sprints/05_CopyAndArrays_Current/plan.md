@@ -10,13 +10,13 @@ Five phases, one commit each. Phase 1 adds the two journaled kernel copy operati
 
 ### Phase 1: Kernel Copy Operations
 
-**Status:** pending
+**Status:** completed
 **Dependencies:** none
 
 #### Task 1.1: copy_geometry in edit.rs
 
 - **Type:** implement
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** none
 - **Files:**
   - Modify: kernel/src/edit.rs
@@ -27,7 +27,7 @@ Five phases, one commit each. Phase 1 adds the two journaled kernel copy operati
 #### Task 1.2: copy_instance in group.rs
 
 - **Type:** implement
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** none
 - **Files:**
   - Modify: kernel/src/group.rs
@@ -37,7 +37,7 @@ Five phases, one commit each. Phase 1 adds the two journaled kernel copy operati
 #### Task 1.3: Bench copy case
 
 - **Type:** implement
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [1.1, 1.2]
 - **Files:**
   - Modify: kernel/examples/bench.rs
@@ -47,7 +47,7 @@ Five phases, one commit each. Phase 1 adds the two journaled kernel copy operati
 #### Task 1.4: Kernel copy tests
 
 - **Type:** test
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [1.1, 1.2]
 - **Files:**
   - Create: kernel/tests/copy.rs
@@ -57,7 +57,7 @@ Five phases, one commit each. Phase 1 adds the two journaled kernel copy operati
 #### Task 1.5: Architecture doc for copy
 
 - **Type:** document
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [1.1, 1.2]
 - **Files:**
   - Modify: docs/architecture.md

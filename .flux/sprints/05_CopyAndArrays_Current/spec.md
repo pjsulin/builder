@@ -1771,6 +1771,8 @@ impl Document {
     /// edges with what they land on (MovesThatStick). Faces bring their edges.
     /// Inputs not owned by `ctx` are ignored; nothing to copy is `Error::Empty`.
     /// `Error::Locked` when `ctx` is locked (ADR mvr2opid). Journaled.
+    /// (2026-10-28: `Copied` lists only the ids that still exist after the
+    /// integration; a copied face that cancelled against an opposite face is gone.)
     pub fn copy_geometry(&mut self, ctx: DefId, faces: &[FId], edges: &[EId], offset: V3) -> Result<Copied, Error>;
 }
 
@@ -1944,7 +1946,8 @@ let (f, e) = (faces(&d, ROOT), d.edges_in(ROOT).map(|(id, _)| id).collect::<Vec<
 d.begin("Copy");
 let c = d.copy_geometry(ROOT, &f, &e, v(10.0, 0.0, 0.0)).unwrap();   // lands flush: welded
 d.commit();
-assert_eq!(c.faces.len(), 6);
+assert_eq!(c.faces.len(), 5);   // (2026-10-28: `Copied` holds the ids alive after integration; the side that
+                                // landed on the original's side cancelled with it)
 assert!(approx(volume(&d, ROOT), 2000.0));
 validate(&d);
 d.undo();

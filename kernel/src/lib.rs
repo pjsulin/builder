@@ -8,6 +8,8 @@
 //! * [`Document::push_pull`] extrudes or stretches any planar face.
 //! * [`Document::move_vertices`] previews a move, [`Document::move_and_integrate`] commits
 //!   one (fold, weld, settle), [`Document::erase`] removes geometry.
+//! * [`Document::copy_geometry`], [`Document::copy_instance`] duplicate geometry or a group
+//!   at an offset.
 //! * [`Document::make_group`], [`Document::explode`] isolate geometry.
 //! * [`Document::set_attribute`], [`Document::set_tag_flags`] attach data and lock tags.
 //! * [`Document::begin`], [`Document::commit`], [`Document::abort`],
@@ -27,6 +29,7 @@ pub mod tol;
 pub mod topo;
 
 pub use doc::*;
+pub use edit::Copied;
 pub use math::{Plane, V3};
 pub use pushpull::{PushPullMode, PushPullResult};
 

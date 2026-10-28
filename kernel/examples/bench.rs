@@ -53,4 +53,24 @@ fn main() {
         let _ = d.face_buffers(ROOT);
     }
     println!("face buffers: {:?} each", t.elapsed() / 10);
+    // Fifty copies of one grouped box, and of one loose box, each in one
+    // transaction that is thrown away afterwards.
+    let box0: Vec<FId> = (0..6).map(FId).collect();
+    let g = d.make_group(ROOT, &box0, &[], &[]).unwrap();
+    d.clear_history();
+    let t = Instant::now();
+    d.begin("copy");
+    for k in 1..=50 {
+        d.copy_instance(g, V3::new(0.0, 0.0, 200.0 * k as f64)).unwrap();
+    }
+    println!("copy instance ×50: {:?}", t.elapsed());
+    d.abort();
+    let box1: Vec<FId> = (6..12).map(FId).collect();
+    let t = Instant::now();
+    d.begin("copy");
+    for k in 1..=50 {
+        d.copy_geometry(ROOT, &box1, &[], V3::new(0.0, 0.0, 200.0 * k as f64)).unwrap();
+    }
+    println!("copy geometry ×50: {:?}", t.elapsed());
+    d.abort();
 }
