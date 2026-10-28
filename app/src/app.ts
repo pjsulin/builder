@@ -749,7 +749,7 @@ export class App implements ToolHost {
     if ((document.activeElement as HTMLElement | null)?.tagName === "BUTTON" && (k === "Enter" || k === " ")) return;
 
     // Typing a number goes straight to the Measurements box.
-    if (/^[0-9.'",\-/]$/.test(k)) {
+    if (/^[0-9.'",\-/x*]$/.test(k)) {
       ev.preventDefault();
       vcb.value = (this.vcbTyping ? vcb.value : "") + k;
       this.vcbTyping = true;

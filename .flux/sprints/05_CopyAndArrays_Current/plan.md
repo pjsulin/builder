@@ -101,13 +101,13 @@ Five phases, one commit each. Phase 1 adds the two journaled kernel copy operati
 
 ### Phase 3: Array Parser
 
-**Status:** pending
+**Status:** completed
 **Dependencies:** none
 
 #### Task 3.1: parseArray in units.ts
 
 - **Type:** implement
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** none
 - **Files:**
   - Modify: app/src/units.ts
@@ -117,7 +117,7 @@ Five phases, one commit each. Phase 1 adds the two journaled kernel copy operati
 #### Task 3.2: Measurements-box auto-focus accepts x and *
 
 - **Type:** implement
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [3.1]
 - **Files:**
   - Modify: app/src/app.ts
@@ -127,7 +127,7 @@ Five phases, one commit each. Phase 1 adds the two journaled kernel copy operati
 #### Task 3.3: Parser tests
 
 - **Type:** test
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [3.1]
 - **Files:**
   - Modify: app/test/units.test.ts

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatImperial, formatMetric, parseLength, parseLengths } from "../src/units";
+import { formatImperial, formatMetric, parseArray, parseLength, parseLengths } from "../src/units";
 
 describe("parseLength", () => {
   it.each([
@@ -56,5 +56,32 @@ describe("format", () => {
 
   it("round-trips through parse", () => {
     for (const v of [1, 7.125, 95.5, 120, 1234.875]) expect(parseLength(formatImperial(v))).toBeCloseTo(v, 9);
+  });
+});
+
+
+describe("parseArray", () => {
+  it.each([
+    ["5x", "times", 5],
+    ["x5", "times", 5],
+    ["5*", "times", 5],
+    ["*5", "times", 5],
+    ["/5", "divide", 5],
+    ["5/", "divide", 5],
+    [" 9 X ", "times", 9],
+    ["/ 12", "divide", 12],
+  ])("reads %s", (text, kind, n) => {
+    expect(parseArray(text)).toEqual({ kind, n });
+  });
+
+  it.each(["0x", "2.5x", "-3x", "x", "5", "", "5xx", "x5x", "3/4"])("rejects %j", (text) => {
+    expect(parseArray(text)).toBeNull();
+  });
+
+  it("leaves lengths to parseLength", () => {
+    expect(parseLength("3/4")).toBe(0.75);
+    expect(parseLength("5x")).toBeNaN();
+    expect(parseLength("/5")).toBeNaN();
+    expect(parseLength("*5")).toBeNaN();
   });
 });
