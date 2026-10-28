@@ -57,6 +57,17 @@ export interface InstanceProps {
   locked: boolean;
 }
 
+/** One problem `checkModel()` found; ids are in the owner definition. */
+export interface Finding {
+  kind: "overlapping_edges" | "non_planar_face" | "faceless_edge" | "duplicate_vertices";
+  owner: number;
+  faces: number[];
+  edges: number[];
+  vertices: number[];
+  /** A point near the problem, in the owner definition's coordinates. */
+  position: Vec3;
+}
+
 /** Load the kernel in a browser (fetches the .wasm next to the module). */
 export async function loadKernel(): Promise<void> {
   await init();
@@ -69,12 +80,18 @@ export function loadKernelSync(bytes: BufferSource): void {
 
 const u32 = (a: number[]) => Uint32Array.from(a);
 
+/** How many transaction names `Model.journal` keeps. */
+export const JOURNAL_SIZE = 50;
+
 export class Model {
   private k: Kernel;
   /** Bumped on every change so views know to rebuild. */
   revision = 0;
   /** Name passed to the last begin(); the label autosave uses. */
   lastOperation = "";
+  /** Names of the last transactions begun, oldest first, at most JOURNAL_SIZE.
+   *  A problem report carries them; they are names, not replayable operations. */
+  readonly journal: string[] = [];
   /** Called after commit() returns true and after undo()/redo() return a name,
    *  never from abort(), so previews do not fire it. */
   onCommit?: (operation: string) => void;
@@ -99,6 +116,8 @@ export class Model {
   // ---- history ----
   begin(name: string): void {
     this.lastOperation = name;
+    this.journal.push(name);
+    if (this.journal.length > JOURNAL_SIZE) this.journal.shift();
     this.k.begin(name);
   }
   commit(): boolean {
@@ -178,6 +197,16 @@ export class Model {
   /** Copy an instance as a new group placed `d` away (parent coordinates). */
   copyInstance(inst: number, d: Vec3): number {
     return this.changed(this.k.copyInstance(inst, d[0], d[1], d[2]));
+  }
+
+  /** Intersect Faces: draw the edges where `faces` (and the faces inside `instances`)
+   *  cross the model (`withModel`) or each other, into `ctx`. Returns the edges drawn. */
+  intersectFaces(ctx: number, faces: number[], instances: number[], withModel: boolean): number[] {
+    return this.changed(Array.from(this.k.intersectFaces(ctx, u32(faces), u32(instances), withModel)));
+  }
+  /** The model check: an empty list means clean. */
+  checkModel(): Finding[] {
+    return JSON.parse(this.k.checkModel());
   }
 
   // ---- attributes, tags, materials ----

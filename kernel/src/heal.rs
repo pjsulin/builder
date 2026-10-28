@@ -56,7 +56,14 @@ impl Document {
         point_in_polygon(p, &poly(&face.outer)) && !face.holes.iter().any(|h| point_in_polygon(p, &poly(h)))
     }
 
-    fn near_face_boundary(&self, face: &Face, p: V3) -> bool {
+    /// True when the 3D point `p`, projected into `face`'s plane, lies inside the
+    /// face's outer loop and outside its holes.
+    pub fn face_contains_point(&self, face: &Face, p: V3) -> bool {
+        let (u, v) = face.plane.basis();
+        self.face_region_contains(face, to_2d(p, u, v), u, v)
+    }
+
+    pub(crate) fn near_face_boundary(&self, face: &Face, p: V3) -> bool {
         face.loops().any(|lp| {
             (0..lp.len())
                 .any(|i| point_segment(p, self.pos(lp[i]), self.pos(lp[(i + 1) % lp.len()])).0 <= tol::LENGTH)
@@ -391,7 +398,9 @@ impl Document {
 }
 
 /// Split a sequence of half-edges (in walk order, spikes removed) into closed loops
-/// of vertex ids.
+/// of vertex ids. A walk that comes back to a vertex already in its loop has gone
+/// around a loop pinched to the boundary at that vertex (a hole touching the outer
+/// loop at one point); that loop is cut off on its own.
 fn split_loops(kept: &[usize], from: &[VId], to: &[VId]) -> Vec<Vec<VId>> {
     let n = kept.len();
     let mut used = vec![false; n];
@@ -401,7 +410,7 @@ fn split_loops(kept: &[usize], from: &[VId], to: &[VId]) -> Vec<Vec<VId>> {
             continue;
         }
         let start_vertex = from[kept[s]];
-        let mut lp = Vec::new();
+        let mut lp: Vec<VId> = Vec::new();
         let mut i = s;
         loop {
             used[i] = true;
@@ -409,6 +418,12 @@ fn split_loops(kept: &[usize], from: &[VId], to: &[VId]) -> Vec<Vec<VId>> {
             let end = to[kept[i]];
             if end == start_vertex {
                 break;
+            }
+            if let Some(k) = lp.iter().position(|&x| x == end) {
+                let pinched = lp.split_off(k);
+                if pinched.len() >= 3 {
+                    loops.push(pinched);
+                }
             }
             // The next unused half-edge leaving `end`, searching forward in walk order.
             let next = (1..n).map(|k| (i + k) % n).find(|&j| !used[j] && from[kept[j]] == end);

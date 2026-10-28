@@ -4,7 +4,7 @@ use std::collections::{BTreeSet, HashMap, HashSet};
 
 use crate::doc::*;
 use crate::heal::OldRegion;
-use crate::math::{point_segment, Plane, V3};
+use crate::math::{point_segment, to_2d, Plane, P2, V3};
 use crate::tol;
 use crate::Error;
 
@@ -157,9 +157,12 @@ impl Document {
             if !face.holes.is_empty() {
                 return Err(Error::NotPlanar);
             }
-            let (diagonals, pieces) = fold_pieces(&pts, face.plane.normal);
+            // Diagonals are judged inside the face as it is now, in its own plane.
+            let (u, v) = face.plane.basis();
+            let flat: Vec<P2> = face.outer.iter().map(|&x| to_2d(self.pos(x), u, v)).collect();
+            let (diagonals, pieces) = fold_pieces(&pts, &flat, face.plane.normal);
             if diagonals.is_empty() {
-                continue;
+                return Err(Error::NotPlanar);
             }
             for (a, b) in diagonals {
                 self.add_edge(face.outer[a], face.outer[b])?;
@@ -445,26 +448,36 @@ fn is_planar(pts: &[V3]) -> bool {
 }
 
 /// Pure: diagonals (index pairs into `pts`) that split a simple polygon that is no
-/// longer planar into planar pieces. At each step the diagonal whose two sub-polygon
-/// planes stay closest to `normal` is chosen (the largest of the two dot products,
-/// so one piece stays as flat as possible and the hinge runs between the moved
-/// vertex's neighbours); a piece already planar within `tol::PLANE` is not split
-/// further. Returns an empty Vec for a planar input.
+/// longer planar into planar pieces. Only diagonals inside the polygon count, judged
+/// on the loop projected along `normal` (a diagonal across a notch would overlap
+/// other faces). At each step the inside diagonal whose two sub-polygon planes stay
+/// closest to `normal` is chosen (the largest of the two dot products, so one piece
+/// stays as flat as possible and the hinge runs between the moved vertex's
+/// neighbours); a piece already planar within `tol::PLANE` is not split further.
+/// Returns an empty Vec for a planar input, or when no inside diagonal exists.
 pub fn fold_diagonals(pts: &[V3], normal: V3) -> Vec<(usize, usize)> {
-    fold_pieces(pts, normal).0
+    let Some(plane) = Plane::from_point_normal(pts.first().copied().unwrap_or_default(), normal) else {
+        return Vec::new();
+    };
+    let (u, v) = plane.basis();
+    let flat: Vec<P2> = pts.iter().map(|&p| to_2d(p, u, v)).collect();
+    fold_pieces(pts, &flat, normal).0
 }
 
 /// `fold_diagonals` plus the pieces themselves, as index loops in the input's order.
-fn fold_pieces(pts: &[V3], normal: V3) -> (Vec<(usize, usize)>, Vec<Vec<usize>>) {
+/// `flat` is the loop in the plane's basis, counter-clockwise, used to test that a
+/// diagonal lies inside the polygon.
+fn fold_pieces(pts: &[V3], flat: &[P2], normal: V3) -> (Vec<(usize, usize)>, Vec<Vec<usize>>) {
     let mut diagonals = Vec::new();
     let mut pieces = Vec::new();
     let all: Vec<usize> = (0..pts.len()).collect();
-    split_piece(pts, all, normal, &mut diagonals, &mut pieces);
+    split_piece(pts, flat, all, normal, &mut diagonals, &mut pieces);
     (diagonals, pieces)
 }
 
 fn split_piece(
     pts: &[V3],
+    flat: &[P2],
     idx: Vec<usize>,
     normal: V3,
     diagonals: &mut Vec<(usize, usize)>,
@@ -476,11 +489,12 @@ fn split_piece(
         pieces.push(idx);
         return;
     }
+    let poly: Vec<P2> = idx.iter().map(|&k| flat[k]).collect();
     let flatness = |part: &[usize]| Plane::from_loop(&of(part)).map(|p| p.normal.dot(normal));
     let mut best: Option<(usize, usize, f64)> = None;
     for i in 0..n {
         for j in i + 2..n {
-            if i == 0 && j == n - 1 {
+            if (i == 0 && j == n - 1) || !is_diagonal(&poly, i, j) {
                 continue;
             }
             let a = &idx[i..=j];
@@ -499,8 +513,52 @@ fn split_piece(
     diagonals.push((idx[i], idx[j]));
     let a: Vec<usize> = idx[i..=j].to_vec();
     let b: Vec<usize> = idx[j..].iter().chain(&idx[..=i]).copied().collect();
-    split_piece(pts, a, normal, diagonals, pieces);
-    split_piece(pts, b, normal, diagonals, pieces);
+    split_piece(pts, flat, a, normal, diagonals, pieces);
+    split_piece(pts, flat, b, normal, diagonals, pieces);
+}
+
+/// Twice the signed area of the triangle `a`, `b`, `c`.
+fn area2(a: P2, b: P2, c: P2) -> f64 {
+    (b[0] - a[0]) * (c[1] - a[1]) - (c[0] - a[0]) * (b[1] - a[1])
+}
+
+/// True when `i`–`j` is an internal diagonal of the counter-clockwise simple polygon
+/// `poly`: it leaves both vertices into the polygon's interior and meets no other
+/// edge, not even at a vertex (O'Rourke's test).
+fn is_diagonal(poly: &[P2], i: usize, j: usize) -> bool {
+    let n = poly.len();
+    let eps = tol::AREA;
+    let left = |a: P2, b: P2, c: P2| area2(a, b, c) > eps;
+    let left_on = |a: P2, b: P2, c: P2| area2(a, b, c) > -eps;
+    let collinear = |a: P2, b: P2, c: P2| area2(a, b, c).abs() <= eps;
+    let between = |a: P2, b: P2, c: P2| {
+        collinear(a, b, c)
+            && c[0] >= a[0].min(b[0]) - tol::LENGTH
+            && c[0] <= a[0].max(b[0]) + tol::LENGTH
+            && c[1] >= a[1].min(b[1]) - tol::LENGTH
+            && c[1] <= a[1].max(b[1]) + tol::LENGTH
+    };
+    let in_cone = |i: usize, j: usize| {
+        let (a0, a, a1, b) = (poly[(i + n - 1) % n], poly[i], poly[(i + 1) % n], poly[j]);
+        if left_on(a, a1, a0) {
+            left(a, b, a0) && left(b, a, a1)
+        } else {
+            !(left_on(a, b, a1) && left_on(b, a, a0))
+        }
+    };
+    let (a, b) = (poly[i], poly[j]);
+    let clear = (0..n).all(|k| {
+        let k1 = (k + 1) % n;
+        if k == i || k1 == i || k == j || k1 == j {
+            return true;
+        }
+        let (c, d) = (poly[k], poly[k1]);
+        let proper = !(collinear(a, b, c) || collinear(a, b, d) || collinear(c, d, a) || collinear(c, d, b))
+            && (left(a, b, c) != left(a, b, d))
+            && (left(c, d, a) != left(c, d, b));
+        !(proper || between(a, b, c) || between(a, b, d) || between(c, d, a) || between(c, d, b))
+    });
+    in_cone(i, j) && in_cone(j, i) && clear
 }
 
 #[cfg(test)]
@@ -536,12 +594,37 @@ mod tests {
             V3::new(0.0, 16.0, 0.0),
             V3::new(-5.0, 8.0, 2.0),
         ];
-        let (diagonals, pieces) = fold_pieces(&pts, V3::Z);
+        let flat: Vec<P2> = pts.iter().map(|&p| [p.x, p.y]).collect();
+        let (diagonals, pieces) = fold_pieces(&pts, &flat, V3::Z);
         assert!(!diagonals.is_empty());
         for piece in &pieces {
             assert!(piece.len() >= 3);
             assert!(is_planar(&piece.iter().map(|&k| pts[k]).collect::<Vec<_>>()));
         }
         assert_eq!(pieces.len(), diagonals.len() + 1);
+    }
+
+    #[test]
+    fn fold_diagonals_stay_inside_a_notched_face() {
+        // An L: a 20 x 20 square missing its lower-left 10 x 10 corner, with the
+        // notch's inner corner lifted. The only inside diagonals start there.
+        let pts = [
+            V3::new(10.0, 0.0, 0.0),
+            V3::new(20.0, 0.0, 0.0),
+            V3::new(20.0, 20.0, 0.0),
+            V3::new(0.0, 20.0, 0.0),
+            V3::new(0.0, 10.0, 0.0),
+            V3::new(10.0, 10.0, 2.0),
+        ];
+        let flat: Vec<P2> = pts.iter().map(|&p| [p.x, p.y]).collect();
+        let diagonals = fold_diagonals(&pts, V3::Z);
+        assert!(!diagonals.is_empty());
+        for &(i, j) in &diagonals {
+            assert!(is_diagonal(&flat, i, j), "diagonal {i}-{j} leaves the face");
+        }
+        assert!(is_diagonal(&flat, 5, 2));
+        assert!(is_diagonal(&flat, 2, 4));
+        assert!(!is_diagonal(&flat, 0, 4), "0-4 cuts across the notch");
+        assert!(!is_diagonal(&flat, 1, 3), "1-3 passes through the notch's inner corner");
     }
 }

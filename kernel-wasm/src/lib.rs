@@ -215,6 +215,30 @@ impl Kernel {
         Ok(self.doc.copy_instance(InstId(inst), V3::new(dx, dy, dz)).map_err(js)?.0)
     }
 
+    /// Intersect `faces` (and the faces inside `instances`) in `ctx` with the model
+    /// (`with_model`) or with each other. Returns the edges drawn.
+    #[wasm_bindgen(js_name = intersectFaces)]
+    pub fn intersect_faces(
+        &mut self,
+        ctx: u32,
+        faces: Vec<u32>,
+        instances: Vec<u32>,
+        with_model: bool,
+    ) -> Result<Vec<u32>, JsError> {
+        let with = if with_model { IntersectWith::Model } else { IntersectWith::Selection };
+        let edges = self
+            .doc
+            .intersect_faces(DefId(ctx), &ids(&faces, FId), &ids(&instances, InstId), with)
+            .map_err(js)?;
+        Ok(edges.iter().map(|e| e.0).collect())
+    }
+
+    /// `check::check` as a JSON array of findings.
+    #[wasm_bindgen(js_name = checkModel)]
+    pub fn check_model(&self) -> String {
+        Value::Array(check::check(&self.doc).iter().map(|f| f.to_json()).collect()).to_string()
+    }
+
     /// Set an instance's column-major 4×4 transform.
     #[wasm_bindgen(js_name = setTransform)]
     pub fn set_transform(&mut self, inst: u32, m: Vec<f64>) -> Result<(), JsError> {

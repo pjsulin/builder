@@ -148,6 +148,46 @@ impl Plane {
     pub fn project(&self, p: V3) -> V3 {
         p - self.normal * self.dist(p)
     }
+    /// The line where two planes meet as (point, unit direction), or `None` when
+    /// the planes are parallel within `tol::INTERSECT_SIN`. The point is the one on
+    /// the line closest to the origin.
+    pub fn intersect(&self, o: &Plane) -> Option<(V3, V3)> {
+        let cross = self.normal.cross(o.normal);
+        let len2 = cross.dot(cross);
+        if len2.sqrt() < tol::INTERSECT_SIN {
+            return None;
+        }
+        // p = (d1 (n2 × c) + d2 (c × n1)) / |c|², the solution of n1·p = d1, n2·p = d2
+        // with no component along c.
+        let p = (o.normal.cross(cross) * self.d + cross.cross(self.normal) * o.d) * (1.0 / len2);
+        Some((p, cross.unit()?))
+    }
+}
+
+/// Axis-aligned bounds of a point set, as (min, max). `None` for an empty set.
+pub fn bbox(points: impl Iterator<Item = V3>) -> Option<(V3, V3)> {
+    let mut out: Option<(V3, V3)> = None;
+    for p in points {
+        out = Some(match out {
+            None => (p, p),
+            Some((lo, hi)) => (
+                V3::new(lo.x.min(p.x), lo.y.min(p.y), lo.z.min(p.z)),
+                V3::new(hi.x.max(p.x), hi.y.max(p.y), hi.z.max(p.z)),
+            ),
+        });
+    }
+    out
+}
+
+/// True when two boxes overlap or touch within `tol::LENGTH`.
+pub fn bbox_overlap_3d(a: (V3, V3), b: (V3, V3)) -> bool {
+    let t = tol::LENGTH;
+    a.0.x <= b.1.x + t
+        && b.0.x <= a.1.x + t
+        && a.0.y <= b.1.y + t
+        && b.0.y <= a.1.y + t
+        && a.0.z <= b.1.z + t
+        && b.0.z <= a.1.z + t
 }
 
 /// 2D point in a plane basis.
@@ -295,4 +335,50 @@ pub fn mat_invert(m: &Mat4) -> Option<Mat4> {
     r[13] = it.y;
     r[14] = it.z;
     Some(r)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn plane(p: V3, n: V3) -> Plane {
+        Plane::from_point_normal(p, n).unwrap()
+    }
+
+    #[test]
+    fn parallel_and_near_parallel_planes_do_not_intersect() {
+        let a = plane(V3::ZERO, V3::Z);
+        let b = plane(V3::new(0.0, 0.0, 10.0), V3::Z);
+        assert!(a.intersect(&b).is_none());
+        // Half a degree apart: sin(0.5°) is about 8.7e-3, under INTERSECT_SIN.
+        let tilt = 0.5_f64.to_radians();
+        let c = plane(V3::ZERO, V3::new(tilt.sin(), 0.0, tilt.cos()));
+        assert!(a.intersect(&c).is_none());
+    }
+
+    #[test]
+    fn perpendicular_planes_meet_on_a_unit_line() {
+        let a = plane(V3::new(0.0, 0.0, 96.0), V3::Z);
+        let b = plane(V3::new(120.0, 0.0, 0.0), V3::X);
+        let (p, dir) = a.intersect(&b).unwrap();
+        assert!(a.dist(p).abs() <= tol::PLANE);
+        assert!(b.dist(p).abs() <= tol::PLANE);
+        assert!((dir.len() - 1.0).abs() < 1e-12);
+        assert!(dir.dot(V3::Y).abs() > 1.0 - 1e-12);
+        // The point is the one closest to the origin: no component along the line.
+        assert!(p.dot(dir).abs() < 1e-9);
+        assert!(p.dist(V3::new(120.0, 0.0, 96.0)) < 1e-9);
+    }
+
+    #[test]
+    fn boxes_touching_within_tolerance_overlap() {
+        let a = bbox([V3::ZERO, V3::new(10.0, 10.0, 10.0)].into_iter()).unwrap();
+        let b =
+            bbox([V3::new(10.0 + tol::LENGTH / 2.0, 0.0, 0.0), V3::new(20.0, 5.0, 5.0)].into_iter()).unwrap();
+        let c =
+            bbox([V3::new(10.0 + tol::LENGTH * 2.0, 0.0, 0.0), V3::new(20.0, 5.0, 5.0)].into_iter()).unwrap();
+        assert!(bbox_overlap_3d(a, b));
+        assert!(!bbox_overlap_3d(a, c));
+        assert!(bbox(std::iter::empty()).is_none());
+    }
 }

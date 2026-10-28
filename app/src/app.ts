@@ -2,7 +2,7 @@
 // camera and tools, and implements ToolHost for them.
 
 import { AXES, InferenceEngine, type Inference } from "./inference/engine";
-import { Model, ROOT, type Entity } from "./kernel/model";
+import { Model, ROOT, type Entity, type Finding } from "./kernel/model";
 import { add, applyDir, apply, invert, IDENTITY, scale, type Mat4, type Vec3 } from "./math";
 import { buildSample, buildStressTest } from "./samples";
 import { EraseTool } from "./tools/erase";
@@ -14,6 +14,7 @@ import { RectangleTool } from "./tools/rectangle";
 import { SelectTool } from "./tools/select";
 import { groupSelection, lockedMessage, surveyTags, SurveyPanel } from "./survey/mode";
 import { exportProposed } from "./survey/plan-export";
+import { buildReport, reportFileName } from "./report";
 import { AutosaveStore, type Version } from "./store/autosave";
 import { Autosaver } from "./store/autosaver";
 import { errorMessage, Selection, type Overlay, type Tool, type ToolHost, type ToolPointer } from "./tools/tool";
@@ -300,7 +301,7 @@ export class App implements ToolHost {
     try {
       this.model.transact("Erase", () => this.model.erase(s.ids("face"), s.ids("edge"), s.ids("instance")));
     } catch (e) {
-      this.flash(errorMessage(e));
+      this.offerReport(e);
     }
     this.selection.clear();
     this.refresh();
@@ -316,7 +317,7 @@ export class App implements ToolHost {
       const tag = this.activeTag !== null && this.ctx === ROOT ? this.model.tags().find((t) => t.id === this.activeTag) : null;
       this.flash(tag ? `Grouped on ${tag.name}` : "Grouped");
     } catch (e) {
-      this.flash(errorMessage(e));
+      this.offerReport(e);
     }
   }
 
@@ -333,10 +334,40 @@ export class App implements ToolHost {
         }
       });
     } catch (e) {
-      this.flash(errorMessage(e));
+      this.offerReport(e);
     }
     this.refresh();
     this.selection.set(out);
+  }
+
+  /** Intersect Faces on the selection's faces and groups, with the model or with
+   *  each other. The edges land in the open context; groups are read, not cut. */
+  private intersect(withModel: boolean): void {
+    const faces = this.selection.ids("face");
+    const insts = this.selection.ids("instance");
+    if (!faces.length && !insts.length) return this.flash("Select faces or groups to intersect first");
+    try {
+      const edges = this.model.transact("Intersect Faces", () => this.model.intersectFaces(this.ctx, faces, insts, withModel));
+      this.refresh();
+      this.flash(edges.length ? `Intersect: ${edges.length} edge${edges.length === 1 ? "" : "s"} drawn` : "Intersect: nothing crosses");
+    } catch (e) {
+      this.offerReport(e);
+    }
+  }
+
+  /** The model check: a flash when clean, else the findings listed in a dialog. */
+  private checkModel(): void {
+    const findings = this.model.checkModel();
+    if (!findings.length) return this.flash("Model check: clean");
+    const list = $("findingList");
+    list.replaceChildren(
+      ...findings.map((f) => {
+        const li = document.createElement("li");
+        li.textContent = describeFinding(f);
+        return li;
+      }),
+    );
+    $<HTMLDialogElement>("findings").showModal();
   }
 
   private exportPlan(): void {
@@ -388,8 +419,23 @@ export class App implements ToolHost {
       this.loadModel(model, file.name);
       this.flash(`Opened ${file.name}`);
     } catch (e) {
-      this.flash(errorMessage(e));
+      this.offerReport(e);
     }
+  }
+
+  /** A failed operation: flash the error and offer to download a problem report
+   *  (the model JSON and the last operation names; nothing is sent anywhere). */
+  private offerReport(e: unknown): void {
+    this.flash(errorMessage(e));
+    if (!confirm(`${errorMessage(e)}\n\nSave a problem report?`)) return;
+    const report = buildReport(this.model, this.fileName, e);
+    const blob = new Blob([JSON.stringify(report)], { type: "application/json" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = reportFileName(this.fileName);
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    this.flash(`Saved ${a.download}`);
   }
 
   private confirmDiscard(): boolean {
@@ -582,6 +628,9 @@ export class App implements ToolHost {
     $<HTMLButtonElement>("redoBtn").disabled = !this.model.canRedo();
     $<HTMLButtonElement>("groupBtn").disabled = this.selection.empty;
     $<HTMLButtonElement>("explodeBtn").disabled = !this.selection.ids("instance").length;
+    const nothingToCut = !this.selection.ids("face").length && !this.selection.ids("instance").length;
+    $<HTMLButtonElement>("intersectModelBtn").disabled = nothingToCut;
+    $<HTMLButtonElement>("intersectSelBtn").disabled = nothingToCut;
   }
 
   // ---- input ----
@@ -671,6 +720,10 @@ export class App implements ToolHost {
     button("zoomBtn", () => this.zoomExtents());
     button("groupBtn", () => this.makeGroup());
     button("explodeBtn", () => this.explode());
+    button("intersectModelBtn", () => this.intersect(true));
+    button("intersectSelBtn", () => this.intersect(false));
+    button("checkBtn", () => this.checkModel());
+    button("findingsClose", () => $<HTMLDialogElement>("findings").close());
     button("saveBtn", () => this.save());
     button("versionsBtn", () => void this.showVersions());
     button("versionsClose", () => $<HTMLDialogElement>("versions").close());
@@ -815,4 +868,18 @@ function boxSegments(min: Vec3, max: Vec3): number[] {
   const c = (i: number): Vec3 => [i & 1 ? max[0] : min[0], i & 2 ? max[1] : min[1], i & 4 ? max[2] : min[2]];
   const pairs = [[0, 1], [2, 3], [4, 5], [6, 7], [0, 2], [1, 3], [4, 6], [5, 7], [0, 4], [1, 5], [2, 6], [3, 7]];
   return pairs.flatMap(([a, b]) => [...c(a), ...c(b)]);
+}
+
+/** One line for the findings dialog: the kind, the ids and where to look. */
+export function describeFinding(f: Finding): string {
+  const kind = f.kind.replace(/_/g, " ");
+  const ids = [
+    f.faces.length ? `faces ${f.faces.join(", ")}` : "",
+    f.edges.length ? `edges ${f.edges.join(", ")}` : "",
+    f.vertices.length ? `vertices ${f.vertices.join(", ")}` : "",
+  ]
+    .filter(Boolean)
+    .join("; ");
+  const at = f.position.map((x) => Math.round(x * 1000) / 1000).join(", ");
+  return `${kind} in definition ${f.owner} at (${at}): ${ids}`;
 }

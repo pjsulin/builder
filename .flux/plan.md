@@ -18,8 +18,9 @@
 
 ### Step 3: Sprint 1.3 Intersect and harden: Intersect Faces, randomized kernel test, model check
 
-- **Status:** in progress
+- **Status:** done
 - **Record:** sprint IntersectAndHarden
+- **Commit:** bda40f8
 
 ### Step 4: Sprint 2.1 Copy and arrays
 

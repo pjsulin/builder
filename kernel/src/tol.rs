@@ -11,3 +11,9 @@ pub const ANGLE: f64 = 1e-9;
 
 /// Faces smaller than this (square inches) are degenerate.
 pub const AREA: f64 = 1e-6;
+
+/// Planes whose normals' cross product is shorter than this (the sine of the angle
+/// between them) are treated as parallel by intersection: a `PLANE`-sized error in
+/// either plane moves their line by up to `PLANE / INTERSECT_SIN`. 1e-2 bounds that
+/// at 0.1".
+pub const INTERSECT_SIN: f64 = 1e-2;

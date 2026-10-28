@@ -6,6 +6,7 @@
 //!
 //! * [`Document::add_line`] draws an edge, welding, splitting and creating faces.
 //! * [`Document::push_pull`] extrudes or stretches any planar face.
+//! * [`Document::intersect_faces`] draws the edges where faces cross each other.
 //! * [`Document::move_vertices`] previews a move, [`Document::move_and_integrate`] commits
 //!   one (fold, weld, settle), [`Document::erase`] removes geometry.
 //! * [`Document::copy_geometry`], [`Document::copy_instance`] duplicate geometry or a group
@@ -14,13 +15,16 @@
 //! * [`Document::set_attribute`], [`Document::set_tag_flags`] attach data and lock tags.
 //! * [`Document::begin`], [`Document::commit`], [`Document::abort`],
 //!   [`Document::undo`], [`Document::redo`] manage history.
-//! * [`Document::to_json`], [`Document::from_json`] read and write `.builder` files.
+//! * [`Document::to_json`], [`Document::from_json`] read and write `.builder` files;
+//!   [`check::check`] reports problems a loaded file may carry.
 
+pub mod check;
 pub mod doc;
 pub mod edit;
 pub mod format;
 pub mod group;
 pub mod heal;
+pub mod intersect;
 pub mod line;
 pub mod math;
 pub mod mesh;
@@ -30,6 +34,7 @@ pub mod topo;
 
 pub use doc::*;
 pub use edit::Copied;
+pub use intersect::{Cut, IntersectWith};
 pub use math::{Plane, V3};
 pub use pushpull::{PushPullMode, PushPullResult};
 
