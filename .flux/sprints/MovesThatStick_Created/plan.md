@@ -19,7 +19,7 @@ Make Move behave like SketchUp's: a committed move welds moved vertices and edge
 - **Files:**
   - Modify: kernel/src/pushpull.rs
 - **Context:** [spec.md§Interfaces](spec.md#interfaces)
-- **Description:** Change `integrate_edges` (:172), `cancel_against_opposite` (:175) and `remove_coincident_faces` (:260) from private to `pub(crate)` with their bodies untouched, so `edit.rs` can call them.
+- **Description:** Change `integrate_edges` (:204), `cancel_against_opposite` (:246) and `remove_coincident_faces` (:287) from private to `pub(crate)` with their bodies untouched, so `edit.rs` can call them.
 
 #### Task 1.2: Extract settle_faces from settle
 
@@ -29,7 +29,7 @@ Make Move behave like SketchUp's: a committed move welds moved vertices and edge
 - **Files:**
   - Modify: kernel/src/pushpull.rs
 - **Context:** [spec.md§Interfaces](spec.md#interfaces), [spec.md§Examples](spec.md#examples)
-- **Description:** Move the body of `settle` (:152) into `pub(crate) fn settle_faces(ctx, faces) -> Result<Vec<FId>, Error>` returning the cancelled faces; `settle` keeps its signature and becomes `settle_faces` plus `cancelled.contains(&cap)`.
+- **Description:** Move the body of `settle` (:165; its one call site is :152) into `pub(crate) fn settle_faces(ctx, faces) -> Result<Vec<FId>, Error>` returning the cancelled faces; `settle` keeps its signature and becomes `settle_faces` plus `cancelled.contains(&cap)`.
 
 #### Task 1.3: Push/pull regression gate
 
@@ -63,8 +63,9 @@ Make Move behave like SketchUp's: a committed move welds moved vertices and edge
 - **Dependencies:** [2.1]
 - **Files:**
   - Modify: kernel/src/edit.rs
+  - Modify: kernel/src/lib.rs
 - **Context:** [spec.md§Interfaces](spec.md#interfaces), [spec.md§Data Models](spec.md#data-models)
-- **Description:** Add `pub fn move_and_integrate(&mut self, verts, offset)`: derive the one owner from `Vertex.owner` (`Error::Degenerate("vertices belong to more than one definition")` on a mix, `Missing("vertex")` on a dead id), `check_def_unlocked`, `move_vertices`, then `integrate_moved(def, edges_of_vertices(verts))`. The fold call is inserted in Task 3.2.
+- **Description:** Add `pub fn move_and_integrate(&mut self, verts, offset)`: derive the one owner from `Vertex.owner` (`Error::Degenerate("vertices belong to more than one definition")` on a mix, `Missing("vertex")` on a dead id), `check_def_unlocked`, `move_vertices`, then `integrate_moved(def, edges_of_vertices(verts))`. The fold call is inserted in Task 3.2. Add `move_and_integrate` to the crate doc comment at kernel/src/lib.rs:9 beside `move_vertices`.
 
 #### Task 2.3: wasm and Model wrappers
 
@@ -85,7 +86,7 @@ Make Move behave like SketchUp's: a committed move welds moved vertices and edge
 - **Files:**
   - Create: kernel/tests/move.rs
 - **Context:** [spec.md§Examples](spec.md#examples), [spec.md§Validation Criteria](spec.md#validation-criteria)
-- **Description:** New test file using `kernel/tests/common/mod.rs` helpers: `ridge_lifted_and_nudged_stays_closed` (120x96x96 box, ridge line, lift 36 then move 10 in y; `is_closed`, `validate`), `box_face_moved_onto_box_face_joins_them` (two boxes, move the facing side by the gap; 10 faces, `is_closed`, volume 2000, `validate`), `instance_moved_onto_loose_geometry_never_sticks` (group a box, loose rectangle, `set_transform` onto it; root face and edge counts unchanged), `undo_after_each_integrated_move_restores_the_file` (commit, `to_json`, begin, `move_and_integrate`, commit, `undo`, `to_json` byte-equal) and `moving_vertices_from_two_definitions_is_refused` (`Error::Degenerate`).
+- **Description:** New test file using `kernel/tests/common/mod.rs` helpers: `ridge_lifted_and_nudged_stays_closed` (120x96x96 box, ridge line, lift 36 then move 10 in y; `is_closed`, `validate`), `box_face_moved_onto_box_face_joins_them` (two boxes, move the facing side by the gap; 10 faces, `is_closed`, volume 2000, `validate`), `instance_moved_onto_loose_geometry_never_sticks` (group a box, loose rectangle, `set_transform` onto it; root face and edge counts unchanged), `undo_after_each_integrated_move_restores_the_file` (for each of the ridge, box-onto-box and instance cases above: commit, `to_json`, begin, the move, commit, `undo`, `to_json` byte-equal), `moving_vertices_from_two_definitions_is_refused` (`Error::Degenerate`) and `move_and_integrate_into_a_locked_definition_is_refused` (lock the tag of a grouped box as kernel/tests/attributes.rs:160 does, `move_and_integrate` on one of its vertices returns `Error::Locked`, nothing changes).
 
 ### Phase 3: Fold Instead of Reject
 
@@ -146,7 +147,7 @@ Make Move behave like SketchUp's: a committed move welds moved vertices and edge
 - **Files:**
   - Modify: app/test/tools.test.ts
 - **Context:** [spec.md§Validation Criteria](spec.md#validation-criteria)
-- **Description:** In `describe("Select, Move, Erase and groups")` add "commits a fold when a corner is lifted" (box, select the top corner edge pair's vertex via an edge selection, Move with `vcb`, `stats().faces` 7, undo restores 6) and "welds a face moved onto another" (two rectangles pulled into boxes with a gap, move the facing side by the gap, `stats().faces` 10). Both run through the wasm `moveAndIntegrate`.
+- **Description:** In `describe("Select, Move, Erase and groups")` add "commits a fold when a top edge is pushed sideways" (the `box(h)` shed box; `SelectTool` click on the top edge at [120, 48, 96]; `MoveTool` base [120, 48, 96], hover toward [120, 60, 96], `vcb("1'")`; the end faces y=0 and y=96 can no longer stay planar so each folds: `stats().faces` 8, `undo` restores 6; the tool has no vertex selection, so a single corner cannot be lifted through it) and "welds a face moved onto another" (two rectangles pulled into boxes with a gap, move the facing side by the gap, `stats().faces` 10). Both run through the wasm `moveAndIntegrate`.
 
 #### Task 4.3: Architecture, features and roadmap
 

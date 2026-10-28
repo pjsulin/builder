@@ -11,7 +11,7 @@ Every repeated part (joists, rafters, deck boards, posts) is drawn one at a time
 - **Copy is a Move modifier, not a new tool:** Ctrl (Option on Mac) held while moving copies, as in SketchUp; the Move tool's preview, inference and Measurements-box retyping carry over unchanged.
 - **Arrays are retyping:** after a copy, typing `5x` or `/5` into the Measurements box re-runs the last copy as an array, through the same `typed` path push/pull and move use for retyping (`tool.ts`), until the next operation.
 - **One undo step per array:** the copy and its array are one transaction, so `9x` undoes as one.
-- **Copies of groups are new groups, not components:** components arrive in 3.1; a kernel `copy_instance` makes a new instance of the same definition (which is what a group copy is in the data model already).
+- **Copies of groups are new groups, not components:** components arrive in 3.1; a kernel `copy_instance` makes a new group. (Superseded 2026-10-28, requirements.md Feature 1: the copy deep-copies the definition rather than sharing it, because `world_transform(def)` and `App.setContext` assume one instance per group definition.)
 
 ## Scope
 

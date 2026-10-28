@@ -22,7 +22,7 @@ Five phases, one commit each. Phase 1 adds the two journaled kernel copy operati
   - Modify: kernel/src/edit.rs
   - Modify: kernel/src/lib.rs
 - **Context:** [spec.md§Technical Specifications](spec.md#technical-specifications), [spec.md§Interfaces](spec.md#interfaces)
-- **Description:** Add `Copied` and `Document::copy_geometry(ctx, faces, edges, offset)`: `check_def_unlocked(ctx)`, filter inputs to `ctx` as `make_group` does (group.rs:31-35), faces bring their edges, a vertex map old→new at `pos + offset` via `vertex_at`, `add_edge` and `add_face` with material, back material and attributes copied through `with_face`, then the MovesThatStick integrate step on the new edges. `Error::Empty` when nothing is copied. Re-export `Copied` from lib.rs next to `PushPullResult`.
+- **Description:** Add `Copied` and `Document::copy_geometry(ctx, faces, edges, offset)`: `check_def_unlocked(ctx)`, filter inputs to `ctx` as `make_group` does (group.rs:31-35), faces bring their edges, a vertex map old→new at `pos + offset` via `vertex_at`, `add_edge` and `add_face` with material, back material and attributes copied through `with_face`, then MovesThatStick's `integrate_moved(ctx, &copied.edges)` on the new edges. `Error::Empty` when nothing is copied. Re-export `Copied` from lib.rs next to `PushPullResult`.
 
 #### Task 1.2: copy_instance in group.rs
 

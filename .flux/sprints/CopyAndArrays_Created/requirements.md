@@ -62,7 +62,7 @@ Repeated parts are fast: a joist drawn once becomes ten evenly spaced joists in 
 
 ### For Feature 2
 
-- [ ] Headless tool test: Ctrl during a move leaves the original and creates a copy at the offset.
+- [ ] Headless tool test: the copy modifier (Option on Mac, Ctrl elsewhere) during a move leaves the original and creates a copy at the offset.
 
 ### For Feature 3
 
@@ -71,7 +71,7 @@ Repeated parts are fast: a joist drawn once becomes ten evenly spaced joists in 
 
 ### For Feature 4
 
-- [ ] A timed test shows a 50-instance array commits under a threshold set at plan time from the bench.
+- [ ] A timed test shows a 50-instance array commits under a threshold set at plan time from the bench (set in spec.md Validation Criteria: 100 ms in a debug build).
 
 ### For all
 
@@ -102,6 +102,7 @@ Read each item before planning. Close Gates 4 and 5 read this section.
 
 **Must Have:** Features 1–3.
 **Should Have:** Feature 4's timed test.
+**Prerequisite:** MovesThatStick merged on the branch: `copy_geometry` calls its `integrate_moved(def, edges)` (spec.md § Technical Specifications). The array parser (plan Phase 3) does not depend on it.
 
 ### Out of Scope
 
@@ -111,6 +112,8 @@ Read each item before planning. Close Gates 4 and 5 read this section.
 
 ### Open Questions
 
-- `Nx` after a plain move.
-- Accepted spellings (`5x`, `x5`, `*5`, `/5`).
-- Showing copy mode on Mac where Ctrl is context-click.
+Resolved at plan time (2026-10-28), recorded in spec.md:
+
+- `Nx` after a plain move: no; arrays need a prior copy ("Copy something first" otherwise).
+- Accepted spellings: `5x`, `x5`, `5*`, `*5` (times) and `/5`, `5/` (divide); integers only.
+- Copy key on Mac: Option (`altKey`), since Ctrl is context-click and Ctrl-click orbits; Ctrl elsewhere. Cursor reads `copy` and the hint names the array syntax.

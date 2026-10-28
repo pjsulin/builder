@@ -33,7 +33,7 @@ A model survives a closed tab, a crash or a reload, with no action by the user.
 **What:** After each committed change, debounced a few seconds after the last edit, the model's JSON is written to IndexedDB as a version labeled with the time and the last operation name; a fixed number of versions is kept within a byte budget.
 **Why:** The closed-tab data loss in Background.
 **Details:** `Model.toJson()` is the whole model; the journal already names each operation (`undo()` returns it). Writes run on a timer, never per pointer move. Ring size and byte budget set at plan time from the stress model's JSON size (kickoff proposes 10 versions or 50 MB).
-**Integration:** A new `app/src/store/` module; `App` schedules a write from the same place `revision` changes. Loading a model resets the ring's file name.
+**Integration:** A new `app/src/store/` module; the model's commit points (`commit`, `undo`, `redo`, not `revision`, which previews also bump) schedule a write. Loading a model resets the ring's file name.
 
 ### Feature 2: Restore and version browser
 
@@ -120,7 +120,4 @@ Read each item before planning. Close Gates 4 and 5 read this section.
 
 ### Open Questions
 
-- GitHub Pages vs Cloudflare Pages.
-- Version count and byte budget.
-- Vite PWA plugin vs hand-written worker.
-- Whether an offline check can run headless in CI (Playwright) or stays manual.
+All settled in spec.md §Decisions: GitHub Pages; 10 versions / 50 MB; hand-written worker filled by an inline Vite plugin; the headless stand-in for the offline check is `scripts/check-precache.mjs` in CI, the cross-browser load stays Patrick's.

@@ -612,7 +612,7 @@ Contracts for four pieces: an IndexedDB version ring (`AutosaveStore`), a deboun
 
 - None. Hosting is GitHub Pages (`https://pjsulin.github.io/builder/`) as the kickoff proposed, so no hosting ADR is needed. The one manual step is Patrick's: repository Settings > Pages > Source = GitHub Actions.
 
-Settled numbers (from Pass 1 measurement): stress model `toJson()` is 1,014,815 bytes in 12 ms; the shed is 859 bytes. Ring: `MAX_VERSIONS = 10`, `MAX_BYTES = 50 * 1024 * 1024`; debounce 3,000 ms. Autosave hooks `commit`/`undo`/`redo`, never `revision`, because `Model.changed()` bumps `revision` on every preview edit (`app/src/kernel/model.ts:725`).
+Settled numbers (from Pass 1 measurement): stress model `toJson()` is 1,014,815 bytes in 12 ms; the shed is 859 bytes. Ring: `MAX_VERSIONS = 10`, `MAX_BYTES = 50 * 1024 * 1024`; debounce 3,000 ms. Autosave hooks `commit`/`undo`/`redo`, never `revision`, because `Model.changed()` bumps `revision` on every preview edit (`app/src/kernel/model.ts:89-92`).
 
 ## Technical Specifications
 

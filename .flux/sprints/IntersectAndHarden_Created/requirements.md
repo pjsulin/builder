@@ -30,7 +30,7 @@ Overlapping shapes can be cut into each other and then pushed and erased normall
 
 ### Feature 1: Intersect Faces
 
-**What:** `Document::intersect_faces` with model and with selection: everywhere two faces cross, the intersection segment is added as edges in both planes and both faces split. Menu and context-menu entries in the app.
+**What:** `Document::intersect_faces` with model and with selection: everywhere two faces cross, the intersection segment is added as edges in the open context and every face of that context it lies in splits (faces inside instances are read, not written; repeating the command inside the group cuts them). Toolbar entries in the app; no context menu this sprint.
 **Why:** Roof–wall edges and beams through posts (Background).
 **Details:** Candidate pairs by bbox overlap and non-parallel planes; the plane–plane line clipped to both face regions; inserted with `insert_segment` and healed with `heal_around`. Context rule decided at plan time.
 **Integration:** kernel method, wasm export, `Model` wrapper, app menu.

@@ -97,7 +97,7 @@ Call sites that the changed behaviour reaches (from `ast-grep`): `insert_segment
 - **Files:**
   - Modify: docs/architecture.md
 - **Context:** [spec.md§Interfaces](spec.md#interfaces)
-- **Description:** Add Intersect Faces to "Sticky geometry: the operations" (candidate pairs, clipping, write-into-context-only rule) and remove the "does not cut" limit under "Status and known limits" once Phase 3 lands (note the pending line there).
+- **Description:** Add Intersect Faces to "Sticky geometry: the operations" (candidate pairs, clipping, write-into-context-only rule). The "does not cut" line under "Status and known limits" is Phase 3's (Task 3.3).
 
 ### Phase 3: Piercing Lines
 
@@ -124,6 +124,16 @@ Call sites that the changed behaviour reaches (from `ast-grep`): `insert_segment
   - Modify: kernel/tests/pushpull.rs
 - **Context:** [spec.md§Examples](spec.md#examples)
 - **Description:** lines.rs: a vertical line through a horizontal face is split into two edges with one vertex on the face plane; two piercings joined by an in-plane line split the face; an endpoint resting on the face is a touch, not a piercing. pushpull.rs: a box pulled through a loose face still settles with every existing test passing and `validate` clean.
+
+#### Task 3.3: Piercing in the architecture doc
+
+- **Type:** document
+- **Status:** pending
+- **Dependencies:** [3.1]
+- **Files:**
+  - Modify: docs/architecture.md
+- **Context:** [spec.md§Interfaces](spec.md#interfaces)
+- **Description:** Remove the "A line that pierces a face ... does not cut it" limit under "Status and known limits" (docs/architecture.md:279) and describe the piercing cut in `insert_segment` under "Sticky geometry: the operations".
 
 ### Phase 4: Model Check
 
@@ -163,15 +173,16 @@ Call sites that the changed behaviour reaches (from `ast-grep`): `insert_segment
 - **Context:** [spec.md§Examples](spec.md#examples)
 - **Description:** Build a box, push a vertex off its plane and add a vertex within `LENGTH` of another through the raw setters, assert the two findings with their ids; a clean box gives an empty list; write both documents' `to_json` to the fixtures and test that `Document::from_json(fixture)` followed by `check` reproduces the findings (the fixtures are what the validate example is run on in the Validation Criteria).
 
-#### Task 4.4: README model check command
+#### Task 4.4: README and architecture doc for the model check
 
 - **Type:** document
 - **Status:** pending
 - **Dependencies:** [4.2]
 - **Files:**
   - Modify: README.md
-- **Context:** [spec.md§Validation Criteria](spec.md#validation-criteria)
-- **Description:** Add the `cargo run -p builder-kernel --example validate -- FILE` row to the command table in "Run it" with the four finding kinds and the exit code.
+  - Modify: docs/architecture.md
+- **Context:** [spec.md§Validation Criteria](spec.md#validation-criteria), [spec.md§Interfaces](spec.md#interfaces)
+- **Description:** README: add the `cargo run -p builder-kernel --example validate -- FILE` row to the command table in "Run it" with the four finding kinds and the exit code. architecture.md: a "Model check" paragraph under "Build, test and run" naming `check::check`, the four `FindingKind`s and their tolerances (requirements Impact lists model check for this doc).
 
 ### Phase 5: Randomized Kernel Test
 
@@ -196,7 +207,7 @@ Call sites that the changed behaviour reaches (from `ast-grep`): `insert_segment
 - **Files:**
   - Modify: kernel/tests/fuzz.rs
 - **Context:** [spec.md§Validation Criteria](spec.md#validation-criteria)
-- **Description:** `random_operations_keep_invariants` at seed `0x5eed_2026` and 2,000 steps, asserting under 60 s and printing seed, step and the shrunk test body on failure; `#[ignore] random_operations_long` at 50,000 steps with the seed from `BUILDER_FUZZ_SEED`. Run the long test once during the sprint and fix or record what it finds.
+- **Description:** `random_operations_keep_invariants` at seed `0x5eed_2026` and 2,000 steps, asserting under 60 s and printing seed, step and the shrunk test body on failure; `#[ignore] random_operations_long` at 50,000 steps with the seed from `BUILDER_FUZZ_SEED`. Measure the CI budget: time `cargo test -p builder-kernel --test fuzz random_operations_keep_invariants` in a debug build (CI's `cargo test --workspace` is debug) and record the wall time in the Phase 5 commit message; if it exceeds 30 s, lower the step count until it is under 30 s so the 60 s assertion has headroom on CI runners, and update spec.md's step count to match. Run the long test once during the sprint and fix or record what it finds.
 
 #### Task 5.3: Regression tests for bugs found
 
@@ -336,7 +347,7 @@ Call sites that the changed behaviour reaches (from `ast-grep`): `insert_segment
 - **Files:**
   - Create: docs/walkthrough-shed.md
 - **Context:** [spec.md§Interfaces](spec.md#interfaces)
-- **Description:** Steps and results for the 10' x 8' shed: box, ridge lifted with Move, gable roof planes drawn and grouped, Intersect with model from the walls' context, door and window cut with Push/Pull, Check model clean, close the tab and recover. Requires NeverLoseWork (recover) and MovesThatStick (ridge weld) merged into the branch before it is executed; the executing session must state in the Log if either is missing and leave those steps marked pending.
+- **Description:** Steps and results for the 10' x 8' shed: box, ridge lifted with Move, gable roof planes drawn and grouped, Intersect with model from the walls' context, door and window cut with Push/Pull, Check model clean, close the tab and recover. Requires NeverLoseWork (recover) and MovesThatStick (ridge weld) merged into the branch before it is executed; if either is missing from the branch (`git log --grep 'sprint-' --oneline` shows no NeverLoseWork or MovesThatStick close), the executing session writes the document with those steps marked "pending: needs <sprint>", says so in the Phase 8 commit message, and does not block; close records the gap and Patrick runs the steps after the merge.
 
 #### Task 8.2: Roadmap status
 

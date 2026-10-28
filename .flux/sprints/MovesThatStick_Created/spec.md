@@ -1978,12 +1978,13 @@ cargo test --workspace
 # Expected: all pass, including unchanged kernel/tests/pushpull.rs (settle regression gate)
 # and the new kernel/tests/move.rs: ridge_lifted_and_nudged_stays_closed,
 # box_face_moved_onto_box_face_joins_them, instance_moved_onto_loose_geometry_never_sticks,
-# lifting_a_corner_folds_the_top, undo_after_each_integrated_move_restores_the_file;
+# lifting_a_corner_folds_the_top, undo_after_each_integrated_move_restores_the_file,
+# moving_vertices_from_two_definitions_is_refused, move_and_integrate_into_a_locked_definition_is_refused;
 # kernel/tests/edit.rs: moving_one_corner_up_previews_without_folding (rewritten).
 
 npm run build:kernel && npm test
 # Expected: app/test/tools.test.ts passes, including the two new Move cases:
-# "commits a fold when a corner is lifted" and "welds a face moved onto another".
+# "commits a fold when a top edge is pushed sideways" and "welds a face moved onto another".
 ```
 
 Manual check on the shed sample (`buildSample`): lift the ridge with the Move tool, undo, redo; no error flashes.
