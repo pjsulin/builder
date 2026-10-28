@@ -8,13 +8,13 @@ Make Move behave like SketchUp's: a committed move welds moved vertices and edge
 
 ### Phase 1: Shareable Settle
 
-**Status:** pending
+**Status:** completed
 **Dependencies:** none
 
 #### Task 1.1: Widen the settle helpers to pub(crate)
 
 - **Type:** refactor
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** none
 - **Files:**
   - Modify: kernel/src/pushpull.rs
@@ -24,7 +24,7 @@ Make Move behave like SketchUp's: a committed move welds moved vertices and edge
 #### Task 1.2: Extract settle_faces from settle
 
 - **Type:** refactor
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [1.1]
 - **Files:**
   - Modify: kernel/src/pushpull.rs
@@ -34,7 +34,7 @@ Make Move behave like SketchUp's: a committed move welds moved vertices and edge
 #### Task 1.3: Push/pull regression gate
 
 - **Type:** test
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [1.2]
 - **Files:**
   - Modify: kernel/tests/pushpull.rs
@@ -43,13 +43,13 @@ Make Move behave like SketchUp's: a committed move welds moved vertices and edge
 
 ### Phase 2: Integrate After Move
 
-**Status:** pending
+**Status:** completed
 **Dependencies:** [Phase 1]
 
 #### Task 2.1: integrate_moved and edges_of_vertices
 
 - **Type:** implement
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [Phase 1]
 - **Files:**
   - Modify: kernel/src/edit.rs
@@ -59,7 +59,7 @@ Make Move behave like SketchUp's: a committed move welds moved vertices and edge
 #### Task 2.2: Document::move_and_integrate
 
 - **Type:** implement
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [2.1]
 - **Files:**
   - Modify: kernel/src/edit.rs
@@ -70,7 +70,7 @@ Make Move behave like SketchUp's: a committed move welds moved vertices and edge
 #### Task 2.3: wasm and Model wrappers
 
 - **Type:** implement
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [2.2]
 - **Files:**
   - Modify: kernel-wasm/src/lib.rs
@@ -81,32 +81,32 @@ Make Move behave like SketchUp's: a committed move welds moved vertices and edge
 #### Task 2.4: Kernel tests for welding, settling and undo
 
 - **Type:** test
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [2.2]
 - **Files:**
   - Create: kernel/tests/move.rs
 - **Context:** [spec.md§Examples](spec.md#examples), [spec.md§Validation Criteria](spec.md#validation-criteria)
-- **Description:** New test file using `kernel/tests/common/mod.rs` helpers: `ridge_lifted_and_nudged_stays_closed` (120x96x96 box, ridge line, lift 36 then move 10 in y; `is_closed`, `validate`), `box_face_moved_onto_box_face_joins_them` (two boxes, move the facing side by the gap; 10 faces, `is_closed`, volume 2000, `validate`), `instance_moved_onto_loose_geometry_never_sticks` (group a box, loose rectangle, `set_transform` onto it; root face and edge counts unchanged), `undo_after_each_integrated_move_restores_the_file` (for each of the ridge, box-onto-box and instance cases above: commit, `to_json`, begin, the move, commit, `undo`, `to_json` byte-equal), `moving_vertices_from_two_definitions_is_refused` (`Error::Degenerate`) and `move_and_integrate_into_a_locked_definition_is_refused` (lock the tag of a grouped box as kernel/tests/attributes.rs:160 does, `move_and_integrate` on one of its vertices returns `Error::Locked`, nothing changes) and `vertex_moved_onto_a_vertex_merges_into_it` (a loose rectangle beside a loose line sharing the plane; move the line's free end onto a rectangle corner; `vertex_count` drops by one, `find_vertex` at the corner returns one id whose edges include the line, `validate`).
+- **Description:** New test file using `kernel/tests/common/mod.rs` helpers: `ridge_lifted_and_nudged_stays_closed` (120x96x96 box, ridge line, lift 36 then move 10 in y; `is_closed`, `validate`), `box_face_moved_onto_box_face_joins_them` (two boxes, move the facing side by the gap; 10 faces, `is_closed`, volume 2000, `validate`) (2026-10-28: the test moves every vertex of the second box, since moving only its facing side stretches it to volume 3000; the facing sides cancel and the coplanar sides merge as push/pull's settle does, so it asserts 6 faces, 12 edges, 8 vertices and volume 2000, not 10 faces; spec.md § Examples amended), `instance_moved_onto_loose_geometry_never_sticks` (group a box, loose rectangle, `set_transform` onto it; root face and edge counts unchanged), `undo_after_each_integrated_move_restores_the_file` (for each of the ridge, box-onto-box and instance cases above: commit, `to_json`, begin, the move, commit, `undo`, `to_json` byte-equal), `moving_vertices_from_two_definitions_is_refused` (`Error::Degenerate`) and `move_and_integrate_into_a_locked_definition_is_refused` (lock the tag of a grouped box as kernel/tests/attributes.rs:160 does, `move_and_integrate` on one of its vertices returns `Error::Locked`, nothing changes) and `vertex_moved_onto_a_vertex_merges_into_it` (a loose rectangle beside a loose line sharing the plane; move the line's free end onto a rectangle corner; `vertex_count` drops by one, `find_vertex` at the corner returns one id whose edges include the line, `validate`).
 
 ### Phase 3: Fold Instead of Reject
 
-**Status:** pending
+**Status:** completed
 **Dependencies:** [Phase 2]
 
 #### Task 3.1: fold_diagonals and fold_for_move
 
 - **Type:** implement
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [Phase 2]
 - **Files:**
   - Modify: kernel/src/edit.rs
 - **Context:** [spec.md§Interfaces](spec.md#interfaces), [spec.md§Decisions](spec.md#decisions)
-- **Description:** Add the pure `fold_diagonals(pts, normal) -> Vec<(usize, usize)>` (pick the diagonal whose two sub-polygon planes have the largest maximum dot with `normal`, so one piece stays as flat as possible and the hinge runs between the moved vertex's neighbours; recurse on sub-polygons not planar within `tol::PLANE`) and `fold_for_move(verts, offset)`: for each face using a moved vertex whose outer loop at post-move positions fails `Plane::contains`, a holed face returns `Error::NotPlanar`; otherwise add the diagonals with `add_edge`, `remove_face`, and `add_face` one triangle per piece with the old normal, material, back_material and attributes.
+- **Description:** Add the pure `fold_diagonals(pts, normal) -> Vec<(usize, usize)>` (pick the diagonal whose two sub-polygon planes have the largest maximum dot with `normal`, so one piece stays as flat as possible and the hinge runs between the moved vertex's neighbours; recurse on sub-polygons not planar within `tol::PLANE`) and `fold_for_move(verts, offset)` (2026-10-28: `fold_diagonals` is `pub`, wrapping a private `fold_pieces` that also returns the piece loops `fold_for_move` needs; a crate-private wrapper used only by tests fails clippy's dead-code lint. spec.md § Interfaces amended.): for each face using a moved vertex whose outer loop at post-move positions fails `Plane::contains`, a holed face returns `Error::NotPlanar`; otherwise add the diagonals with `add_edge`, `remove_face`, and `add_face` one triangle per piece with the old normal, material, back_material and attributes.
 
 #### Task 3.2: Fold in move_and_integrate; preview tolerates bent faces
 
 - **Type:** implement
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [3.1]
 - **Files:**
   - Modify: kernel/src/edit.rs
@@ -116,7 +116,7 @@ Make Move behave like SketchUp's: a committed move welds moved vertices and edge
 #### Task 3.3: Fold tests and rewrite the planarity test
 
 - **Type:** test
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [3.2]
 - **Files:**
   - Modify: kernel/tests/move.rs
@@ -126,13 +126,13 @@ Make Move behave like SketchUp's: a committed move welds moved vertices and edge
 
 ### Phase 4: Move Tool and Docs
 
-**Status:** pending
+**Status:** completed
 **Dependencies:** [Phase 3]
 
 #### Task 4.1: Move tool commits through moveAndIntegrate
 
 - **Type:** implement
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [Phase 3]
 - **Files:**
   - Modify: app/src/tools/move.ts
@@ -142,17 +142,17 @@ Make Move behave like SketchUp's: a committed move welds moved vertices and edge
 #### Task 4.2: Headless tool tests for a fold and a weld
 
 - **Type:** test
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [4.1]
 - **Files:**
   - Modify: app/test/tools.test.ts
 - **Context:** [spec.md§Validation Criteria](spec.md#validation-criteria)
-- **Description:** In `describe("Select, Move, Erase and groups")` add "commits a fold when a top edge is pushed sideways" (the `box(h)` shed box; `SelectTool` click on the top edge at [120, 48, 96]; `MoveTool` base [120, 48, 96], hover toward [120, 60, 96], `vcb("1'")`; the end faces y=0 and y=96 can no longer stay planar so each folds: `stats().faces` 8, `undo` restores 6; the tool has no vertex selection, so a single corner cannot be lifted through it) and "welds a face moved onto another" (two rectangles pulled into boxes with a gap, move the facing side by the gap, `stats().faces` 10). Both run through the wasm `moveAndIntegrate`.
+- **Description:** In `describe("Select, Move, Erase and groups")` add "commits a fold when a top edge is pushed sideways" (the `box(h)` shed box; `SelectTool` click on the top edge at [120, 48, 96]; `MoveTool` base [120, 48, 96], hover toward [120, 60, 96], `vcb("1'")`; the end faces y=0 and y=96 can no longer stay planar so each folds: `stats().faces` 8, `undo` restores 6; the tool has no vertex selection, so a single corner cannot be lifted through it) and "welds a face moved onto another" (two rectangles pulled into boxes with a gap, move the facing side by the gap, `stats().faces` 10). (2026-10-28: the second box sits 100" to the left so the moved face is visible to the test camera, and the result is 6 faces: the facing sides cancel and the coplanar sides merge, as in Task 2.4's log line.) Both run through the wasm `moveAndIntegrate`.
 
 #### Task 4.3: Architecture, features and roadmap
 
 - **Type:** document
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [4.1]
 - **Files:**
   - Modify: docs/architecture.md

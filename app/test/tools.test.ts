@@ -260,4 +260,55 @@ describe("Select, Move, Erase and groups", () => {
     expect(h.model.stats().faces).toBe(1);
     expect(h.model.stats().edges).toBe(4);
   });
+
+  it("commits a fold when a top edge is pushed sideways", () => {
+    const h = new TestHost();
+    box(h);
+    const sel = new SelectTool(h);
+    h.click(sel, [120, 48, 96]);
+    expect(h.selection.items).toEqual([{ kind: "edge", id: expect.any(Number) }]);
+    const mv = new MoveTool(h);
+    h.click(mv, [120, 48, 96]);
+    h.hover(mv, [120, 72, 96]);
+    mv.vcb("1'");
+    h.refresh();
+    // The front and back walls can no longer stay planar, so each folds in two.
+    expect(h.model.stats().faces).toBe(8);
+    expect(h.model.stats().edges).toBe(14);
+    expect(h.flashes).toEqual([]);
+    h.model.undo();
+    expect(h.model.stats().faces).toBe(6);
+  });
+
+  it("welds a face moved onto another", () => {
+    const h = new TestHost();
+    box(h);
+    // A second box of the same size to the left, 100" away.
+    const rect = new RectangleTool(h);
+    h.click(rect, [-196, 0, 0]);
+    h.hover(rect, [-100, 80, 0]);
+    rect.vcb("8', 8'");
+    h.refresh();
+    const pp = new PushPullTool(h);
+    h.click(pp, [-148, 48, 0]);
+    h.hover(pp, [-148, 48, 50]);
+    pp.vcb("8'");
+    h.refresh();
+    expect(h.model.stats().faces).toBe(12);
+    const sel = new SelectTool(h);
+    h.click(sel, [0, 48, 48]);
+    expect(h.selection.items).toEqual([{ kind: "face", id: expect.any(Number) }]);
+    const mv = new MoveTool(h);
+    h.click(mv, [0, 48, 48]);
+    h.hover(mv, [-10, 48, 48]);
+    mv.vcb("8' 4\"");
+    h.refresh();
+    // The facing sides cancel and the coplanar sides merge: one 316" box.
+    expect(h.flashes).toEqual([]);
+    expect(h.model.stats().faces).toBe(6);
+    expect(h.scene().min[0]).toBeCloseTo(-196);
+    expect(h.scene().max[0]).toBeCloseTo(120);
+    h.model.undo();
+    expect(h.model.stats().faces).toBe(12);
+  });
 });

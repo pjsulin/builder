@@ -1900,7 +1900,9 @@ impl Document {
 /// to `normal` (largest maximum dot product: one piece stays as flat as possible, the
 /// hinge runs between the moved vertex's neighbours) is chosen; a sub-polygon already planar
 /// within `tol::PLANE` is not split further. Returns an empty Vec for a planar input.
-pub(crate) fn fold_diagonals(pts: &[V3], normal: V3) -> Vec<(usize, usize)>;
+pub fn fold_diagonals(pts: &[V3], normal: V3) -> Vec<(usize, usize)>;
+// (pub, not pub(crate): `fold_for_move` consumes the pieces through the private
+// `fold_pieces`, so a crate-private `fold_diagonals` would be dead code under clippy.)
 ```
 
 Rust, `kernel-wasm/src/lib.rs` (Phase 2), beside `move_vertices` at :141.
@@ -1952,10 +1954,14 @@ d.move_and_integrate(&verts, v(0.0, 10.0, 0.0)).unwrap();
 assert!(is_closed(&d, ROOT));
 validate(&d);
 
-// One box's face moved onto another's: one solid, no internal face.
-let side = face_at(&d, ROOT, v(20.0, 5.0, 5.0), -V3::X);
-d.move_and_integrate(&d.vertices_of(&[side], &[]), v(-10.0, 0.0, 0.0)).unwrap();
-assert_eq!(faces(&d, ROOT).len(), 10);
+// One box moved until its face lands on another's: one solid, no internal face.
+// (Amended at implementation: the facing sides cancel and the coplanar sides
+// merge across the shared edges, as push/pull's settle does, so the result is
+// one 20-inch box with 6 faces, not 10. Moving only the facing side stretches
+// the box instead, so the test moves every vertex of it.)
+let second: Vec<VId> = d.vertices_in(ROOT).filter(|(_, x)| x.pos.x > 15.0).map(|(id, _)| id).collect();
+d.move_and_integrate(&second, v(-10.0, 0.0, 0.0)).unwrap();
+assert_eq!(faces(&d, ROOT).len(), 6);
 assert!(is_closed(&d, ROOT));
 
 // A corner lifted: the top folds into two triangles, nothing fails.
@@ -1980,6 +1986,15 @@ model.commit();
 let cancelled = self.settle_faces(ctx, created)?;
 Ok(cancelled.contains(&cap))
 ```
+
+## Added during implementation
+
+Recorded at close from `flux repomap --diff aac0bb8 --record sprint-03`.
+
+- `kernel/src/edit.rs:fold_pieces` (private): `fold_diagonals` plus the piece loops, which `fold_for_move` needs to add one face per piece; `split_piece` (private) is its recursion; `is_planar` (private) is the shared planarity test.
+- `kernel/src/edit.rs:tests` (`#[cfg(test)]`): `fold_hinges_between_the_lifted_corners_neighbours`, `a_bent_hexagon_folds_into_planar_pieces`, the unit tests Task 3.3 asked for, placed in the module because `fold_pieces` is private.
+- `kernel/tests/move.rs` helpers `shed`, `two_boxes`, `all_faces_and_edges`; the tests Task 2.4 and 3.3 name plus `a_folded_face_keeps_its_material_and_attributes` (the mvr2op7t rule).
+- `kernel/tests/edit.rs`: `moving_one_corner_up_fails_because_faces_would_bend` removed, rewritten as `moving_one_corner_up_previews_without_folding` per Task 3.3.
 
 ## Validation Criteria
 

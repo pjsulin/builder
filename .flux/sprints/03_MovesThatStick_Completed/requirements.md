@@ -1,10 +1,11 @@
 ---
-sprint: "MovesThatStick"
 created: 2026-10-28
-start: null    # commit; set by `flux sprint move <Name> Current`, close diffs against it
-started: null  # date; set by the same move
-step: "2"
+sprint: MovesThatStick
+start: aac0bb8
+started: '2026-10-28'
+step: '2'
 ---
+
 # Requirements: MovesThatStick
 
 ## Background
@@ -52,21 +53,21 @@ After any move, the model is as if the geometry had been drawn there: welded, sp
 
 ### For Feature 1
 
-- [ ] Kernel test: moving the shed's ridge up and sideways keeps the gable walls and roof connected and watertight (`is_closed`), `validate` passes.
-- [ ] Kernel test: moving an instance onto loose geometry leaves the loose geometry unchanged.
+- [x] Kernel test: moving the shed's ridge up and sideways keeps the gable walls and roof connected and watertight (`is_closed`), `validate` passes. Evidence: `kernel/tests/move.rs` `ridge_lifted_and_nudged_stays_closed` (7 faces, closed, volume checked, `validate`).
+- [x] Kernel test: moving an instance onto loose geometry leaves the loose geometry unchanged. Evidence: `instance_moved_onto_loose_geometry_never_sticks` (root face and edge ids unchanged after `set_transform`).
 
 ### For Feature 2
 
-- [ ] Kernel test: moving a box until its face touches another box's face gives one solid with no internal face.
+- [x] Kernel test: moving a box until its face touches another box's face gives one solid with no internal face. Evidence: `box_face_moved_onto_box_face_joins_them` (one closed 20-inch box: 6 faces, 12 edges, 8 vertices, volume 2000, `face_containing` at the join is none).
 
 ### For Feature 3
 
-- [ ] Kernel test: moving a single corner of a box up produces a folded top (two triangles), no error.
+- [x] Kernel test: moving a single corner of a box up produces a folded top (two triangles), no error. Evidence: `lifting_a_corner_folds_the_top` (7 faces, 13 edges, hinge between the corner's neighbours, closed) and `edit.rs` unit test `fold_hinges_between_the_lifted_corners_neighbours`.
 
 ### For all
 
-- [ ] Undo returns the exact previous model in each case (byte-equal JSON).
-- [ ] Headless tool test: the Move tool commits a fold and a weld through wasm.
+- [x] Undo returns the exact previous model in each case (byte-equal JSON). Evidence: `undo_after_each_integrated_move_restores_the_file` (ridge, box onto box, instance) and `lifting_a_corner_folds_the_top` (`to_json` equal after `undo`).
+- [x] Headless tool test: the Move tool commits a fold and a weld through wasm. Evidence: `app/test/tools.test.ts` "commits a fold when a top edge is pushed sideways" (8 faces, undo to 6) and "welds a face moved onto another" (6 faces spanning both boxes, undo to 12); npm test 8 files, 98 tests.
 
 ## Impact
 
