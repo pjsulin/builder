@@ -183,6 +183,38 @@ impl Kernel {
         ))
     }
 
+    /// Copy loose geometry of `ctx` by (dx, dy, dz). Returns JSON `{ faces, edges }`
+    /// of the copy as it is after welding.
+    #[wasm_bindgen(js_name = copyGeometry)]
+    #[allow(clippy::too_many_arguments)]
+    pub fn copy_geometry(
+        &mut self,
+        ctx: u32,
+        faces: Vec<u32>,
+        edges: Vec<u32>,
+        dx: f64,
+        dy: f64,
+        dz: f64,
+    ) -> Result<String, JsError> {
+        let out = self
+            .doc
+            .copy_geometry(DefId(ctx), &ids(&faces, FId), &ids(&edges, EId), V3::new(dx, dy, dz))
+            .map_err(js)?;
+        let list = |v: Vec<u32>| v.iter().map(|x| x.to_string()).collect::<Vec<_>>().join(",");
+        Ok(format!(
+            r#"{{"faces":[{}],"edges":[{}]}}"#,
+            list(out.faces.iter().map(|x| x.0).collect()),
+            list(out.edges.iter().map(|x| x.0).collect()),
+        ))
+    }
+
+    /// Copy an instance as a new group placed (dx, dy, dz) away in its parent's
+    /// coordinates. Returns the new instance id.
+    #[wasm_bindgen(js_name = copyInstance)]
+    pub fn copy_instance(&mut self, inst: u32, dx: f64, dy: f64, dz: f64) -> Result<u32, JsError> {
+        Ok(self.doc.copy_instance(InstId(inst), V3::new(dx, dy, dz)).map_err(js)?.0)
+    }
+
     /// Set an instance's column-major 4×4 transform.
     #[wasm_bindgen(js_name = setTransform)]
     pub fn set_transform(&mut self, inst: u32, m: Vec<f64>) -> Result<(), JsError> {

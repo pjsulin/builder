@@ -312,3 +312,54 @@ describe("Select, Move, Erase and groups", () => {
     expect(h.model.stats().faces).toBe(12);
   });
 });
+
+function box(h: TestHost) {
+  const { pp } = shed(h);
+  h.hover(pp, [60, 48, 50]);
+  pp.vcb("8'");
+  h.refresh();
+}
+
+describe("Model copy", () => {
+  it("copies a group and loose geometry in one transaction that undoes as one", () => {
+    const h = new TestHost();
+    box(h);
+    const faces = [...new Set(h.scene().triFace)];
+    const g = h.model.transact("Make Group", () => h.model.makeGroup(ROOT, faces, [...h.scene().segEdge], []));
+    h.refresh();
+    const line = new LineTool(h);
+    h.click(line, [200, 0, 0]);
+    h.click(line, [260, 0, 0]);
+    h.refresh();
+    const loose = [...h.scene().segEdge].filter((e) => h.model.edgeInfo(e)!.owner === ROOT);
+    expect(loose.length).toBe(1);
+    const before = h.model.stats();
+    const copies = h.model.transact("Copy", () => ({
+      inst: h.model.copyInstance(g, [0, 120, 0]),
+      geometry: h.model.copyGeometry(ROOT, [], loose, [0, 120, 0]),
+    }));
+    const after = h.model.stats();
+    expect(after.instances).toBe(before.instances + 1);
+    expect(after.edges).toBe(before.edges + 13);
+    expect(after.faces).toBe(before.faces + 6);
+    expect(copies.geometry.edges.length).toBe(1);
+    expect(h.model.instances(ROOT).find((i) => i.id === copies.inst)!.transform.slice(12, 15)).toEqual([0, 120, 0]);
+    expect(h.model.undo()).toBe("Copy");
+    expect(h.model.stats()).toEqual(before);
+  });
+
+  it("refuses to copy an instance on a locked tag and aborts cleanly", () => {
+    const h = new TestHost();
+    box(h);
+    const faces = [...new Set(h.scene().triFace)];
+    const g = h.model.transact("Make Group", () => h.model.makeGroup(ROOT, faces, [...h.scene().segEdge], []));
+    const tag = h.model.transact("Tag", () => h.model.newTag("Existing"));
+    h.model.transact("Lock", () => {
+      h.model.setInstanceTag(g, tag);
+      h.model.setTagFlags(tag, true, true);
+    });
+    const before = h.model.stats();
+    expect(() => h.model.transact("Copy", () => h.model.copyInstance(g, [0, 120, 0]))).toThrow("locked tag");
+    expect(h.model.stats()).toEqual(before);
+  });
+});

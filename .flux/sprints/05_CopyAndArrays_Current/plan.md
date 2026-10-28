@@ -66,13 +66,13 @@ Five phases, one commit each. Phase 1 adds the two journaled kernel copy operati
 
 ### Phase 2: Wasm and Model Wrappers
 
-**Status:** pending
+**Status:** completed
 **Dependencies:** [Phase 1]
 
 #### Task 2.1: Wasm exports
 
 - **Type:** implement
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [Phase 1]
 - **Files:**
   - Modify: kernel-wasm/src/lib.rs
@@ -82,7 +82,7 @@ Five phases, one commit each. Phase 1 adds the two journaled kernel copy operati
 #### Task 2.2: Model wrappers
 
 - **Type:** implement
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [2.1]
 - **Files:**
   - Modify: app/src/kernel/model.ts
@@ -92,7 +92,7 @@ Five phases, one commit each. Phase 1 adds the two journaled kernel copy operati
 #### Task 2.3: Model copy tests
 
 - **Type:** test
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [2.2]
 - **Files:**
   - Modify: app/test/tools.test.ts
