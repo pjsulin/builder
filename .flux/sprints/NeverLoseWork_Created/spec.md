@@ -598,61 +598,280 @@ package.json
 vite.config.ts
 ```
 
-```
-[paste flux repomap output here]
-```
-
 ## Summary
 
-[1-3 sentence overview: what interfaces and contracts this spec defines, not how they are implemented]
+Contracts for four pieces: an IndexedDB version ring (`AutosaveStore`), a debounced scheduler hooked to the model's commit points (`Model.onCommit`, `Autosaver`), the restore prompt, version dialog and header state in `App`, and the hosted build (a `sw.js` precache worker emitted by an inline Vite plugin, a `check-precache` script, and a Pages deploy job in CI). Nothing in the `.builder` format or the kernel changes; a version is one `Model.toJson()` string.
 
 ## Decisions
 
 ### Cited
 
-- [accepted ADRs this spec relies on, e.g. `0003 Title`]
+- `mvr2opid Tag lock enforced by the kernel`: restore and version open go through `App.loadModel`, which already derives `activeTag` from the model, so locks survive a restore unchanged. No other accepted ADR touches storage, the build or CI.
 
 ### Proposed
 
-- [ADRs in this sprint's `decisions/` directory, `status: proposed`]
+- None. Hosting is GitHub Pages (`https://pjsulin.github.io/builder/`) as the kickoff proposed, so no hosting ADR is needed. The one manual step is Patrick's: repository Settings > Pages > Source = GitHub Actions.
+
+Settled numbers (from Pass 1 measurement): stress model `toJson()` is 1,014,815 bytes in 12 ms; the shed is 859 bytes. Ring: `MAX_VERSIONS = 10`, `MAX_BYTES = 50 * 1024 * 1024`; debounce 3,000 ms. Autosave hooks `commit`/`undo`/`redo`, never `revision`, because `Model.changed()` bumps `revision` on every preview edit (`app/src/kernel/model.ts:725`).
 
 ## Technical Specifications
 
 ### Interfaces
 
-[Function signatures, class interfaces, method signatures]
+**`app/src/store/autosave.ts`** (new)
 
-```python
-def process_data(input: dict) -> Result:
-    """Process input data and return result."""
+```ts
+export const MAX_VERSIONS = 10;
+export const MAX_BYTES = 50 * 1024 * 1024;
+export const DB_NAME = "builder";
+
+/** One autosaved model. `bytes` is the UTF-8 length of `json`. */
+export interface Version {
+  id: number;          // IndexedDB autoIncrement key, ascending with time
+  time: number;        // Date.now() at the write
+  fileName: string;    // App.fileName at the write
+  operation: string;   // Model.lastOperation at the write ("Push/Pull", "Undo Move", ...)
+  bytes: number;
+  json: string;        // Model.toJson()
+}
+export type VersionInfo = Omit<Version, "json">;
+
+export class AutosaveStore {
+  /** `factory` is injectable so tests pass fake-indexeddb's IDBFactory. */
+  constructor(name?: string, factory?: IDBFactory);
+  /** Append a version, then drop the oldest until count <= MAX_VERSIONS and
+   *  sum(bytes) <= MAX_BYTES; the version just written is never dropped. */
+  put(v: Omit<Version, "id" | "bytes">): Promise<VersionInfo>;
+  /** Newest first, without json. */
+  list(): Promise<VersionInfo[]>;
+  get(id: number): Promise<Version | undefined>;
+  latest(): Promise<Version | undefined>;
+  /** True when a version was written after the last Save or load. */
+  dirty(): Promise<boolean>;
+  setDirty(dirty: boolean): Promise<void>;
+  clear(): Promise<void>;
+}
 ```
+
+**`app/src/store/autosaver.ts`** (new)
+
+```ts
+import type { AutosaveStore, VersionInfo } from "./autosave";
+import type { Model } from "../kernel/model";
+
+export const DEBOUNCE_MS = 3000;
+
+export interface AutosaverOptions {
+  store: Pick<AutosaveStore, "put" | "setDirty">;
+  debounceMs?: number;                                   // default DEBOUNCE_MS
+  now?: () => number;                                    // default Date.now
+  setTimer?: (fn: () => void, ms: number) => unknown;    // default globalThis.setTimeout
+  clearTimer?: (handle: unknown) => void;                // default globalThis.clearTimeout
+  onError?: (e: unknown) => void;                        // default console.error
+}
+
+export class Autosaver {
+  constructor(opts: AutosaverOptions);
+  /** Follow `model`: sets model.onCommit to schedule(); cancels any pending
+   *  write; records fileName; setDirty(dirty). Called from App.loadModel. */
+  attach(model: Model, fileName: string, dirty?: boolean): Promise<void>;
+  /** Restart the debounce; `operation` labels the eventual version. */
+  schedule(operation: string): void;
+  /** Write now if a write is pending; resolves with the version or undefined. */
+  flush(): Promise<VersionInfo | undefined>;
+  /** Cancel a pending write and setDirty(false). Called from App.save. */
+  markClean(): Promise<void>;
+  readonly pending: boolean;
+}
+```
+
+The timer callback is the only place `model.toJson()` runs; it is never called from `schedule()`.
+
+**`app/src/kernel/model.ts`** (modified)
+
+```ts
+export class Model {
+  /** Name passed to the last begin(); the label autosave uses. */
+  lastOperation = "";
+  /** Called after commit() returns true and after undo()/redo() return a name. */
+  onCommit?: (operation: string) => void;
+
+  begin(name: string): void;              // also sets lastOperation = name
+  commit(): boolean;                      // onCommit?.(lastOperation) when true
+  undo(): string | undefined;             // onCommit?.(`Undo ${name}`) when defined
+  redo(): string | undefined;             // onCommit?.(`Redo ${name}`) when defined
+}
+```
+
+`transact`, `abort` and `changed` are unchanged. `abort()` never calls `onCommit`, so preview steps (`model.abort(); model.begin(...)` in `app/src/tools/pushpull.ts:81-88`, `move.ts:80-87`) never schedule a write.
+
+**`app/src/app.ts`** (modified)
+
+```ts
+export class App implements ToolHost {
+  private readonly store = new AutosaveStore();
+  private readonly autosaver = new Autosaver({ store: this.store });
+  private fileName = "model.builder";
+  private savedRevision = 0;
+
+  /** `saved: false` marks a restored or version-opened model as unsaved
+   *  (savedRevision = -1) and keeps the store dirty. Default true. */
+  loadModel(model: Model, name: string, opts?: { saved?: boolean }): void;
+  /** On start: if the store is dirty and has a latest version, confirm and
+   *  loadModel(Model.fromJson(v.json), v.fileName, { saved: false }). */
+  offerRestore(): Promise<boolean>;
+  /** Fill and open <dialog id="versions"> from store.list(). */
+  showVersions(): Promise<void>;
+  /** Set #fileName text and #unsaved hidden from fileName and revision !== savedRevision. */
+  private updateHeader(): void;
+  private save(): void;                   // then autosaver.markClean(); updateHeader()
+}
+```
+
+`refresh()` calls `updateHeader()` on the non-preview path (next to `updateButtons()`). `loadModel` calls `this.autosaver.attach(model, name, !saved)` after setting `savedRevision`.
+
+**`app/src/main.ts`** (modified)
+
+```ts
+loadKernel().then(async () => {
+  const app = new App();
+  (window as unknown as { builder: App }).builder = app;
+  await app.offerRestore();
+});
+if (import.meta.env.PROD && "serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js");
+```
+
+**`app/sw.js`** (new, hand-written; copied into `dist/` by the plugin with the list filled in)
+
+```js
+// Precache every built file; serve from cache, fall back to network.
+const CACHE = "builder-__CACHE_VERSION__";
+const PRECACHE = __PRECACHE__;   // JSON array of dist paths relative to the worker, "./index.html" first
+self.addEventListener("install", ...);   // cache.addAll(PRECACHE), skipWaiting
+self.addEventListener("activate", ...);  // delete other builder-* caches, clients.claim
+self.addEventListener("fetch", ...);     // same-origin GET: cache first, else fetch; navigations fall back to ./index.html
+```
+
+**`vite.config.ts`** (modified): inline plugin
+
+```ts
+function precachePlugin(): Plugin {
+  return {
+    name: "builder-precache",
+    apply: "build",
+    enforce: "post",
+    generateBundle(_, bundle) { /* emit sw.js: app/sw.js with __PRECACHE__ = sorted
+      Object.keys(bundle) minus "sw.js", each prefixed "./"; __CACHE_VERSION__ = sha256 of
+      that list joined with each chunk's/asset's content, first 12 hex */ },
+  };
+}
+```
+
+Deterministic: same inputs give the same `sw.js`. The Google Fonts stylesheet in `index.html` is cross-origin and is not precached; offline the fonts fall back to system fonts.
+
+**`scripts/check-precache.mjs`** (new)
+
+```js
+// Usage: node scripts/check-precache.mjs [dist]
+// Reads dist/sw.js, parses the PRECACHE array, walks dist/ (excluding sw.js),
+// prints "missing: <path>" / "extra: <path>" lines and exits 1 on any difference.
+```
+
+**`.github/workflows/ci.yml`** (modified)
+
+```yaml
+jobs:
+  test:
+    # existing steps, then:
+      - run: node scripts/check-precache.mjs
+      - uses: actions/upload-pages-artifact@v3
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        with: { path: dist }
+  deploy:
+    needs: test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions: { pages: write, id-token: write }
+    environment: { name: github-pages, url: ${{ steps.deployment.outputs.page_url }} }
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
+```
+
+**`package.json`**: `devDependencies` gains `"fake-indexeddb": "^6.0.0"`; scripts gain `"check:precache": "node scripts/check-precache.mjs"`. `package-lock.json` updated by `npm install`.
 
 ### Data Models
 
-[Schema definitions, dataclass structures, validation rules]
+IndexedDB database `builder`, version 1:
 
-```python
-@dataclass
-class User:
-    id: int
-    name: str
-    email: str
-```
+| Store | Key | Value |
+| --- | --- | --- |
+| `versions` | `id` (autoIncrement) | `Version` |
+| `meta` | `"dirty"` | `boolean` |
+
+Trim rule after each `put`: while `count > MAX_VERSIONS` or `sum(bytes) > MAX_BYTES`, delete the smallest `id`, never the one just written. `bytes = new TextEncoder().encode(json).byteLength`.
+
+`index.html` additions (header, `.brand`): `<span class="file" id="fileName"></span><span class="unsaved" id="unsaved" hidden>unsaved</span>`; actions: `<button class="btn" id="versionsBtn" title="Browse autosaved versions">Versions</button>`; after `.app`: `<dialog id="versions"><h2>Autosaved versions</h2><ul id="versionList"></ul><button class="btn" id="versionsClose">Close</button></dialog>`. Each list row: time (`toLocaleString()`), operation, fileName, size in KB, and an Open button that calls `confirmDiscard()` then `loadModel(Model.fromJson(v.json), v.fileName, { saved: false })`.
+
+Restored models start with an empty undo stack because `Model.fromJson` builds a new kernel (`Kernel.fromJson`); `canUndo()` is false after load.
 
 ### Examples
 
-[Call sites showing how the interfaces are used, not how they are implemented]
+Scheduling from a tool commit (`app/src/tools/pushpull.ts:157-163`, unchanged code; the hook is on the model):
 
-```python
-result = process_data({"key": "value"})
-print(result.status)
+```ts
+this.host.model.begin("Push/Pull");   // lastOperation = "Push/Pull"
+this.host.model.pushPull(face, d);
+this.host.model.commit();             // -> onCommit("Push/Pull") -> autosaver.schedule("Push/Pull")
+```
+
+App wiring:
+
+```ts
+loadModel(model, name, { saved = true } = {}) {
+  ...
+  this.savedRevision = saved ? this.model.revision : -1;
+  void this.autosaver.attach(model, name, !saved);
+  ...
+}
+private save() {
+  ... // existing download
+  this.savedRevision = this.model.revision;
+  void this.autosaver.markClean();
+  this.updateHeader();
+}
+```
+
+Headless test shape (`app/test/autosave.test.ts`), using the real kernel via `newModel()` from `app/test/helpers.ts` and `buildStressTest()`:
+
+```ts
+import { IDBFactory } from "fake-indexeddb";
+const store = new AutosaveStore("test", new IDBFactory());
+const saver = new Autosaver({ store, setTimer: fake.set, clearTimer: fake.clear, now: () => 1000 });
+const model = buildStressTest();            // kernel loaded by newModel() first
+await saver.attach(model, "stress.builder");
+const toJson = vi.spyOn(model, "toJson");
+for (let i = 0; i < 50; i++) { model.abort(); model.begin("Push/Pull"); model.pushPull(face, i); }
+expect(toJson).not.toHaveBeenCalled();      // previews schedule nothing
+model.commit(); fake.advance(2999); expect(toJson).not.toHaveBeenCalled();
+fake.advance(1); await saver.flush();
+expect(toJson).toHaveBeenCalledTimes(1);
+expect((await store.list())[0]).toMatchObject({ operation: "Push/Pull", fileName: "stress.builder" });
 ```
 
 ## Validation Criteria
 
-[How to verify the implementation is correct: test commands, assertions, expected behavior]
-
 ```bash
-python -m pytest tests/test_feature.py
-# Expected: all tests pass
+npm run build:kernel                      # kernel_bg.wasm for the Node tests
+npm run typecheck                         # tsc --noEmit, clean
+npm test                                  # vitest: existing suites plus app/test/autosave.test.ts
+#   ring: 12 puts leave 10 versions, oldest dropped; byte budget drops oldest until under MAX_BYTES
+#   dirty: true after put, false after setDirty(false); latest() returns the newest
+#   scheduling: 0 toJson during 50 previews, 1 after commit + 3000 ms; undo labels "Undo Push/Pull"
+#   restore: Model.fromJson(latest().json).canUndo() === false and toJson() round-trips
+npx vite build && node scripts/check-precache.mjs
+#   prints nothing and exits 0; dist/sw.js lists every file in dist/ except itself
+cargo test --workspace                    # unchanged, still green
 ```
+
+Not headless (Patrick): push to `main`, open https://pjsulin.github.io/builder/ on Chrome, Firefox and Safari, draw, kill the tab, reopen and accept the restore; then disable the network and reload.

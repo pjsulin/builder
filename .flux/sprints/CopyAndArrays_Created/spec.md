@@ -1733,61 +1733,274 @@ kernel/src/group.rs:
 ⋮
 ```
 
-```
-[paste flux repomap output here]
-```
-
 ## Summary
 
-[1-3 sentence overview: what interfaces and contracts this spec defines, not how they are implemented]
+Two journaled kernel operations that duplicate geometry or a group at an offset, their wasm and `Model` wrappers, a copy modifier on the Move tool, and a Measurements-box array syntax (`5x`, `/5`) that replays the last copy as one transaction. Group copies get their own definition (deep copy); shared definitions wait for components (3.1).
 
 ## Decisions
 
 ### Cited
 
-- [accepted ADRs this spec relies on, e.g. `0003 Title`]
+- `mvr2opid Tag lock enforced by the kernel`: `copy_geometry` calls `check_def_unlocked(ctx)` and `copy_instance` calls `check_instance_unlocked(inst)` before writing, returning `Error::Locked`; the app turns it into the "that is on a locked tag" toast as `MoveTool.down` does today (`app/src/tools/move.ts:103-105`).
+- `mvr2op7t Namespaced attributes in the builder format`: copies carry face, definition and instance attributes unchanged (`Attributes` is cloned), so a copied joist keeps its `survey` namespace.
 
 ### Proposed
 
-- [ADRs in this sprint's `decisions/` directory, `status: proposed`]
+- None. The group-copy decision (own definition, not shared) is recorded in requirements.md Feature 1 and follows from `world_transform(def)` taking the first instance (`kernel/src/group.rs:228`); it does not constrain code beyond this sprint and components (3.1) will revisit it.
 
 ## Technical Specifications
 
+**Prerequisite (MovesThatStick).** `copy_geometry` does not weld. After it creates the new vertices, edges and faces it hands the new edges to the integrate step that the **MovesThatStick** sprint adds to `kernel/src/edit.rs` (its Phase 2 "Integrate After Move": owner check, insert the moved edges through the `add_line` segment path, `heal_around`, then the coplanar settle shared with push/pull). This sprint's Phase 1 cannot start until MovesThatStick is merged on the branch. The step is referenced here as `integrate_moved(def, &edges)`; if MovesThatStick ships it under another name (`move_and_integrate` was the requirements-time name, and that sprint's plan may expose the post-move part as a separate `pub(crate)` function), Task 1.1 uses that name and spec.md is amended in the same commit. Welding behaviour, tolerances (`tol::LENGTH`) and the "integrate in the vertices' own definition" rule are MovesThatStick's and are not re-specified or re-tested here beyond the one landing test in `kernel/tests/copy.rs`.
+
 ### Interfaces
 
-[Function signatures, class interfaces, method signatures]
+#### Kernel (`kernel/src/edit.rs`, `kernel/src/group.rs`)
 
-```python
-def process_data(input: dict) -> Result:
-    """Process input data and return result."""
+```rust
+// kernel/src/edit.rs
+/// What a copy of loose geometry made in the target context.
+#[derive(Clone, Debug, Default)]
+pub struct Copied {
+    pub faces: Vec<FId>,
+    pub edges: Vec<EId>,
+}
+
+impl Document {
+    /// Duplicate faces and edges of `ctx` translated by `offset`, keeping
+    /// materials, back materials and face attributes, then integrate the new
+    /// edges with what they land on (MovesThatStick). Faces bring their edges.
+    /// Inputs not owned by `ctx` are ignored; nothing to copy is `Error::Empty`.
+    /// `Error::Locked` when `ctx` is locked (ADR mvr2opid). Journaled.
+    pub fn copy_geometry(&mut self, ctx: DefId, faces: &[FId], edges: &[EId], offset: V3) -> Result<Copied, Error>;
+}
+
+// kernel/src/group.rs
+impl Document {
+    /// Copy an instance as a new group: a new definition with the same name,
+    /// kind, attributes and geometry (vertices, edges, faces with materials,
+    /// back materials and attributes), child instances copied recursively the
+    /// same way, and a new instance record cloned from `inst` (name, material,
+    /// tag, attributes) whose transform is `inst`'s translated by `offset` in
+    /// the parent's coordinates. Returns the new instance. `Error::Locked`
+    /// when `inst` is locked (ADR mvr2opid). Journaled.
+    pub fn copy_instance(&mut self, inst: InstId, offset: V3) -> Result<InstId, Error>;
+
+    /// Deep-copy `def` into a new definition placed nowhere; `copy_instance`
+    /// and its recursion use it. The vmap pattern of `explode` (group.rs:102).
+    fn copy_definition(&mut self, def: DefId) -> Result<DefId, Error>;
+}
+```
+
+#### Wasm (`kernel-wasm/src/lib.rs`)
+
+```rust
+impl Kernel {
+    /// Copy loose geometry. Returns JSON `{ faces, edges }` of the copy
+    /// (the `explode` pattern, lib.rs:170).
+    #[wasm_bindgen(js_name = copyGeometry)]
+    pub fn copy_geometry(&mut self, ctx: u32, faces: Vec<u32>, edges: Vec<u32>, dx: f64, dy: f64, dz: f64) -> Result<String, JsError>;
+
+    /// Copy an instance as a new group. Returns the new instance id.
+    #[wasm_bindgen(js_name = copyInstance)]
+    pub fn copy_instance(&mut self, inst: u32, dx: f64, dy: f64, dz: f64) -> Result<u32, JsError>;
+}
+```
+
+#### Model (`app/src/kernel/model.ts`)
+
+```ts
+export class Model {
+  /** Copy loose geometry of `ctx` by `d` (context coordinates). */
+  copyGeometry(ctx: number, faces: number[], edges: number[], d: Vec3): { faces: number[]; edges: number[] };
+  /** Copy an instance as a new group placed `d` away (parent coordinates). */
+  copyInstance(inst: number, d: Vec3): number;
+}
+```
+
+Both go through `changed()` like `explode` and `setTransform` (model.ts:151-156) and are called inside a transaction (`begin`/`commit` or `transact`).
+
+#### Units (`app/src/units.ts`)
+
+```ts
+export interface ArraySpec {
+  /** "times": N more copies at the last spacing. "divide": N copies spread evenly over the last offset. */
+  kind: "times" | "divide";
+  /** A positive integer. */
+  n: number;
+}
+
+/**
+ * Parse an array count typed into the Measurements box: `5x`, `x5`, `5*`, `*5`
+ * (times) or `/5`, `5/` (divide). Whitespace and case are ignored. Anything else,
+ * including `0x`, `2.5x`, `-3x` and a bare `5`, is null so the caller can try
+ * `parseLength` next (which returns NaN for every array spelling).
+ */
+export function parseArray(text: string): ArraySpec | null;
+```
+
+#### Tool framework (`app/src/tools/tool.ts`)
+
+```ts
+export interface ToolPointer {
+  x: number;
+  y: number;
+  shift: boolean;
+  ctrl: boolean;
+  alt: boolean;
+  /** The copy modifier is held (Option on Mac, Ctrl elsewhere). */
+  copy: boolean;
+}
+
+export interface Tool {
+  // ...existing members unchanged...
+  /** The copy modifier went down or up while the tool is active (keyboard, no pointer). */
+  modifier?(copy: boolean): void;
+}
+```
+
+`Tool.cursor` stays `readonly cursor: string`; `MoveTool` implements it as a getter so it can read `"copy"` while copying. `App.hintChanged()` re-applies `this.tool.cursor` to the canvas (today only `setTool` and `pointerup` do, app.ts:183 and :543).
+
+#### App (`app/src/app.ts`)
+
+```ts
+/** Platform copy key: Option on Mac (Ctrl is undo/redo/save/open and Ctrl-click orbits), Ctrl elsewhere. */
+function copyKey(ev: KeyboardEvent | MouseEvent): boolean;
+
+private pointer(ev): ToolPointer;   // adds copy: copyKey(ev)
+private keydown(ev): void;          // before `if (mod || ev.altKey) return` (app.ts:666): on the copy key, tool.modifier?.(true) then hintChanged(); auto-focus regex becomes /^[0-9.'",\-/x*]$/
+// keyup listener (app.ts:613): on the copy key, tool.modifier?.(false) then hintChanged()
+```
+
+#### Move tool (`app/src/tools/move.ts`)
+
+```ts
+interface Moving {
+  base: Vec3;
+  verts: number[];
+  instances: { id: number; transform: Mat4 }[];
+  good: Vec3;
+  /** Commit as a copy instead of a move. Toggled by the copy modifier until commit. */
+  copy: boolean;
+  /** The faces and edges the copy duplicates (instances come from `instances`). */
+  selection: { faces: number[]; edges: number[]; instances: number[] };
+}
+
+interface LastCopy {
+  /** What was copied, in the context it was copied in. */
+  selection: { faces: number[]; edges: number[]; instances: number[] };
+  /** The committed offset in world coordinates. */
+  offset: Vec3;
+  /** Copies made by the last array replay, or 1 after a plain copy. */
+  count: number;
+}
+
+export class MoveTool implements Tool {
+  readonly id = "move";
+  get cursor(): string;                       // "copy" while moving with copy set, else "move"
+  hint(): string;                             // copy: "Click to place the copy, or type a distance. Then type 5x or /5 for an array."
+  modifier(copy: boolean): void;              // sets moving.copy when moving; remembers it for the next down() otherwise
+  vcb(text: string): void;                    // parseArray first → array(spec); else parseLength as today
+  private array(spec: ArraySpec): void;       // needs lastCopy, else flash("Copy something first")
+  private commit(): void;                     // copy: abort the Move preview, transact("Copy") with copyGeometry/copyInstance at this.host.toLocalDir(good), select the copies, set lastCopy
+  private lastCopy: LastCopy | null;          // cleared in start() and deactivate()
+}
+```
+
+Array semantics (`array(spec)`), with `o` = `lastCopy.offset` and `S` = `lastCopy.selection`:
+
+- `times` N: copies at `o*k` for `k = 1..N`.
+- `divide` N: copies at `o*k/N` for `k = 1..N` (the Nth lands where the first copy was).
+- The last "Copy" transaction is undone first (`model.undo()`), then the N copies are made in one `transact("Copy")`, so retyping `5x` after `9x` leaves six parts (original plus five) and one undo removes the whole array. The originals are never touched, so instance copies always start from `S`'s ids, which survive the undo.
+- A plain move does not array: `last.dir` keeps only a unit direction (move.ts:169), so `lastCopy` is the only source and "Copy something first" is the message otherwise.
+
+#### Test host (`app/test/toolhost.ts`)
+
+```ts
+at(p: Vec3, opts?: { copy?: boolean }): ToolPointer;
+/** `click` with the copy modifier held. */
+copyClick(tool: Tool, p: Vec3): void;
 ```
 
 ### Data Models
 
-[Schema definitions, dataclass structures, validation rules]
-
-```python
-@dataclass
-class User:
-    id: int
-    name: str
-    email: str
-```
+- `Copied { faces, edges }` (kernel) serialises over wasm as `{"faces":[..],"edges":[..]}`, the `Exploded` encoding without `instances`.
+- `copy_instance`'s new definition: `Definition { name: same as the source, kind: Group, attributes: cloned }`. Its instance: `Instance { definition: new def, parent: same, transform: mat_mul(&mat_translation(offset), &src.transform), name, material, tag, attributes: cloned }`. Nested instances inside the source definition are copied recursively with their own transforms unchanged (they are relative to the definition).
+- No file-format change: copies are ordinary definitions and instances in `.builder` JSON.
+- `ArraySpec` is app-only, never stored.
+- Transaction names: the Move tool's preview stays `"Move"`; a copy and an array commit as `"Copy"`, so `Undo Copy` is what the toast shows.
 
 ### Examples
 
-[Call sites showing how the interfaces are used, not how they are implemented]
+```rust
+// kernel/tests/copy.rs
+let mut d = Document::new();
+make_box(&mut d, 10.0, 10.0, 10.0);
+let (f, e) = (faces(&d, ROOT), d.edges_in(ROOT).map(|(id, _)| id).collect::<Vec<_>>());
+d.begin("Copy");
+let c = d.copy_geometry(ROOT, &f, &e, v(10.0, 0.0, 0.0)).unwrap();   // lands flush: welded
+d.commit();
+assert_eq!(c.faces.len(), 6);
+assert!(approx(volume(&d, ROOT), 2000.0));
+validate(&d);
+d.undo();
+assert_eq!(faces(&d, ROOT).len(), 6);
 
-```python
-result = process_data({"key": "value"})
-print(result.status)
+let g = d.make_group(ROOT, &f, &e, &[]).unwrap();
+let g2 = d.copy_instance(g, v(16.0, 0.0, 0.0)).unwrap();
+assert_ne!(d.instance(g2).unwrap().definition, d.instance(g).unwrap().definition);
+```
+
+```ts
+// app/src/tools/move.ts commit(), copy branch
+this.host.model.abort();
+const copies = this.host.model.transact("Copy", () => {
+  const local = this.host.toLocalDir(m.good);
+  const g = m.selection.faces.length || m.selection.edges.length
+    ? this.host.model.copyGeometry(this.host.ctx, m.selection.faces, m.selection.edges, local)
+    : { faces: [], edges: [] };
+  const insts = m.instances.map((i) => this.host.model.copyInstance(i.id, local));
+  return { ...g, instances: insts };
+});
+this.lastCopy = { selection: m.selection, offset: m.good, count: 1 };
+```
+
+```ts
+// app/test/tools.test.ts
+const mv = new MoveTool(h);
+h.selection.set([{ kind: "instance", id: joist }]);
+h.click(mv, [0, 0, 0]);
+mv.modifier(true);
+h.hover(mv, [50, 0, 0]);
+mv.vcb('16"');
+expect(h.model.instances(ROOT).length).toBe(2);
+mv.vcb("9x");
+expect(h.model.instances(ROOT).length).toBe(10);
+expect(h.model.undo()).toBe("Copy");
+expect(h.model.instances(ROOT).length).toBe(1);
+```
+
+```ts
+// app/src/app.ts keydown, before the modifier guard
+if (copyKey(ev) && !ev.repeat) { this.tool.modifier?.(true); this.hintChanged(); }
+if (mod || ev.altKey) return;
 ```
 
 ## Validation Criteria
 
-[How to verify the implementation is correct: test commands, assertions, expected behavior]
-
 ```bash
-python -m pytest tests/test_feature.py
-# Expected: all tests pass
+cargo test --workspace
+# kernel/tests/copy.rs: copied loose geometry welds where it lands (volume doubles, validate passes);
+# copied group has its own definition with equal faces, edges, materials, attributes;
+# undo removes the copy and leaves the original; locked tag refused with Error::Locked;
+# fifty instance copies in one transaction commit in under 100 ms (debug build; bench: 2,000 boxes build in 24 ms release).
+cargo run --release --example bench -p builder-kernel
+# prints "copy instance ×50: ..." and "copy geometry ×50: ..."
+npm test
+# app/test/units.test.ts: parseArray accepts 5x x5 5* *5 /5 5/, rejects 0x 2.5x -3x "5"; "3/4" is still a length
+# app/test/tools.test.ts: copy modifier leaves the original and adds a copy; copyGeometry/copyInstance inside
+# transact undo as one step; locked instance refused; joist copied 16" then 9x → 10 instances, one undo;
+# /9 across 12' → 10 end to end; 5x after 9x → 6; "Copy something first" with no lastCopy
+npm run typecheck
 ```
+
+Browser check (Patrick): draw a 2×8 joist, group it, Move with Option (Mac) or Ctrl, type `16"`, then `9x`; then Undo and `/9` with a 12' copy. Cursor reads copy and the hint names the array syntax.

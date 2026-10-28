@@ -30,7 +30,8 @@ Repeated parts are fast: a joist drawn once becomes ten evenly spaced joists in 
 
 ### Feature 1: Kernel copy operations
 
-**What:** `copy_geometry(ctx, faces, edges, offset)` duplicates loose geometry (materials and attributes kept) translated by `offset` and integrates it with MovesThatStick's welding; `copy_instance(inst, offset)` makes a new instance of the same definition at the translated transform. Both journaled.
+**What:** `copy_geometry(ctx, faces, edges, offset)` duplicates loose geometry (materials and attributes kept) translated by `offset` and integrates it with MovesThatStick's welding; `copy_instance(inst, offset)` deep-copies the group's definition (geometry, materials, attributes, child instances) and clones the instance record at the translated transform. Both journaled.
+**Decision (2026-10-28):** copies get their own definition, not a shared one. `world_transform(def)` and `App.setContext` assume one instance per group definition, so a shared copy would open at the wrong transform and editing one joist would edit all; shared definitions arrive with components (3.1).
 **Why:** No duplication exists in the kernel (Background).
 **Integration:** `kernel/src/edit.rs` and `group.rs`; wasm exports; `Model` wrappers.
 
@@ -57,7 +58,7 @@ Repeated parts are fast: a joist drawn once becomes ten evenly spaced joists in 
 
 ### For Feature 1
 
-- [ ] Kernel tests: copied loose geometry is welded where it lands; copied instance shares the definition; `validate` passes; undo removes the copy.
+- [ ] Kernel tests: copied loose geometry is welded where it lands; a copied group has its own definition with equal geometry, materials and attributes; `validate` passes; undo removes the copy.
 
 ### For Feature 2
 

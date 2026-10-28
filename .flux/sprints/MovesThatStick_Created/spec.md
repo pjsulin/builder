@@ -1810,61 +1810,180 @@ kernel/tests/edit.rs:
 ⋮
 ```
 
-```
-[paste flux repomap output here]
-```
-
 ## Summary
 
-[1-3 sentence overview: what interfaces and contracts this spec defines, not how they are implemented]
+Defines the kernel entry point `Document::move_and_integrate` (fold, move, weld, settle) that the Move tool calls at commit, the shared `settle_faces` / `integrate_moved` steps it and the later CopyAndArrays sprint reuse, the preview-only contract of the existing `move_vertices`, and the wasm and `Model` wrappers that expose the new call. Fold edges are ordinary edges; no format change.
 
 ## Decisions
 
 ### Cited
 
-- [accepted ADRs this spec relies on, e.g. `0003 Title`]
+- `mvr2opid Tag lock enforced by the kernel`: `move_and_integrate` keeps the `check_def_unlocked` refusal already in `move_vertices` (kernel/src/edit.rs:17); nothing is welded into a locked definition.
+- `mvr2op7t Namespaced attributes in the builder format`: faces re-created by a fold keep `material`, `back_material` and `attributes` of the face they replace (same rule `heal` applies through `OldRegion`).
 
 ### Proposed
 
-- [ADRs in this sprint's `decisions/` directory, `status: proposed`]
+- None. The four open questions were settled at the plan checkpoint (`.flux/docs/plan-checkpoint-2026-10-28.md`):
+  - **No `soft` edge flag this sprint.** `Edge` has no flag field and `FileDefinition.edges` is `Vec<[u32; 2]>`; the additive shape would be a per-definition `soft_edges` list plus an ADR and wasm exposure with nothing rendering it. Deferred to styles (5.3). Fold diagonals are ordinary edges.
+  - **Fold diagonal:** the diagonal whose two triangles' normals, at post-move positions, stay closest to the face's original plane (maximise the smaller of the two dot products). For the box corner this leaves one triangle in the old plane.
+  - **Weld context:** integration runs in the moved vertices' own definition (`Vertex.owner`), SketchUp's rule; a vertex set spanning two definitions is refused with `Error::Degenerate`. A group instance moved with `set_transform` is never integrated.
+  - **Weld tolerance:** `tol::LENGTH` (1e-3"), the same tolerance `find_vertex`, `insert_segment` and `split_edge_at` use.
 
 ## Technical Specifications
 
 ### Interfaces
 
-[Function signatures, class interfaces, method signatures]
+Rust, `kernel/src/pushpull.rs` (Phase 1). Bodies unchanged; visibility widens so `edit.rs` can call them.
 
-```python
-def process_data(input: dict) -> Result:
-    """Process input data and return result."""
+```rust
+impl Document {
+    /// Merge edges with any existing geometry they overlap or touch (unchanged body).
+    pub(crate) fn integrate_edges(&mut self, ctx: DefId, edges: &[EId]) -> Result<(), Error>;
+    /// Cancel `f` against an opposite-facing coplanar face it lies on (unchanged body).
+    pub(crate) fn cancel_against_opposite(&mut self, ctx: DefId, f: FId) -> Result<bool, Error>;
+    /// Delete `f` and a twin with the same loops facing the other way (unchanged body).
+    pub(crate) fn remove_coincident_faces(&mut self, ctx: DefId, plane: &Plane, f: FId) -> bool;
+
+    /// The settle steps of push/pull on any set of faces: integrate their edges,
+    /// cancel each against an opposite face, merge same-facing coplanar neighbours
+    /// across shared edges. Returns the faces that were cancelled (removed).
+    pub(crate) fn settle_faces(&mut self, ctx: DefId, faces: &[FId]) -> Result<Vec<FId>, Error>;
+
+    /// Unchanged signature; now `settle_faces(ctx, created)` and `cancelled.contains(&cap)`.
+    fn settle(&mut self, ctx: DefId, created: &[FId], cap: FId) -> Result<bool, Error>;
+}
 ```
+
+Rust, `kernel/src/edit.rs` (Phases 2 and 3).
+
+```rust
+impl Document {
+    /// Preview move. Unchanged signature. Faces a vertex move would bend are left
+    /// unrefreshed (their stored plane and tris stay stale) instead of failing;
+    /// `Error::Collapsed` from `refresh_face` still fails the move. Nothing welds.
+    pub fn move_vertices(&mut self, verts: &[VId], offset: V3) -> Result<(), Error>;
+
+    /// Committed move: fold faces that would bend, move, then weld and settle in the
+    /// vertices' own definition. Errors: `Missing("vertex")`, `Locked`,
+    /// `Degenerate("vertices belong to more than one definition")`, `Collapsed`.
+    pub fn move_and_integrate(&mut self, verts: &[VId], offset: V3) -> Result<(), Error>;
+
+    /// Weld and settle after geometry was placed: `integrate_edges` then `heal_around`
+    /// on `edges` (so crossed edges split and touched planes heal like `add_line`),
+    /// then `settle_faces` on every face touching the edges' vertices afterwards.
+    /// `def` is the owner of every edge. Reused by CopyAndArrays for copied geometry.
+    pub(crate) fn integrate_moved(&mut self, def: DefId, edges: &[EId]) -> Result<(), Error>;
+
+    /// The edges incident to `verts`, deduplicated and sorted.
+    pub(crate) fn edges_of_vertices(&self, verts: &[VId]) -> Vec<EId>;
+
+    /// Before a move: every face using one of `verts` whose outer loop would not be
+    /// planar at `pos + offset` is replaced by planar triangles. Diagonals are added
+    /// with `add_edge` (no welding; they join existing vertices), the face is removed
+    /// and one face per triangle is added with `add_face`, keeping the old face's
+    /// normal side, material, back_material and attributes. A face with holes that
+    /// would bend returns `Error::NotPlanar` (folding holed faces is out of scope).
+    pub(crate) fn fold_for_move(&mut self, verts: &[VId], offset: V3) -> Result<(), Error>;
+}
+
+/// Pure: diagonals (index pairs into `pts`) that split a simple 3D polygon into
+/// planar pieces. At each step the diagonal whose two sub-polygon planes stay closest
+/// to `normal` (largest minimum dot product) is chosen; a sub-polygon already planar
+/// within `tol::PLANE` is not split further. Returns an empty Vec for a planar input.
+pub(crate) fn fold_diagonals(pts: &[V3], normal: V3) -> Vec<(usize, usize)>;
+```
+
+Rust, `kernel-wasm/src/lib.rs` (Phase 2), beside `move_vertices` at :141.
+
+```rust
+#[wasm_bindgen(js_name = moveAndIntegrate)]
+pub fn move_and_integrate(&mut self, verts: Vec<u32>, dx: f64, dy: f64, dz: f64) -> Result<(), JsError>;
+```
+
+TypeScript, `app/src/kernel/model.ts` (Phase 2), beside `moveVertices` at :142.
+
+```ts
+/** Committed move: folds, moves, welds and settles. Preview uses moveVertices. */
+moveAndIntegrate(verts: number[], d: Vec3): void;
+```
+
+TypeScript, `app/src/tools/move.ts` (Phase 4). `commit()` keeps its signature; its body changes from committing the preview transaction to replacing it:
+
+1. `model.abort()` the preview transaction.
+2. `model.begin("Move")`; `model.moveAndIntegrate(m.verts, local)` when `m.verts.length`; `model.setTransform(...)` for each instance as `apply()` does; `model.commit()`.
+3. On error: `model.abort()`, `this.host.flash(errorMessage(e))`.
+
+`apply()` (preview) is unchanged and keeps calling `moveVertices`.
 
 ### Data Models
 
-[Schema definitions, dataclass structures, validation rules]
+No record or file-format change. `Vertex`, `Edge`, `Face` and `FileDefinition` keep their fields. Fold diagonals are plain `Edge` records; the triangles are plain `Face` records.
 
-```python
-@dataclass
-class User:
-    id: int
-    name: str
-    email: str
+Ordering contract inside `move_and_integrate`:
+
 ```
+check owners (all Vertex.owner equal → def; else Degenerate) and check_def_unlocked(def)
+fold_for_move(verts, offset)          // may add edges and replace faces; verts unchanged
+move_vertices(verts, offset)          // refresh_face succeeds for every touched face after folding
+integrate_moved(def, edges_of_vertices(verts))
+```
+
+Every write goes through the existing `set_*` setters, so the open transaction journals it and `undo` restores the previous arenas exactly (byte-equal `to_json`).
 
 ### Examples
 
-[Call sites showing how the interfaces are used, not how they are implemented]
+```rust
+// kernel/tests/move.rs: the shed ridge, lifted then nudged sideways, stays watertight.
+make_box(&mut d, 120.0, 96.0, 96.0);
+let ridge = d.add_line(ROOT, v(0.0, 48.0, 96.0), v(120.0, 48.0, 96.0)).unwrap();
+let verts = d.vertices_of(&[], &ridge);
+d.move_and_integrate(&verts, v(0.0, 0.0, 36.0)).unwrap();
+d.move_and_integrate(&verts, v(0.0, 10.0, 0.0)).unwrap();
+assert!(is_closed(&d, ROOT));
+validate(&d);
 
-```python
-result = process_data({"key": "value"})
-print(result.status)
+// One box's face moved onto another's: one solid, no internal face.
+let side = face_at(&d, ROOT, v(20.0, 5.0, 5.0), -V3::X);
+d.move_and_integrate(&d.vertices_of(&[side], &[]), v(-10.0, 0.0, 0.0)).unwrap();
+assert_eq!(faces(&d, ROOT).len(), 10);
+assert!(is_closed(&d, ROOT));
+
+// A corner lifted: the top folds into two triangles, nothing fails.
+let corner = d.find_vertex(ROOT, v(10.0, 10.0, 10.0)).unwrap();
+d.move_and_integrate(&[corner], v(0.0, 0.0, 3.0)).unwrap();
+assert_eq!(faces(&d, ROOT).len(), 7); // five sides stay planar; the top is two triangles
+assert_eq!(edge_count(&d, ROOT), 13);  // one fold diagonal
+assert!(is_closed(&d, ROOT));
+```
+
+```ts
+// app/src/tools/move.ts commit()
+model.abort();
+model.begin("Move");
+if (m.verts.length) model.moveAndIntegrate(m.verts, this.host.toLocalDir(m.good));
+for (const inst of m.instances) model.setTransform(inst.id, mul(translation(local), inst.transform));
+model.commit();
+```
+
+```rust
+// kernel/src/pushpull.rs settle(), after Phase 1
+let cancelled = self.settle_faces(ctx, created)?;
+Ok(cancelled.contains(&cap))
 ```
 
 ## Validation Criteria
 
-[How to verify the implementation is correct: test commands, assertions, expected behavior]
-
 ```bash
-python -m pytest tests/test_feature.py
-# Expected: all tests pass
+cargo test --workspace
+# Expected: all pass, including unchanged kernel/tests/pushpull.rs (settle regression gate)
+# and the new kernel/tests/move.rs: ridge_lifted_and_nudged_stays_closed,
+# box_face_moved_onto_box_face_joins_them, instance_moved_onto_loose_geometry_never_sticks,
+# lifting_a_corner_folds_the_top, undo_after_each_integrated_move_restores_the_file;
+# kernel/tests/edit.rs: moving_one_corner_up_previews_without_folding (rewritten).
+
+npm run build:kernel && npm test
+# Expected: app/test/tools.test.ts passes, including the two new Move cases:
+# "commits a fold when a corner is lifted" and "welds a face moved onto another".
 ```
+
+Manual check on the shed sample (`buildSample`): lift the ridge with the Move tool, undo, redo; no error flashes.

@@ -1745,61 +1745,412 @@ kernel/tests/common/mod.rs:
 ⋮
 ```
 
-```
-[paste flux repomap output here]
-```
-
 ## Summary
 
-[1-3 sentence overview: what interfaces and contracts this spec defines, not how they are implemented]
+This spec defines the kernel contracts for face intersection (`Plane::intersect`, `Document::intersect_faces`, piercing-line cuts in `insert_segment`), a document check (`check::check`), a seeded randomized kernel test with a shrinker, the wasm and `Model` exposure of intersect and check, the app's problem report builder, and the shed walkthrough document. Edges from an intersection are inserted into the open context's definition only (SketchUp's rule); the other side is cut by repeating the command inside that group.
 
 ## Decisions
 
 ### Cited
 
-- [accepted ADRs this spec relies on, e.g. `0003 Title`]
+- `mvr2opid Tag lock enforced by the kernel`: `intersect_faces` calls `check_def_unlocked(ctx)` before any write and returns `Error::Locked` for a locked context, like `add_line` and `make_group`.
 
 ### Proposed
 
-- [ADRs in this sprint's `decisions/` directory, `status: proposed`]
+- None. No robust predicates are adopted and no crate is added (the fuzz test's RNG is inlined, as `kernel/examples/bench.rs` already does). If the randomized run proves that `tol::INTERSECT_SIN` cannot make intersection reliable, an ADR proposing exact predicates is written then, with the failing seed as its evidence.
 
 ## Technical Specifications
 
 ### Interfaces
 
-[Function signatures, class interfaces, method signatures]
+#### Phase 1: plane intersection math (`kernel/src/math.rs`, `kernel/src/tol.rs`)
 
-```python
-def process_data(input: dict) -> Result:
-    """Process input data and return result."""
+```rust
+// kernel/src/tol.rs
+/// Planes whose normals' cross product is shorter than this (the sine of the angle
+/// between them) are treated as parallel by intersection: the line would move by
+/// PLANE / INTERSECT_SIN under a PLANE-sized error. 1e-2 bounds that at 0.1".
+pub const INTERSECT_SIN: f64 = 1e-2;
+
+// kernel/src/math.rs
+impl Plane {
+    /// The line where two planes meet as (point, unit direction), or `None` when
+    /// the planes are parallel within `tol::INTERSECT_SIN`.
+    pub fn intersect(&self, o: &Plane) -> Option<(V3, V3)>;
+}
+
+/// Axis-aligned bounds of a point set, as (min, max). `None` for an empty set.
+pub fn bbox(points: impl Iterator<Item = V3>) -> Option<(V3, V3)>;
+
+/// True when two boxes overlap or touch within `tol::LENGTH`.
+pub fn bbox_overlap_3d(a: (V3, V3), b: (V3, V3)) -> bool;
 ```
+
+Contract: `intersect` returns `None` when `self.normal.cross(o.normal).len() < tol::INTERSECT_SIN`. The point returned is the point on the line closest to the origin; the direction is `self.normal.cross(o.normal).unit()`. Both planes contain the point within `tol::PLANE`.
+
+#### Phase 2: intersect faces (`kernel/src/intersect.rs`, `kernel/src/heal.rs`, `kernel/src/lib.rs`)
+
+```rust
+// kernel/src/intersect.rs
+/// What the selected faces are intersected against.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum IntersectWith {
+    /// Everything in `ctx`: its faces and the faces of instances placed in it, at any
+    /// depth, transformed into `ctx` coordinates.
+    Model,
+    /// Only the other faces in `faces` (and the faces of `instances`, when given).
+    Selection,
+}
+
+/// One segment to be drawn: the part of a plane–plane line inside both faces.
+pub struct Cut {
+    pub a: V3,
+    pub b: V3,
+    /// The face in `ctx` the segment cuts (`None` when both faces belong to instances).
+    pub face: Option<FId>,
+}
+
+impl Document {
+    /// Intersect Faces. For every pair of non-parallel faces whose bounding boxes
+    /// overlap, draw the common part of their intersection line into `ctx` and heal
+    /// the planes it lies in. Only `ctx`'s definition is written; faces of instances
+    /// are read, transformed into `ctx` coordinates, and never changed.
+    /// `faces` are faces of `ctx`; `instances` are instances placed in `ctx` whose
+    /// definitions (recursively) contribute faces. Returns the edges drawn.
+    pub fn intersect_faces(
+        &mut self,
+        ctx: DefId,
+        faces: &[FId],
+        instances: &[InstId],
+        with: IntersectWith,
+    ) -> Result<Vec<EId>, Error>;
+
+    /// The segments `intersect_faces` would draw, without writing. Used by the
+    /// tests and by `intersect_faces` itself.
+    pub fn intersection_cuts(
+        &self,
+        ctx: DefId,
+        faces: &[FId],
+        instances: &[InstId],
+        with: IntersectWith,
+    ) -> Vec<Cut>;
+}
+
+// kernel/src/heal.rs (new, next to face_region_contains at heal.rs:141)
+impl Document {
+    /// True when the 3D point `p`, projected into `face`'s plane, lies inside the
+    /// face's outer loop and outside its holes.
+    pub fn face_contains_point(&self, face: &Face, p: V3) -> bool;
+}
+
+// kernel/src/lib.rs
+pub mod check;
+pub mod intersect;
+pub use intersect::{Cut, IntersectWith};
+```
+
+Contracts:
+
+- `intersect_faces` calls `check_def_unlocked(ctx)` first (ADR mvr2opid). A face in `faces` not owned by `ctx`, or an instance in `instances` not placed in `ctx`, is `Error::Missing("face")` / `Error::Missing("instance")`. Empty `faces` with `IntersectWith::Selection` and no instances is `Error::Empty`.
+- Candidate set with `Model`: every face of `ctx` (`faces_in(ctx)`) plus every face reachable through `instances_in(ctx)` recursively, each transformed by the composed instance transforms (`mat_mul`, `mat_apply`) into `ctx` coordinates. With `Selection`: `faces` plus the faces reachable through `instances`.
+- A pair is a candidate when at least one face is in `faces` (or in a given instance), the two faces are not the same face, their 3D bounding boxes overlap (`bbox_overlap_3d`) and `Plane::intersect` is `Some`.
+- A pair's segment is the plane–plane line clipped to the region of both faces: the line is cut by each face's loop edges (`segment_segment` against each loop edge in the line's plane), the resulting intervals are tested with `face_contains_point` at their midpoints, and intervals longer than `tol::LENGTH` inside both faces become `Cut`s.
+- Each `Cut` is drawn with `insert_segment(ctx, a, b)` and all drawn edges are passed once to `heal_around(ctx, &edges)`. An instance face is never modified; repeating the command inside the group cuts it.
+- Result edges are deduplicated and all exist after the call. `validate` holds after the call.
+
+#### Phase 3: piercing lines (`kernel/src/line.rs`)
+
+```rust
+impl Document {
+    /// Insert a segment's edges without healing faces. In addition to the existing
+    /// vertex, crossing and overlap cuts, the segment is split where it pierces a
+    /// face of `ctx` (passes through the face's interior, not lying in its plane),
+    /// and the piercing vertex is placed exactly on the face's plane so that
+    /// `heal_around` can split the face through it.
+    pub fn insert_segment(&mut self, ctx: DefId, a: V3, b: V3) -> Result<Vec<EId>, Error>;
+}
+```
+
+Contract: the signature does not change. Callers `add_line` (line.rs:17), `integrate_edges` (pushpull.rs:212) and `intersect_faces` get the behaviour for free. A segment whose endpoint lies on the face's plane (`Plane::contains`) is not a piercing; a segment lying in the plane is not a piercing. The piercing vertex is `vertex_at(ctx, p)` where `p` is the plane's `project` of the line–plane intersection point. The piercing vertex alone does not split the face: `heal_around` on a piercing-only vertex is a no-op unless other edges reach it; Phase 3's test draws two lines through a face and checks that the face gets a vertex on each and that drawing a line in the plane between the two piercing points splits the face.
+
+#### Phase 4: model check (`kernel/src/check.rs`, `kernel/examples/validate.rs`)
+
+```rust
+// kernel/src/check.rs
+#[derive(Clone, Debug, PartialEq)]
+pub enum FindingKind {
+    /// Two edges of one definition overlap along a length greater than `tol::LENGTH`.
+    OverlappingEdges,
+    /// A face has a vertex farther than `tol::PLANE` from its plane.
+    NonPlanarFace,
+    /// An edge borders no face.
+    FacelessEdge,
+    /// Two vertices of one definition are closer than `tol::LENGTH`.
+    DuplicateVertices,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct Finding {
+    pub kind: FindingKind,
+    pub owner: DefId,
+    pub faces: Vec<FId>,
+    pub edges: Vec<EId>,
+    pub vertices: Vec<VId>,
+    /// A point near the problem, in the owner definition's coordinates.
+    pub position: V3,
+}
+
+impl std::fmt::Display for Finding { /* "<kind> in definition N at (x, y, z): edges 3, 7" */ }
+
+/// Report problems a loaded document may carry that the editing operations never
+/// create. Never writes. An empty vector means clean.
+pub fn check(doc: &Document) -> Vec<Finding>;
+
+impl Finding {
+    /// Serialize as JSON `{kind, owner, faces, edges, vertices, position: [x, y, z]}`
+    /// (`kind` is the snake_case variant name).
+    pub fn to_json(&self) -> serde_json::Value;
+}
+```
+
+`kernel/examples/validate.rs`: after `Document::from_json` succeeds, call `check(&d)`; print the counts line as today, then each finding's `Display` on its own line to stdout, and exit with `ExitCode::FAILURE` when the list is not empty, `SUCCESS` otherwise.
+
+#### Phase 5: randomized kernel test (`kernel/tests/fuzz.rs`, `kernel/tests/fuzz_regressions.rs`)
+
+```rust
+// kernel/tests/fuzz.rs (test crate, not library code)
+/// xorshift64*: deterministic, no dependency.
+struct Rng(u64);
+impl Rng {
+    fn new(seed: u64) -> Rng;
+    fn next_u64(&mut self) -> u64;
+    fn f64(&mut self) -> f64;              // [0, 1)
+    fn range(&mut self, lo: i64, hi: i64) -> i64;
+    fn choose<'a, T>(&mut self, items: &'a [T]) -> Option<&'a T>;
+}
+
+/// One operation, described by geometry so that it stays meaningful after the
+/// operations before it change or when a shrinker removes them.
+#[derive(Clone, Debug)]
+enum Op {
+    Line { a: V3, b: V3 },
+    Rect { x0: f64, y0: f64, x1: f64, y1: f64, z: f64 },
+    /// The face found by `face_containing(ROOT, point, normal)`, if any.
+    PushPull { point: V3, normal: V3, distance: f64 },
+    /// Vertices of the face found as above, moved by `offset`.
+    MoveFace { point: V3, normal: V3, offset: V3 },
+    EraseFace { point: V3, normal: V3 },
+    /// The edge whose midpoint is nearest `point` within `tol::LENGTH * 10`.
+    EraseEdge { point: V3 },
+    /// Group the face found as above, with its edges.
+    GroupFace { point: V3, normal: V3 },
+    /// Intersect every face of ROOT with the model.
+    Intersect,
+    Undo,
+    Redo,
+}
+
+/// Apply one op inside a transaction. Ops whose target no longer exists are skipped
+/// (return Ok(false)); a kernel `Error` is tolerated and aborts the transaction;
+/// a panic or a `validate` failure is the bug the test looks for.
+fn apply(doc: &mut Document, op: &Op) -> Result<bool, Error>;
+
+/// Generate `steps` ops, grid-aligned to whole inches in [0, 120], with an erase bias
+/// that rises once the document holds more than ~300 edges.
+fn generate(rng: &mut Rng, steps: usize, doc: &mut Document) -> Vec<Op>;
+
+/// Run ops on a fresh document, validating after each. `Err` carries the index of
+/// the failing op and the panic message.
+fn run(ops: &[Op]) -> Result<(), (usize, String)>;
+
+/// Delta debugging: the shortest prefix-closed subsequence of `ops` that still fails.
+fn shrink(ops: Vec<Op>) -> Vec<Op>;
+
+/// A Rust test body replaying `ops`, ready to paste into fuzz_regressions.rs.
+fn render_test(name: &str, ops: &[Op]) -> String;
+
+#[test] fn random_operations_keep_invariants();            // seed 0x5eed_2026, 2_000 steps
+#[test] #[ignore] fn random_operations_long();             // seed from BUILDER_FUZZ_SEED or 1, 50_000 steps
+```
+
+On failure the CI test prints `seed=<n> steps=<n> failed at op <i>: <message>`, then runs `shrink` and prints the `render_test` output; the assertion message carries the same text so `cargo test` output alone reproduces the bug.
+
+`kernel/tests/fuzz_regressions.rs` is created by Phase 5 with a `mod common;` header and one test per bug found by the fuzz run during the sprint, each named after the kind of failure and carrying its seed in a comment. If the run finds none, the file holds the replay of the CI seed's first 20 ops as a smoke test, so the file and its format exist for later bugs.
+
+#### Phase 6: wasm and app commands (`kernel-wasm/src/lib.rs`, `app/src/kernel/model.ts`, `app/src/app.ts`, `app/index.html`)
+
+```rust
+// kernel-wasm/src/lib.rs
+impl Kernel {
+    /// Intersect `faces` (and the faces inside `instances`) in `ctx` with the model
+    /// (`with_model`) or with each other. Returns the edges drawn.
+    #[wasm_bindgen(js_name = intersectFaces)]
+    pub fn intersect_faces(&mut self, ctx: u32, faces: Vec<u32>, instances: Vec<u32>, with_model: bool) -> Result<Vec<u32>, JsError>;
+
+    /// `check::check` as a JSON array of findings.
+    #[wasm_bindgen(js_name = checkModel)]
+    pub fn check_model(&self) -> String;
+}
+```
+
+```ts
+// app/src/kernel/model.ts
+export interface Finding {
+  kind: "overlapping_edges" | "non_planar_face" | "faceless_edge" | "duplicate_vertices";
+  owner: number;
+  faces: number[];
+  edges: number[];
+  vertices: number[];
+  position: Vec3;
+}
+
+export class Model {
+  intersectFaces(ctx: number, faces: number[], instances: number[], withModel: boolean): number[];
+  checkModel(): Finding[];
+}
+
+// app/src/app.ts (private methods, bound to the new buttons in bindUi)
+private intersect(withModel: boolean): void;   // transact("Intersect Faces", ...), flash the edge count
+private checkModel(): void;                     // flash "Model check: clean" or list findings in a <dialog>
+private updateButtons(): void;                  // also: intersectModelBtn/intersectSelBtn disabled when no face or instance is selected
+```
+
+`app/index.html` gains three toolbar buttons next to `explodeBtn`: `intersectModelBtn` ("Intersect with model"), `intersectSelBtn` ("Intersect selection"), `checkBtn` ("Check model"), and a `<dialog id="findings">` with a `<ul>` for the findings list. No context menu this sprint.
+
+#### Phase 7: report a problem (`app/src/report.ts`, `app/src/kernel/model.ts`, `app/src/app.ts`)
+
+```ts
+// app/src/kernel/model.ts
+export class Model {
+  /** Names of the last transactions begun, oldest first, at most `JOURNAL_SIZE` (50). */
+  readonly journal: string[];
+  // `transact` and `begin` push the name; the array is a ring.
+}
+
+// app/src/report.ts
+export interface ProblemReport {
+  version: 1;
+  when: string;              // ISO date
+  fileName: string;
+  error: string;
+  operations: string[];      // Model.journal, oldest first
+  model: string;             // Model.toJson()
+}
+
+export function buildReport(model: Model, fileName: string, error: unknown): ProblemReport;
+export function reportFileName(fileName: string): string;   // "<stem>-report.json"
+```
+
+`app.ts` gains `private offerReport(e: unknown): void` that flashes the error (as today) and, when `confirm("Save a problem report?")` is accepted, downloads `JSON.stringify(buildReport(...))` with the `save()` Blob pattern. The four catch sites call `offerReport(e)` instead of `this.flash(errorMessage(e))`: `eraseSelection` (app.ts:222), `makeGroup` (:238), `explode` (:255) and `open` (:308), plus the new `intersect` command. Because the kernel journal stores transaction names only, the report is the model JSON plus names, not replayable operations; the walkthrough and README say so.
+
+#### Phase 8: shed walkthrough (`docs/walkthrough-shed.md`, `docs/roadmap.md`)
+
+A document, not code. Sections: Prerequisites (built app at the hosted URL or `make start`), Steps (numbered, each with the tool, the typed VCB value and the expected flash or result), Results (face/edge counts from the perf line, the saved file name, the restore after closing the tab), Known gaps. It depends on NeverLoseWork (restore after closing the tab) and MovesThatStick (lifting the ridge welds) being merged; the plan states that dependency and the task is executed last.
 
 ### Data Models
 
-[Schema definitions, dataclass structures, validation rules]
+```rust
+// Finding JSON (check_model, validate example)
+{"kind":"non_planar_face","owner":0,"faces":[4],"edges":[],"vertices":[],"position":[60.0,48.0,96.0]}
 
-```python
-@dataclass
-class User:
-    id: int
-    name: str
-    email: str
+// Fuzz Op rendering (render_test output)
+#[test]
+fn shrunk_seed_0x5eed2026() {
+    let mut d = Document::new();
+    let ops = [
+        Op::Rect { x0: 0.0, y0: 0.0, x1: 24.0, y1: 12.0, z: 0.0 },
+        Op::PushPull { point: V3::new(12.0, 6.0, 0.0), normal: V3::new(0.0, 0.0, -1.0), distance: -10.0 },
+    ];
+    for op in &ops { apply(&mut d, op).ok(); validate(&d); }
+}
 ```
+
+```ts
+// ProblemReport file: <stem>-report.json
+{"version":1,"when":"2026-10-28T20:00:00.000Z","fileName":"shed.builder","error":"that would bend a face out of flat","operations":["Line","Push/Pull","Move"],"model":"{...}"}
+```
+
+Tolerances in play: `LENGTH = 1e-3`, `PLANE = 1e-3`, `ANGLE = 1e-9`, `AREA = 1e-6`, new `INTERSECT_SIN = 1e-2`. No existing constant changes.
 
 ### Examples
 
-[Call sites showing how the interfaces are used, not how they are implemented]
+```rust
+// kernel/tests/intersect.rs: gable roof group over a 10' x 8' shed box
+let mut d = Document::new();
+make_box(&mut d, 120.0, 96.0, 96.0);
+// roof planes drawn as loose faces, grouped, then intersected with the walls
+let roof = d.make_group(ROOT, &roof_faces, &[], &[]).unwrap();
+let edges = d.intersect_faces(ROOT, &wall_faces, &[roof], IntersectWith::Model).unwrap();
+assert!(!edges.is_empty());
+validate(&d);
+let above = face_at(&d, ROOT, v(60.0, 0.0, 100.0), -V3::Y);   // gable wall above the roof line
+d.erase(&[above], &[]).unwrap();
+validate(&d);
 
-```python
-result = process_data({"key": "value"})
-print(result.status)
+// selection-only: two crossing faces among three, the third untouched
+let edges = d.intersect_faces(ROOT, &[a, b], &[], IntersectWith::Selection).unwrap();
+assert_eq!(faces(&d, ROOT).len(), before + 2);
+
+// locked context (ADR mvr2opid)
+assert!(matches!(d.intersect_faces(locked_def, &[f], &[], IntersectWith::Model), Err(Error::Locked)));
+```
+
+```rust
+// kernel/tests/lines.rs: a line through a face
+rect_xy(&mut d, ROOT, 0.0, 0.0, 10.0, 10.0, 0.0);
+let e = d.add_line(ROOT, v(5.0, 5.0, -5.0), v(5.0, 5.0, 5.0)).unwrap();
+assert_eq!(e.len(), 2);                      // split at the piercing point
+assert_eq!(vertex_count(&d, ROOT), 7);       // 4 corners + 2 ends + 1 piercing vertex
+```
+
+```rust
+// kernel/tests/check.rs: a hand-built document with known problems
+let mut d = Document::new();
+make_box(&mut d, 10.0, 10.0, 10.0);
+let top = face_at(&d, ROOT, v(5.0, 5.0, 10.0), V3::Z);
+let mut f = d.face(top).cloned().unwrap();
+// push one vertex off the plane through the raw setter: a loaded file could carry this
+let v0 = f.outer[0]; let mut vx = d.vertex(v0).cloned().unwrap(); vx.pos.z += 0.5; d.set_vertex(v0, Some(vx));
+let findings = check(&d);
+assert!(findings.iter().any(|x| x.kind == FindingKind::NonPlanarFace && x.faces == vec![top]));
+```
+
+```ts
+// app/test/report.test.ts
+const m = newModel();
+m.transact("Line", () => m.addLine(ROOT, [0, 0, 0], [10, 0, 0]));
+const r = buildReport(m, "shed.builder", new Error("boom"));
+expect(r.operations).toEqual(["Line"]);
+expect(JSON.parse(r.model)).toBeTruthy();
+
+// app/test/intersect.test.ts
+const edges = m.intersectFaces(ROOT, faces, [], true);
+expect(m.checkModel()).toEqual([]);
+```
+
+```sh
+cargo run -p builder-kernel --example validate -- kernel/tests/fixtures/bad.builder
+# 1 definitions, 0 instances, 0 tags
+# non_planar_face in definition 0 at (0, 0, 10.5): faces 4
+# duplicate_vertices in definition 0 at (0, 0, 0): vertices 0, 9
+# exit 1
 ```
 
 ## Validation Criteria
 
-[How to verify the implementation is correct: test commands, assertions, expected behavior]
-
 ```bash
-python -m pytest tests/test_feature.py
-# Expected: all tests pass
+cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings
+cargo test --workspace
+# Expected: all pass, including kernel/tests/intersect.rs, lines.rs (piercing), pushpull.rs (regression),
+# check.rs, fuzz.rs (random_operations_keep_invariants, 2,000 steps, under 60 s), fuzz_regressions.rs
+cargo test -p builder-kernel --test fuzz -- --ignored random_operations_long
+# Expected: passes (nightly use; not run in CI)
+cargo run -p builder-kernel --example validate -- kernel/tests/fixtures/bad.builder; echo $?
+# Expected: prints a non_planar_face and a duplicate_vertices finding; exit 1
+cargo run -p builder-kernel --example validate -- kernel/tests/fixtures/clean.builder; echo $?
+# Expected: counts line only; exit 0
+npm run build:kernel && npm run typecheck && npm test
+# Expected: all pass, including app/test/intersect.test.ts, app/test/check.test.ts, app/test/report.test.ts
 ```
+
+Phase 8 (`docs/walkthrough-shed.md`) is verified by Patrick repeating it in the browser after NeverLoseWork and MovesThatStick are merged; `/verify-docs` checks its claims against the code.
