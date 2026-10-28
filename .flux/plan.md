@@ -3,3 +3,23 @@
 [Where this repo is and what comes next. Ordered steps; `flux plan` prints them and names the next one. Change a step with `flux plan set N STATUS`, add one with `flux plan add "<title>"`.]
 
 ## Steps
+
+### Step 1: Sprint 1.1 Never lose work: autosave, versions, restore, hosted offline build
+
+- **Status:** in progress
+- **Record:** sprint NeverLoseWork
+
+### Step 2: Sprint 1.2 Moves that stick: weld after Move, fold instead of reject
+
+- **Status:** in progress
+- **Record:** sprint MovesThatStick
+
+### Step 3: Sprint 1.3 Intersect and harden: Intersect Faces, randomized kernel test, model check
+
+- **Status:** in progress
+- **Record:** sprint IntersectAndHarden
+
+### Step 4: Sprint 2.1 Copy and arrays
+
+- **Status:** in progress
+- **Record:** sprint CopyAndArrays
