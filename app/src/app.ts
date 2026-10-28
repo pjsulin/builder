@@ -14,7 +14,7 @@ import { RectangleTool } from "./tools/rectangle";
 import { SelectTool } from "./tools/select";
 import { groupSelection, lockedMessage, surveyTags, SurveyPanel } from "./survey/mode";
 import { exportProposed } from "./survey/plan-export";
-import { AutosaveStore } from "./store/autosave";
+import { AutosaveStore, type Version } from "./store/autosave";
 import { Autosaver } from "./store/autosaver";
 import { errorMessage, Selection, type Overlay, type Tool, type ToolHost, type ToolPointer } from "./tools/tool";
 import { formatLength, type UnitSystem } from "./units";
@@ -58,10 +58,12 @@ export class App implements ToolHost {
   private vcbTyping = false;
   private fileName = "model.builder";
   private savedRevision = 0;
+  private readonly store: AutosaveStore;
   private readonly autosaver: Autosaver;
 
   /** `store` is the one main.ts already read the restore candidate from. */
   constructor(store = new AutosaveStore()) {
+    this.store = store;
     this.autosaver = new Autosaver({ store, onError: (e) => this.flash(`Autosave failed: ${errorMessage(e)}`) });
     this.view = new Viewport($("view"));
     this.inference = new InferenceEngine(() => this.pickScene, this.camera);
@@ -110,6 +112,7 @@ export class App implements ToolHost {
       this.pickScene = this.drawScene;
       this.selection.prune(this.model);
       this.updateButtons();
+      this.updateHeader();
       this.survey.update();
     }
     this.view.setScene(this.drawScene);
@@ -207,11 +210,72 @@ export class App implements ToolHost {
     this.selection.clear();
     const tags = surveyTags(model);
     this.activeTag = tags ? tags.Proposed.id : null;
-    this.refresh();
     this.savedRevision = saved ? this.model.revision : -1;
+    this.refresh();
     void this.autosaver.attach(model, name, !saved);
     this.zoomExtents();
     if (tags) this.flash("Survey model: Existing and Demo are locked, new groups go on Proposed");
+  }
+
+  /** On start, with the candidate main.ts read before the constructor's sample
+   *  load cleared the dirty flag. Resolves true when the model was restored. */
+  async offerRestore(candidate: Version | undefined): Promise<boolean> {
+    if (!candidate) return false;
+    const when = new Date(candidate.time).toLocaleString();
+    if (!confirm(`Restore ${candidate.fileName} autosaved ${when} after ${candidate.operation}?`)) {
+      await this.store.setDirty(false);
+      return false;
+    }
+    try {
+      this.loadModel(Model.fromJson(candidate.json), candidate.fileName, { saved: false });
+      this.flash(`Restored ${candidate.fileName} as of ${when}`);
+      return true;
+    } catch (e) {
+      this.flash(errorMessage(e));
+      return false;
+    }
+  }
+
+  /** Fill and open the versions dialog from the store, newest first. */
+  async showVersions(): Promise<void> {
+    const list = $("versionList");
+    list.replaceChildren();
+    const versions = await this.store.list();
+    if (!versions.length) {
+      const li = document.createElement("li");
+      li.className = "muted";
+      li.textContent = "No autosaves yet";
+      list.append(li);
+    }
+    for (const v of versions) {
+      const li = document.createElement("li");
+      const when = document.createElement("span");
+      when.className = "when";
+      when.textContent = new Date(v.time).toLocaleString();
+      const meta = document.createElement("span");
+      meta.className = "meta";
+      meta.textContent = `${v.operation} · ${v.fileName} · ${Math.max(1, Math.round(v.bytes / 1024))} KB`;
+      const open = document.createElement("button");
+      open.className = "btn";
+      open.textContent = "Open";
+      open.addEventListener("click", () => void this.openVersion(v.id));
+      li.append(when, meta, open);
+      list.append(li);
+    }
+    $<HTMLDialogElement>("versions").showModal();
+  }
+
+  private async openVersion(id: number): Promise<void> {
+    if (!this.confirmDiscard()) return;
+    const v = await this.store.get(id);
+    if (!v) return this.flash("That version has been dropped from the ring");
+    try {
+      this.loadModel(Model.fromJson(v.json), v.fileName, { saved: false });
+      this.flash(`Opened ${v.fileName} as of ${new Date(v.time).toLocaleString()}`);
+    } catch (e) {
+      this.flash(errorMessage(e));
+    }
+    $<HTMLDialogElement>("versions").close();
   }
 
   private undo(redo = false): void {
@@ -307,6 +371,7 @@ export class App implements ToolHost {
     setTimeout(() => URL.revokeObjectURL(a.href), 1000);
     this.savedRevision = this.model.revision;
     void this.autosaver.markClean();
+    this.updateHeader();
     this.flash(`Saved ${this.fileName}`);
   }
 
@@ -500,6 +565,11 @@ export class App implements ToolHost {
     $("perf").textContent = `${this.frameAvg.toFixed(1)} ms draw · ${st.faces.toLocaleString()} faces`;
   }
 
+  private updateHeader(): void {
+    $("fileName").textContent = this.fileName;
+    $("unsaved").hidden = this.model.revision === this.savedRevision;
+  }
+
   private updateButtons(): void {
     $<HTMLButtonElement>("undoBtn").disabled = !this.model.canUndo();
     $<HTMLButtonElement>("redoBtn").disabled = !this.model.canRedo();
@@ -595,6 +665,8 @@ export class App implements ToolHost {
     button("groupBtn", () => this.makeGroup());
     button("explodeBtn", () => this.explode());
     button("saveBtn", () => this.save());
+    button("versionsBtn", () => void this.showVersions());
+    button("versionsClose", () => $<HTMLDialogElement>("versions").close());
     button("openBtn", () => this.confirmDiscard() && $<HTMLInputElement>("fileInput").click());
     button("newBtn", () => this.confirmDiscard() && this.loadModel(new Model(), "model.builder"));
     button("sampleBtn", () => this.confirmDiscard() && this.loadModel(buildSample(), "sample.builder"));

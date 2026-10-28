@@ -109,13 +109,13 @@ Four phases, one commit each: an IndexedDB autosave ring (`app/src/store/autosav
 
 ### Phase 3: Restore, Versions and Header
 
-**Status:** pending
+**Status:** completed
 **Dependencies:** [Phase 2]
 
 #### Task 3.1: Header and dialog markup
 
 - **Type:** implement
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** none
 - **Files:**
   - Modify: app/index.html
@@ -126,7 +126,7 @@ Four phases, one commit each: an IndexedDB autosave ring (`app/src/store/autosav
 #### Task 3.2: Header state in App
 
 - **Type:** implement
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [3.1]
 - **Files:**
   - Modify: app/src/app.ts
@@ -136,7 +136,7 @@ Four phases, one commit each: an IndexedDB autosave ring (`app/src/store/autosav
 #### Task 3.3: Restore on start
 
 - **Type:** implement
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [3.2]
 - **Files:**
   - Modify: app/src/app.ts
@@ -147,7 +147,7 @@ Four phases, one commit each: an IndexedDB autosave ring (`app/src/store/autosav
 #### Task 3.4: Versions dialog
 
 - **Type:** implement
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [3.3]
 - **Files:**
   - Modify: app/src/app.ts
@@ -157,7 +157,7 @@ Four phases, one commit each: an IndexedDB autosave ring (`app/src/store/autosav
 #### Task 3.5: Restore logic tests
 
 - **Type:** test
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [3.3]
 - **Files:**
   - Modify: app/test/autosave.test.ts
@@ -167,7 +167,7 @@ Four phases, one commit each: an IndexedDB autosave ring (`app/src/store/autosav
 #### Task 3.6: README autosave and restore
 
 - **Type:** document
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [3.4]
 - **Files:**
   - Modify: README.md

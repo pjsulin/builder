@@ -1,7 +1,7 @@
 import { IDBFactory } from "fake-indexeddb";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { Model, ROOT } from "../src/kernel/model";
-import { buildStressTest } from "../src/samples";
+import { buildSample, buildStressTest } from "../src/samples";
 import { AutosaveStore, MAX_VERSIONS } from "../src/store/autosave";
 import { Autosaver, DEBOUNCE_MS } from "../src/store/autosaver";
 import { newModel } from "./helpers";
@@ -244,5 +244,51 @@ describe("Autosaver", () => {
     clock.advance(DEBOUNCE_MS);
     expect(await s.flush()).toBeUndefined();
     expect(errors.map((e) => (e as Error).message)).toEqual(["quota exceeded"]);
+  });
+});
+
+describe("restore", () => {
+  let clock: FakeClock;
+  let saver: Autosaver;
+
+  beforeEach(() => {
+    clock = new FakeClock();
+    saver = new Autosaver({ store, setTimer: clock.set, clearTimer: clock.clear, now: () => 1000 + clock.time });
+  });
+
+  it("the latest autosave restores with fresh undo history and round-trips, and Save withdraws the offer", async () => {
+    newModel();
+    const model = buildSample();
+    await saver.attach(model, "shed.builder");
+    expect(await store.dirty()).toBe(false);
+    model.transact("Line", () => model.addLine(ROOT, [0, 0, 0], [0, 0, 60]));
+    clock.advance(DEBOUNCE_MS);
+    await saver.flush();
+    expect(await store.dirty()).toBe(true);
+    const latest = (await store.latest())!;
+    expect(latest).toMatchObject({ fileName: "shed.builder", operation: "Line" });
+    const restored = Model.fromJson(latest.json);
+    expect(restored.canUndo()).toBe(false);
+    expect(restored.stats()).toEqual(model.stats());
+    expect(restored.toJson()).toBe(latest.json);
+    await saver.markClean();
+    expect(await store.dirty()).toBe(false);
+  });
+
+  it("the candidate read before the constructor's sample load survives it", async () => {
+    const model = newModel();
+    await saver.attach(model, "shed.builder");
+    model.transact("Line", () => model.addLine(ROOT, [0, 0, 0], [10, 0, 0]));
+    clock.advance(DEBOUNCE_MS);
+    await saver.flush();
+    // main.ts order: read the candidate, then construct App, whose sample load clears the flag.
+    const candidate = (await store.dirty()) ? await store.latest() : undefined;
+    await saver.attach(newModel(), "sample.builder", false);
+    expect(candidate).toBeDefined();
+    expect(await store.dirty()).toBe(false);
+    expect(Model.fromJson(candidate!.json).canUndo()).toBe(false);
+    expect(Model.fromJson(candidate!.json).stats()).toEqual(model.stats());
+    // A clean exit leaves nothing to offer.
+    expect((await store.dirty()) ? await store.latest() : undefined).toBeUndefined();
   });
 });

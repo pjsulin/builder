@@ -13,6 +13,7 @@ Early, but the core loop works on real geometry:
 - Tools: Select (click, Shift-toggle, window and crossing boxes), Line, Rectangle, Push/Pull, Move, Eraser, Orbit and Pan.
 - **Groups**: make, double-click to edit inside, explode. Grouped geometry stops sticking to everything else.
 - Undo/redo for every change, and save/open in the open `.builder` format.
+- **Autosave**: 3 seconds after each change the model is written to the browser's storage, keeping the last 10 versions. On start the app offers to restore the last autosave when the previous session ended with unsaved changes; the Versions button lists older autosaves and opens one.
 - **Attributes and tags** in the kernel and format: namespaced key–value data on definitions, instances and faces; tags with visibility and a lock the kernel enforces; material colours in the viewport.
 - **Survey mode**: a model written by `survey/` (below) opens with existing conditions locked, a tag strip, an attribute panel, and an export of what you draw back to a survey plan file.
 
@@ -42,7 +43,7 @@ make start     # build the kernel and start the dev server in the background
 make stop      # stop it
 ```
 
-`make start` prints the URL (http://localhost:5173/ by default). The app opens with a sample shed: try pushing the door in with Push/Pull (P).
+`make start` prints the URL (http://localhost:5173/ by default). The app opens with a sample shed: try pushing the door in with Push/Pull (P). The header shows the file name and an `unsaved` marker until you Save.
 
 | Command | What it does |
 | --- | --- |

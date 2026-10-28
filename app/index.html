@@ -10,11 +10,12 @@
 <body>
 <div class="app">
   <header>
-    <div class="brand"><b>Builder</b><span>Sticky push-pull modeling · feet and inches</span></div>
+    <div class="brand"><b>Builder</b><span>Sticky push-pull modeling · feet and inches</span><span class="file" id="fileName"></span><span class="unsaved" id="unsaved" hidden>unsaved</span></div>
     <div class="actions">
       <button class="btn" id="newBtn" title="New empty model">New</button>
       <button class="btn" id="openBtn" title="Open a .builder file (Ctrl+O)">Open</button>
       <button class="btn" id="saveBtn" title="Save as a .builder file (Ctrl+S)">Save</button>
+      <button class="btn" id="versionsBtn" title="Browse autosaved versions">Versions</button>
       <span class="sep" aria-hidden="true"></span>
       <button class="btn" id="undoBtn" title="Undo (Ctrl+Z)">Undo</button>
       <button class="btn" id="redoBtn" title="Redo (Ctrl+Y)">Redo</button>
@@ -62,6 +63,11 @@
     <label class="vcb"><span id="vcbLabel">Measurements</span><input id="vcb" autocomplete="off" spellcheck="false" aria-label="Measurements"></label>
   </footer>
 </div>
+<dialog id="versions">
+  <h2>Autosaved versions</h2>
+  <ul id="versionList"></ul>
+  <button class="btn" id="versionsClose">Close</button>
+</dialog>
 <script type="module" src="./src/main.ts"></script>
 </body>
 </html>
