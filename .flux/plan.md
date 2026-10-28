@@ -12,8 +12,9 @@
 
 ### Step 2: Sprint 1.2 Moves that stick: weld after Move, fold instead of reject
 
-- **Status:** in progress
+- **Status:** done
 - **Record:** sprint MovesThatStick
+- **Commit:** 6b3d86b
 
 ### Step 3: Sprint 1.3 Intersect and harden: Intersect Faces, randomized kernel test, model check
 
