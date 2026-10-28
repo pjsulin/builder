@@ -23,5 +23,6 @@
 
 ### Step 4: Sprint 2.1 Copy and arrays
 
-- **Status:** in progress
+- **Status:** done
 - **Record:** sprint CopyAndArrays
+- **Commit:** 898ecc0

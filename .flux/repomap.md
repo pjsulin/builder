@@ -1,4 +1,4 @@
-commit: 33f40d2
+commit: 898ecc0
 budget: 1000
 
 app/src/math.ts:
@@ -42,6 +42,8 @@ app/src/tools/tool.ts:
 │  shift: boolean;
 │  ctrl: boolean;
 │  alt: boolean;
+│  /** The copy modifier is held (Option on Mac, Ctrl elsewhere). */
+│  copy: boolean;
 ⋮
 
 app/src/units.ts:
@@ -79,9 +81,6 @@ kernel/src/math.rs:
 │        V3 { x, y, z }
 │    }
 │    pub fn dot(self, o: V3) -> f64 {
-⋮
-│    pub fn len(self) -> f64 {
-│        self.dot(self).sqrt()
 ⋮
 │    pub fn is_finite(self) -> bool {
 │        self.x.is_finite() && self.y.is_finite() && self.z.is_finite()
