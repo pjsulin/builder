@@ -17,15 +17,16 @@ fn a_box_copied_flush_welds_into_one_solid() {
     d.begin("Copy");
     let c = d.copy_geometry(ROOT, &f, &e, v(10.0, 0.0, 0.0)).unwrap();
     assert!(d.commit());
-    // The copy's left side landed on the original's right side and cancelled with it.
-    assert_eq!(c.faces.len(), 5);
-    assert!(c.faces.iter().all(|&x| d.face(x).is_some()));
+    // The copy's left side landed on the original's right side and cancelled with
+    // it, and the copy's other sides merged with the original's coplanar ones: one
+    // 20 x 10 x 10 box. Only the copy's far side keeps its id.
+    assert_eq!(c.faces.len(), 1);
+    assert_eq!(c.faces[0], face_at(&d, ROOT, v(20.0, 5.0, 5.0), V3::X));
     assert!(c.edges.iter().all(|&x| d.edge(x).is_some()));
-    assert_eq!(faces(&d, ROOT).len(), 10);
+    assert_eq!(faces(&d, ROOT).len(), 6);
+    assert_eq!(vertex_count(&d, ROOT), 8, "the seam's vertices dissolved");
     assert!(is_closed(&d, ROOT));
     assert!(approx(volume(&d, ROOT), 2000.0));
-    assert_eq!(vertex_count(&d, ROOT), 12, "the shared corners are one vertex each");
-    assert!(d.find_vertex(ROOT, v(10.0, 10.0, 10.0)).is_some());
     validate(&d);
     assert_eq!(d.undo(), Some("Copy".into()));
     assert_eq!(faces(&d, ROOT).len(), 6);
@@ -52,7 +53,7 @@ fn a_copy_clear_of_the_original_is_independent() {
     let c = d.copy_geometry(ROOT, &[], &e[..1], v(0.0, 0.0, 40.0)).unwrap();
     assert_eq!((c.faces.len(), c.edges.len()), (0, 1));
     validate(&d);
-    assert_eq!(d.copy_geometry(ROOT, &[], &[], v(1.0, 0.0, 0.0)), Err(Error::Empty));
+    assert!(matches!(d.copy_geometry(ROOT, &[], &[], v(1.0, 0.0, 0.0)), Err(Error::Empty)));
     assert!(d.copy_geometry(ROOT, &[top], &[], v(f64::NAN, 0.0, 0.0)).is_err());
 }
 
@@ -96,9 +97,11 @@ fn a_copied_group_gets_its_own_equal_definition() {
     assert_eq!(vertex_count(&d, i2.definition), 8);
     assert!(approx(volume(&d, i2.definition), 1000.0));
     let copied_top = face_at(&d, i2.definition, v(5.0, 5.0, 10.0), V3::Z);
+    let grouped_top = face_at(&d, def, v(5.0, 5.0, 10.0), V3::Z);
     let ct = d.face(copied_top).unwrap();
     assert_eq!(ct.material, Some(mat));
-    assert_eq!(ct.attributes, d.face(top).unwrap().attributes);
+    assert_eq!(ct.attributes, d.face(grouped_top).unwrap().attributes);
+    assert_eq!(ct.attributes["survey"]["kind"], "deck");
     validate(&d);
 
     assert_eq!(d.undo(), Some("Copy".into()));
@@ -152,7 +155,7 @@ fn locked_geometry_is_not_copied() {
     // The inner instance is on no tag, but its parent definition is locked.
     assert_eq!(d.copy_instance(inner, v(1.0, 0.0, 0.0)), Err(Error::Locked));
     let inner_faces = faces(&d, inner_def);
-    assert_eq!(d.copy_geometry(inner_def, &inner_faces, &[], v(1.0, 0.0, 0.0)), Err(Error::Locked));
+    assert!(matches!(d.copy_geometry(inner_def, &inner_faces, &[], v(1.0, 0.0, 0.0)), Err(Error::Locked)));
     assert_eq!(d.instances_in(ROOT).count(), 1);
     assert_eq!(d.instances_in(outer_def).count(), 1);
     d.set_tag_flags(tag, true, false).unwrap();
