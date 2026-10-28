@@ -158,26 +158,32 @@ impl Document {
         Ok(PushPullResult { face: face.or(Some(cap)), mode: PushPullMode::Extrude })
     }
 
-    /// Make newly created faces sticky with what they touch: merge overlapping edges,
-    /// cancel faces that land on opposite-facing faces (leaving an opening), and merge
-    /// faces that land beside same-facing coplanar faces. Returns true if `cap` was
-    /// cancelled.
+    /// Make newly created faces sticky with what they touch. Returns true if `cap`
+    /// was cancelled.
     fn settle(&mut self, ctx: DefId, created: &[FId], cap: FId) -> Result<bool, Error> {
+        let cancelled = self.settle_faces(ctx, created)?;
+        Ok(cancelled.contains(&cap))
+    }
+
+    /// The settle steps on any set of faces: merge overlapping edges, cancel faces
+    /// that land on opposite-facing faces (leaving an opening), and merge faces that
+    /// land beside same-facing coplanar faces. Returns the faces that were cancelled.
+    pub(crate) fn settle_faces(&mut self, ctx: DefId, faces: &[FId]) -> Result<Vec<FId>, Error> {
         let mut edges: Vec<EId> = Vec::new();
-        for &f in created {
+        for &f in faces {
             if let Some(face) = self.face(f) {
                 edges.extend(self.face_edges(face));
             }
         }
         self.integrate_edges(ctx, &edges)?;
-        let mut cap_gone = false;
-        for &f in created {
-            if self.cancel_against_opposite(ctx, f)? && f == cap {
-                cap_gone = true;
+        let mut cancelled = Vec::new();
+        for &f in faces {
+            if self.cancel_against_opposite(ctx, f)? {
+                cancelled.push(f);
             }
         }
         let mut edges: Vec<EId> = Vec::new();
-        for &f in created {
+        for &f in faces {
             if let Some(face) = self.face(f) {
                 edges.extend(self.face_edges(face));
             }
@@ -195,13 +201,13 @@ impl Document {
                 self.erase(&[], &[e])?;
             }
         }
-        Ok(cap_gone)
+        Ok(cancelled)
     }
 
     /// Merge edges with any existing geometry they overlap or touch. A face whose
     /// loop now touches itself (a notch pushed all the way across it) is rebuilt as
     /// separate pieces.
-    fn integrate_edges(&mut self, ctx: DefId, edges: &[EId]) -> Result<(), Error> {
+    pub(crate) fn integrate_edges(&mut self, ctx: DefId, edges: &[EId]) -> Result<(), Error> {
         let mut verts: HashSet<VId> = HashSet::new();
         let mut seen: HashSet<EId> = HashSet::new();
         for &e in edges {
@@ -243,7 +249,7 @@ impl Document {
 
     /// If face `f` lies on a coplanar face pointing the other way, cut that face along
     /// `f`'s outline and remove both overlapping pieces. Returns true if it did.
-    fn cancel_against_opposite(&mut self, ctx: DefId, f: FId) -> Result<bool, Error> {
+    pub(crate) fn cancel_against_opposite(&mut self, ctx: DefId, f: FId) -> Result<bool, Error> {
         let Some(plane) = self.face(f).map(|x| x.plane) else { return Ok(false) };
         let Some(pt) = self.face_interior_point(f) else { return Ok(false) };
         let (u, v) = plane.basis();
@@ -284,7 +290,7 @@ impl Document {
 
     /// If another face in the plane has exactly the same loops as `f` but faces the
     /// other way, delete both. Returns true if it did.
-    fn remove_coincident_faces(&mut self, ctx: DefId, plane: &Plane, f: FId) -> bool {
+    pub(crate) fn remove_coincident_faces(&mut self, ctx: DefId, plane: &Plane, f: FId) -> bool {
         let key = |face: &Face| {
             let mut v: Vec<VId> = face.loops().flatten().copied().collect();
             v.sort();

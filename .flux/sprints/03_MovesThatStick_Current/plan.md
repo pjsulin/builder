@@ -8,13 +8,13 @@ Make Move behave like SketchUp's: a committed move welds moved vertices and edge
 
 ### Phase 1: Shareable Settle
 
-**Status:** pending
+**Status:** completed
 **Dependencies:** none
 
 #### Task 1.1: Widen the settle helpers to pub(crate)
 
 - **Type:** refactor
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** none
 - **Files:**
   - Modify: kernel/src/pushpull.rs
@@ -24,7 +24,7 @@ Make Move behave like SketchUp's: a committed move welds moved vertices and edge
 #### Task 1.2: Extract settle_faces from settle
 
 - **Type:** refactor
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [1.1]
 - **Files:**
   - Modify: kernel/src/pushpull.rs
@@ -34,7 +34,7 @@ Make Move behave like SketchUp's: a committed move welds moved vertices and edge
 #### Task 1.3: Push/pull regression gate
 
 - **Type:** test
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [1.2]
 - **Files:**
   - Modify: kernel/tests/pushpull.rs

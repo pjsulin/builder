@@ -1,10 +1,11 @@
 ---
-sprint: "MovesThatStick"
 created: 2026-10-28
-start: null    # commit; set by `flux sprint move <Name> Current`, close diffs against it
-started: null  # date; set by the same move
-step: "2"
+sprint: MovesThatStick
+start: aac0bb8
+started: '2026-10-28'
+step: '2'
 ---
+
 # Requirements: MovesThatStick
 
 ## Background
