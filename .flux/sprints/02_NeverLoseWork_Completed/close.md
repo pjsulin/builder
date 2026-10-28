@@ -2,8 +2,7 @@
 
 - Start: dd1c760
 - Close: the commit whose message is `close(sprint-02): NeverLoseWork`
-- Tests: `flux test` at Gate 1 and Gate 6: exit code rule, exit 0 (cargo test, npm test 8 files / 96 tests, survey pytest 27 passed)
-- Branch: `sprint/never-lose-work` on top of `main` d388f6f plus one plain `style:` commit (dd1c760, `cargo fmt --all`; main's CI was red at "Kernel format and lint" before it). No other work stream in the range: `git log dd1c760..HEAD --invert-grep -F --grep='(sprint-02):'` is empty.
+- Tests: `flux test` at Gate 1 and Gate 6: exit code rule, exit 0 (cargo test, npm test 8 files / 96 tests, survey pytest 27 passed). Branch `sprint/never-lose-work` on `main` d388f6f plus one plain `style:` commit (dd1c760, `cargo fmt --all`; main's CI was red at "Kernel format and lint" before it); `git log dd1c760..HEAD --invert-grep -F --grep='(sprint-02):'` is empty, so no other work stream is in the range.
 
 ## Gate 2: Interface
 
@@ -85,7 +84,4 @@ Backlog under Impact: #mvr7ne51 (phone capture test) is cited as out of scope, n
 
 Backlog archived: none. Backlog created: none.
 
-## Not done by this session
-
-- Patrick: open https://pjsulin.github.io/builder/ after the merge on Chrome, Firefox and Safari; draw, kill the tab, reopen and accept the restore; disable the network and reload.
-- The deploy job runs on the merge to `main`; check the Pages URL after it.
+Waiting on Patrick after the merge: open https://pjsulin.github.io/builder/ on Chrome, Firefox and Safari; draw, kill the tab, reopen and accept the restore; disable the network and reload. The deploy job runs on the merge to `main`; check the Pages URL after it.
