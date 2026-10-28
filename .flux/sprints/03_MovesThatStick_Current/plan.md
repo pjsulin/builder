@@ -90,23 +90,23 @@ Make Move behave like SketchUp's: a committed move welds moved vertices and edge
 
 ### Phase 3: Fold Instead of Reject
 
-**Status:** pending
+**Status:** completed
 **Dependencies:** [Phase 2]
 
 #### Task 3.1: fold_diagonals and fold_for_move
 
 - **Type:** implement
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [Phase 2]
 - **Files:**
   - Modify: kernel/src/edit.rs
 - **Context:** [spec.md§Interfaces](spec.md#interfaces), [spec.md§Decisions](spec.md#decisions)
-- **Description:** Add the pure `fold_diagonals(pts, normal) -> Vec<(usize, usize)>` (pick the diagonal whose two sub-polygon planes have the largest maximum dot with `normal`, so one piece stays as flat as possible and the hinge runs between the moved vertex's neighbours; recurse on sub-polygons not planar within `tol::PLANE`) and `fold_for_move(verts, offset)`: for each face using a moved vertex whose outer loop at post-move positions fails `Plane::contains`, a holed face returns `Error::NotPlanar`; otherwise add the diagonals with `add_edge`, `remove_face`, and `add_face` one triangle per piece with the old normal, material, back_material and attributes.
+- **Description:** Add the pure `fold_diagonals(pts, normal) -> Vec<(usize, usize)>` (pick the diagonal whose two sub-polygon planes have the largest maximum dot with `normal`, so one piece stays as flat as possible and the hinge runs between the moved vertex's neighbours; recurse on sub-polygons not planar within `tol::PLANE`) and `fold_for_move(verts, offset)` (2026-10-28: `fold_diagonals` is `pub`, wrapping a private `fold_pieces` that also returns the piece loops `fold_for_move` needs; a crate-private wrapper used only by tests fails clippy's dead-code lint. spec.md § Interfaces amended.): for each face using a moved vertex whose outer loop at post-move positions fails `Plane::contains`, a holed face returns `Error::NotPlanar`; otherwise add the diagonals with `add_edge`, `remove_face`, and `add_face` one triangle per piece with the old normal, material, back_material and attributes.
 
 #### Task 3.2: Fold in move_and_integrate; preview tolerates bent faces
 
 - **Type:** implement
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [3.1]
 - **Files:**
   - Modify: kernel/src/edit.rs
@@ -116,7 +116,7 @@ Make Move behave like SketchUp's: a committed move welds moved vertices and edge
 #### Task 3.3: Fold tests and rewrite the planarity test
 
 - **Type:** test
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [3.2]
 - **Files:**
   - Modify: kernel/tests/move.rs

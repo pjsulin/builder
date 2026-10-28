@@ -14,14 +14,16 @@ fn moving_the_top_face_of_a_box_stretches_it() {
 }
 
 #[test]
-fn moving_one_corner_up_fails_because_faces_would_bend() {
+fn moving_one_corner_up_previews_without_folding() {
     let mut d = Document::new();
     make_box(&mut d, 10.0, 10.0, 10.0);
     d.commit();
     let before = d.to_json();
     let corner = d.find_vertex(ROOT, v(10.0, 10.0, 10.0)).unwrap();
     d.begin("Move");
-    assert_eq!(d.move_vertices(&[corner], v(0.0, 0.0, 3.0)).unwrap_err(), Error::NotPlanar);
+    d.move_vertices(&[corner], v(0.0, 0.0, 3.0)).unwrap();
+    assert_eq!(faces(&d, ROOT).len(), 6, "the preview leaves the bent top as one face");
+    assert_eq!(d.pos(corner), v(10.0, 10.0, 13.0));
     d.abort();
     assert_eq!(d.to_json(), before);
 }

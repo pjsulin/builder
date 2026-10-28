@@ -1900,7 +1900,9 @@ impl Document {
 /// to `normal` (largest maximum dot product: one piece stays as flat as possible, the
 /// hinge runs between the moved vertex's neighbours) is chosen; a sub-polygon already planar
 /// within `tol::PLANE` is not split further. Returns an empty Vec for a planar input.
-pub(crate) fn fold_diagonals(pts: &[V3], normal: V3) -> Vec<(usize, usize)>;
+pub fn fold_diagonals(pts: &[V3], normal: V3) -> Vec<(usize, usize)>;
+// (pub, not pub(crate): `fold_for_move` consumes the pieces through the private
+// `fold_pieces`, so a crate-private `fold_diagonals` would be dead code under clippy.)
 ```
 
 Rust, `kernel-wasm/src/lib.rs` (Phase 2), beside `move_vertices` at :141.

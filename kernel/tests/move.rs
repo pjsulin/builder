@@ -157,3 +157,44 @@ fn vertex_moved_onto_a_vertex_merges_into_it() {
     assert_eq!(faces(&d, ROOT).len(), 1, "a dangling line adds no face");
     validate(&d);
 }
+
+#[test]
+fn lifting_a_corner_folds_the_top() {
+    let mut d = Document::new();
+    make_box(&mut d, 10.0, 10.0, 10.0);
+    d.commit();
+    let before = d.to_json();
+    let corner = d.find_vertex(ROOT, v(10.0, 10.0, 10.0)).unwrap();
+    d.begin("Move");
+    d.move_and_integrate(&[corner], v(0.0, 0.0, 3.0)).unwrap();
+    assert_eq!(faces(&d, ROOT).len(), 7, "five sides stay planar; the top is two triangles");
+    assert_eq!(edge_count(&d, ROOT), 13, "one fold diagonal");
+    // The hinge runs between the lifted corner's neighbours, so one triangle stays flat.
+    let a = d.find_vertex(ROOT, v(10.0, 0.0, 10.0)).unwrap();
+    let b = d.find_vertex(ROOT, v(0.0, 10.0, 10.0)).unwrap();
+    assert!(d.edge_between(a, b).is_some());
+    assert!(d.face_containing(ROOT, v(2.0, 2.0, 10.0), V3::Z).is_some());
+    assert!(is_closed(&d, ROOT));
+    assert!(approx(volume(&d, ROOT), 1000.0 + 50.0));
+    validate(&d);
+    assert!(d.commit());
+    assert_eq!(d.undo(), Some("Move".to_string()));
+    assert_eq!(d.to_json(), before);
+}
+
+#[test]
+fn a_folded_face_keeps_its_material_and_attributes() {
+    let mut d = Document::new();
+    make_box(&mut d, 10.0, 10.0, 10.0);
+    let top = face_at(&d, ROOT, v(5.0, 5.0, 10.0), V3::Z);
+    d.set_attribute(AttrTarget::Face(top), "survey", "kind", Some("roof".into())).unwrap();
+    let corner = d.find_vertex(ROOT, v(10.0, 10.0, 10.0)).unwrap();
+    d.move_and_integrate(&[corner], v(0.0, 0.0, 3.0)).unwrap();
+    let roofs: Vec<FId> =
+        d.faces_in(ROOT).filter(|(_, f)| f.plane.normal.z > 0.5).map(|(id, _)| id).collect();
+    assert_eq!(roofs.len(), 2);
+    for f in roofs {
+        assert_eq!(d.attributes(AttrTarget::Face(f)).unwrap()["survey"]["kind"], "roof");
+    }
+    validate(&d);
+}
