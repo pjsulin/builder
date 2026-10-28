@@ -6,6 +6,7 @@
 //!
 //! * [`Document::add_line`] draws an edge, welding, splitting and creating faces.
 //! * [`Document::push_pull`] extrudes or stretches any planar face.
+//! * [`Document::intersect_faces`] draws the edges where faces cross each other.
 //! * [`Document::move_vertices`] previews a move, [`Document::move_and_integrate`] commits
 //!   one (fold, weld, settle), [`Document::erase`] removes geometry.
 //! * [`Document::make_group`], [`Document::explode`] isolate geometry.
@@ -19,6 +20,7 @@ pub mod edit;
 pub mod format;
 pub mod group;
 pub mod heal;
+pub mod intersect;
 pub mod line;
 pub mod math;
 pub mod mesh;
@@ -27,6 +29,7 @@ pub mod tol;
 pub mod topo;
 
 pub use doc::*;
+pub use intersect::{Cut, IntersectWith};
 pub use math::{Plane, V3};
 pub use pushpull::{PushPullMode, PushPullResult};
 

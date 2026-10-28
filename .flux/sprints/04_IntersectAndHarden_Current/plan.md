@@ -55,13 +55,13 @@ Call sites that the changed behaviour reaches (from `ast-grep`): `insert_segment
 
 ### Phase 2: Intersect Faces
 
-**Status:** pending
+**Status:** completed
 **Dependencies:** [Phase 1]
 
 #### Task 2.1: 3D point-in-face helper
 
 - **Type:** implement
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** none
 - **Files:**
   - Modify: kernel/src/heal.rs
@@ -71,7 +71,7 @@ Call sites that the changed behaviour reaches (from `ast-grep`): `insert_segment
 #### Task 2.2: intersect module
 
 - **Type:** implement
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [2.1]
 - **Files:**
   - Create: kernel/src/intersect.rs
@@ -82,7 +82,7 @@ Call sites that the changed behaviour reaches (from `ast-grep`): `insert_segment
 #### Task 2.3: Intersect tests
 
 - **Type:** test
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [2.2]
 - **Files:**
   - Create: kernel/tests/intersect.rs
@@ -92,7 +92,7 @@ Call sites that the changed behaviour reaches (from `ast-grep`): `insert_segment
 #### Task 2.4: Intersection in the architecture doc
 
 - **Type:** document
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [2.2]
 - **Files:**
   - Modify: docs/architecture.md

@@ -56,6 +56,13 @@ impl Document {
         point_in_polygon(p, &poly(&face.outer)) && !face.holes.iter().any(|h| point_in_polygon(p, &poly(h)))
     }
 
+    /// True when the 3D point `p`, projected into `face`'s plane, lies inside the
+    /// face's outer loop and outside its holes.
+    pub fn face_contains_point(&self, face: &Face, p: V3) -> bool {
+        let (u, v) = face.plane.basis();
+        self.face_region_contains(face, to_2d(p, u, v), u, v)
+    }
+
     fn near_face_boundary(&self, face: &Face, p: V3) -> bool {
         face.loops().any(|lp| {
             (0..lp.len())
