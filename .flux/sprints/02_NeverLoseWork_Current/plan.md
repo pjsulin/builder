@@ -54,13 +54,13 @@ Four phases, one commit each: an IndexedDB autosave ring (`app/src/store/autosav
 
 ### Phase 2: Autosave Scheduling
 
-**Status:** pending
+**Status:** completed
 **Dependencies:** [Phase 1]
 
 #### Task 2.1: Model commit hook
 
 - **Type:** implement
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** none
 - **Files:**
   - Modify: app/src/kernel/model.ts
@@ -70,7 +70,7 @@ Four phases, one commit each: an IndexedDB autosave ring (`app/src/store/autosav
 #### Task 2.2: Autosaver
 
 - **Type:** implement
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [2.1]
 - **Files:**
   - Create: app/src/store/autosaver.ts
@@ -80,7 +80,7 @@ Four phases, one commit each: an IndexedDB autosave ring (`app/src/store/autosav
 #### Task 2.3: Wire the App
 
 - **Type:** implement
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [2.2]
 - **Files:**
   - Modify: app/src/app.ts
@@ -90,7 +90,7 @@ Four phases, one commit each: an IndexedDB autosave ring (`app/src/store/autosav
 #### Task 2.4: Scheduling tests
 
 - **Type:** test
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [2.2, 2.3]
 - **Files:**
   - Modify: app/test/autosave.test.ts
@@ -100,7 +100,7 @@ Four phases, one commit each: an IndexedDB autosave ring (`app/src/store/autosav
 #### Task 2.5: Document scheduling
 
 - **Type:** document
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [2.2]
 - **Files:**
   - Modify: docs/architecture.md

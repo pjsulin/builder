@@ -179,6 +179,8 @@ Autosave keeps the open model in the browser, in one IndexedDB database named `b
 
 The ring keeps at most 10 versions and 50 MB: after each write the oldest is dropped until both hold, and the version just written is never dropped. The stress model's JSON is 1,014,815 bytes, so 50 MB holds about 50 stress saves and the count limit binds first for anything; 10 versions is enough to step back past a bad edit without the dialog becoming a history browser. A version is the whole JSON, not journal deltas: `toJson()` is already the file format, restoring one is `Model.fromJson`, and the journal stays free to change shape.
 
+Writes hang off the model's commit points, not its `revision` counter: `Model.onCommit` fires from `commit()`, `undo()` and `redo()` (labeled `Undo <name>` / `Redo <name>`), never from `abort()`, and `changed()` bumps `revision` on every preview step, so a drag that aborts and re-applies its preview per pointer move schedules nothing. The `Autosaver` (`app/src/store/autosaver.ts`) restarts a 3 s debounce on each commit; its timer callback is the only place `toJson()` runs (12 ms on the stress model), and the store write is awaited outside the render loop. Save and loading a file clear the dirty flag and cancel a pending write.
+
 ## 4. File format
 
 **Decision:** an open, documented JSON format, `.builder`, written and read by the kernel. The spec lives in `docs/file-format.md`.

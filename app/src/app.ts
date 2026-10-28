@@ -14,6 +14,8 @@ import { RectangleTool } from "./tools/rectangle";
 import { SelectTool } from "./tools/select";
 import { groupSelection, lockedMessage, surveyTags, SurveyPanel } from "./survey/mode";
 import { exportProposed } from "./survey/plan-export";
+import { AutosaveStore } from "./store/autosave";
+import { Autosaver } from "./store/autosaver";
 import { errorMessage, Selection, type Overlay, type Tool, type ToolHost, type ToolPointer } from "./tools/tool";
 import { formatLength, type UnitSystem } from "./units";
 import { CameraModel } from "./view/camera";
@@ -56,8 +58,11 @@ export class App implements ToolHost {
   private vcbTyping = false;
   private fileName = "model.builder";
   private savedRevision = 0;
+  private readonly autosaver: Autosaver;
 
-  constructor() {
+  /** `store` is the one main.ts already read the restore candidate from. */
+  constructor(store = new AutosaveStore()) {
+    this.autosaver = new Autosaver({ store, onError: (e) => this.flash(`Autosave failed: ${errorMessage(e)}`) });
     this.view = new Viewport($("view"));
     this.inference = new InferenceEngine(() => this.pickScene, this.camera);
     const nav = () => this.cameraChanged();
@@ -188,7 +193,10 @@ export class App implements ToolHost {
 
   // ---- model lifecycle ----
 
-  loadModel(model: Model, name: string): void {
+  /** `saved: false` marks a restored or version-opened model as unsaved
+   *  (savedRevision = -1) and keeps the autosave store dirty. */
+  loadModel(model: Model, name: string, opts: { saved?: boolean } = {}): void {
+    const saved = opts.saved ?? true;
     this.tool?.deactivate();
     this.model = model;
     this.fileName = name;
@@ -200,7 +208,8 @@ export class App implements ToolHost {
     const tags = surveyTags(model);
     this.activeTag = tags ? tags.Proposed.id : null;
     this.refresh();
-    this.savedRevision = this.model.revision;
+    this.savedRevision = saved ? this.model.revision : -1;
+    void this.autosaver.attach(model, name, !saved);
     this.zoomExtents();
     if (tags) this.flash("Survey model: Existing and Demo are locked, new groups go on Proposed");
   }
@@ -297,6 +306,7 @@ export class App implements ToolHost {
     a.click();
     setTimeout(() => URL.revokeObjectURL(a.href), 1000);
     this.savedRevision = this.model.revision;
+    void this.autosaver.markClean();
     this.flash(`Saved ${this.fileName}`);
   }
 
