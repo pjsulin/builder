@@ -8,13 +8,13 @@ Four phases, one commit each: an IndexedDB autosave ring (`app/src/store/autosav
 
 ### Phase 1: Autosave Store
 
-**Status:** pending
+**Status:** completed
 **Dependencies:** none
 
 #### Task 1.1: Add fake-indexeddb
 
 - **Type:** implement
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** none
 - **Files:**
   - Modify: package.json
@@ -25,17 +25,17 @@ Four phases, one commit each: an IndexedDB autosave ring (`app/src/store/autosav
 #### Task 1.2: AutosaveStore ring
 
 - **Type:** implement
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** none
 - **Files:**
   - Create: app/src/store/autosave.ts
 - **Context:** [spec.md§Interfaces](spec.md#interfaces), [spec.md§Data Models](spec.md#data-models)
-- **Description:** `AutosaveStore` over IndexedDB database `builder` with stores `versions` (autoIncrement) and `meta` (`dirty`); `put` appends then trims to `MAX_VERSIONS` / `MAX_BYTES` without dropping the newest; `list`, `get`, `latest`, `dirty`, `setDirty`, `clear`. The `IDBFactory` is a constructor argument so tests inject fake-indexeddb.
+- **Description:** `AutosaveStore` over IndexedDB database `builder` with stores `versions` (autoIncrement) and `meta` (`dirty`); `put` appends then trims to `MAX_VERSIONS` / `MAX_BYTES` without dropping the newest; `list`, `get`, `latest`, `dirty`, `setDirty`, `clear`. The `IDBFactory` is a constructor argument so tests inject fake-indexeddb. (2026-10-28: the constructor also takes an optional `limits` argument, `{ versions?, bytes? }`, so Task 1.3's byte-budget test runs with small strings instead of 50 MB of JSON; spec.md § Interfaces amended to match.)
 
 #### Task 1.3: Store tests
 
 - **Type:** test
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [1.1, 1.2]
 - **Files:**
   - Create: app/test/autosave.test.ts
@@ -45,7 +45,7 @@ Four phases, one commit each: an IndexedDB autosave ring (`app/src/store/autosav
 #### Task 1.4: Document the store
 
 - **Type:** document
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [1.2]
 - **Files:**
   - Modify: docs/architecture.md
@@ -54,13 +54,13 @@ Four phases, one commit each: an IndexedDB autosave ring (`app/src/store/autosav
 
 ### Phase 2: Autosave Scheduling
 
-**Status:** pending
+**Status:** completed
 **Dependencies:** [Phase 1]
 
 #### Task 2.1: Model commit hook
 
 - **Type:** implement
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** none
 - **Files:**
   - Modify: app/src/kernel/model.ts
@@ -70,7 +70,7 @@ Four phases, one commit each: an IndexedDB autosave ring (`app/src/store/autosav
 #### Task 2.2: Autosaver
 
 - **Type:** implement
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [2.1]
 - **Files:**
   - Create: app/src/store/autosaver.ts
@@ -80,7 +80,7 @@ Four phases, one commit each: an IndexedDB autosave ring (`app/src/store/autosav
 #### Task 2.3: Wire the App
 
 - **Type:** implement
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [2.2]
 - **Files:**
   - Modify: app/src/app.ts
@@ -90,7 +90,7 @@ Four phases, one commit each: an IndexedDB autosave ring (`app/src/store/autosav
 #### Task 2.4: Scheduling tests
 
 - **Type:** test
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [2.2, 2.3]
 - **Files:**
   - Modify: app/test/autosave.test.ts
@@ -100,22 +100,22 @@ Four phases, one commit each: an IndexedDB autosave ring (`app/src/store/autosav
 #### Task 2.5: Document scheduling
 
 - **Type:** document
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [2.2]
 - **Files:**
   - Modify: docs/architecture.md
 - **Context:** [spec.md§Interfaces](spec.md#interfaces)
-- **Description:** In the Storage subsection, state the hook (`Model.onCommit` from `commit`/`undo`/`redo`, not `revision`, because `changed()` bumps `revision` per preview), the 3 s debounce, and that `toJson()` (12 ms on the stress model) runs only on the timer.
+- **Description:** In the Storage subsection, state the hook (`Model.onCommit` from `commit`/`undo`/`redo`, not `revision`, because `changed()` bumps `revision` per preview), the 3 s debounce, and that `toJson()` (12 ms on the stress model) runs only on the timer. (2026-10-28, close: a cold first `toJson()` on the stress model measured 30 ms in Node; the doc states both numbers.)
 
 ### Phase 3: Restore, Versions and Header
 
-**Status:** pending
+**Status:** completed
 **Dependencies:** [Phase 2]
 
 #### Task 3.1: Header and dialog markup
 
 - **Type:** implement
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** none
 - **Files:**
   - Modify: app/index.html
@@ -126,7 +126,7 @@ Four phases, one commit each: an IndexedDB autosave ring (`app/src/store/autosav
 #### Task 3.2: Header state in App
 
 - **Type:** implement
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [3.1]
 - **Files:**
   - Modify: app/src/app.ts
@@ -136,7 +136,7 @@ Four phases, one commit each: an IndexedDB autosave ring (`app/src/store/autosav
 #### Task 3.3: Restore on start
 
 - **Type:** implement
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [3.2]
 - **Files:**
   - Modify: app/src/app.ts
@@ -147,7 +147,7 @@ Four phases, one commit each: an IndexedDB autosave ring (`app/src/store/autosav
 #### Task 3.4: Versions dialog
 
 - **Type:** implement
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [3.3]
 - **Files:**
   - Modify: app/src/app.ts
@@ -157,7 +157,7 @@ Four phases, one commit each: an IndexedDB autosave ring (`app/src/store/autosav
 #### Task 3.5: Restore logic tests
 
 - **Type:** test
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [3.3]
 - **Files:**
   - Modify: app/test/autosave.test.ts
@@ -167,7 +167,7 @@ Four phases, one commit each: an IndexedDB autosave ring (`app/src/store/autosav
 #### Task 3.6: README autosave and restore
 
 - **Type:** document
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [3.4]
 - **Files:**
   - Modify: README.md
@@ -176,13 +176,13 @@ Four phases, one commit each: an IndexedDB autosave ring (`app/src/store/autosav
 
 ### Phase 4: Hosted Build and Offline
 
-**Status:** pending
+**Status:** completed
 **Dependencies:** [Phase 3]
 
 #### Task 4.1: Service worker and precache plugin
 
 - **Type:** implement
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** none
 - **Files:**
   - Create: app/sw.js
@@ -193,7 +193,7 @@ Four phases, one commit each: an IndexedDB autosave ring (`app/src/store/autosav
 #### Task 4.2: Register the worker
 
 - **Type:** implement
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [4.1]
 - **Files:**
   - Modify: app/src/main.ts
@@ -203,7 +203,7 @@ Four phases, one commit each: an IndexedDB autosave ring (`app/src/store/autosav
 #### Task 4.3: Precache check script and CI step
 
 - **Type:** test
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [4.1]
 - **Files:**
   - Create: scripts/check-precache.mjs
@@ -214,7 +214,7 @@ Four phases, one commit each: an IndexedDB autosave ring (`app/src/store/autosav
 #### Task 4.4: Pages deploy job
 
 - **Type:** implement
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [4.3]
 - **Files:**
   - Modify: .github/workflows/ci.yml
@@ -224,7 +224,7 @@ Four phases, one commit each: an IndexedDB autosave ring (`app/src/store/autosav
 #### Task 4.5: Hosting and offline docs
 
 - **Type:** document
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [4.4]
 - **Files:**
   - Modify: README.md

@@ -1,10 +1,11 @@
 ---
-sprint: "NeverLoseWork"
 created: 2026-10-28
-start: null    # commit; set by `flux sprint move <Name> Current`, close diffs against it
-started: null  # date; set by the same move
-step: "1"
+sprint: NeverLoseWork
+start: dd1c760
+started: '2026-10-28'
+step: '1'
 ---
+
 # Requirements: NeverLoseWork
 
 ## Background
@@ -66,25 +67,25 @@ A model survives a closed tab, a crash or a reload, with no action by the user.
 
 ### For Feature 1
 
-- [ ] A headless test (fake IndexedDB) shows a committed change produces one version after the debounce, labeled with the operation name, and the ring never exceeds its count or byte budget.
-- [ ] A measured test shows no `toJson` or store write happens during a preview (per pointer move), only after commit plus debounce.
+- [x] A headless test (fake IndexedDB) shows a committed change produces one version after the debounce, labeled with the operation name, and the ring never exceeds its count or byte budget. Evidence: `app/test/autosave.test.ts` "writes once after commit plus the debounce, never during previews", "keeps the last MAX_VERSIONS and drops the oldest", "drops the oldest until under the byte budget, never the newest" (npm test: 8 files, 96 tests passed).
+- [x] A measured test shows no `toJson` or store write happens during a preview (per pointer move), only after commit plus debounce. Evidence: same test, `vi.spyOn(model, "toJson")` is 0 calls over 50 abort/begin/pushPull preview steps and at 2,999 ms, 1 call at 3,000 ms, in under 100 ms.
 
 ### For Feature 2
 
-- [ ] Killing the browser mid-model and reopening offers the model as of the last change, and restoring it gives an empty undo stack (headless test for the store and restore logic; browser check by Patrick).
-- [ ] Older versions can be listed and opened.
+- [ ] Killing the browser mid-model and reopening offers the model as of the last change, and restoring it gives an empty undo stack (headless test for the store and restore logic; browser check by Patrick). Headless part done: `app/test/autosave.test.ts` "the latest autosave restores with fresh undo history and round-trips" and "the candidate read before the constructor's sample load survives it"; a reload in headless Chromium at close showed the confirm and restored with `canUndo() === false`. Waiting on Patrick's browser check.
+- [x] Older versions can be listed and opened. Evidence: `App.showVersions` / `openVersion` (app/src/app.ts), `AutosaveStore.list` test "lists newest first without json and returns the latest"; the dialog listed the ring's row and closed in the headless Chromium run at close.
 
 ### For Feature 3
 
-- [ ] Header shows the file name and an unsaved marker that clears on Save and on load.
+- [x] Header shows the file name and an unsaved marker that clears on Save and on load. Evidence: `App.updateHeader` (app/src/app.ts), called from `refresh` and `save`; headless Chromium at close: `["sample.builder", hidden=true]` after load, `hidden=false` after an edit and after a restore.
 
 ### For Feature 4
 
-- [ ] A push to `main` deploys to the public URL; README links it.
+- [ ] A push to `main` deploys to the public URL; README links it. README links https://pjsulin.github.io/builder/ (README.md "Run it"); the `deploy` job in `.github/workflows/ci.yml` runs on push to `main` after `test`. Waiting on the merge to `main` and the first deploy run.
 
 ### For Feature 5
 
-- [ ] After one visit, the hosted URL loads with the network disabled on Chrome, Firefox and Safari (Patrick's check); the service worker precache list covers every file in `dist/`.
+- [ ] After one visit, the hosted URL loads with the network disabled on Chrome, Firefox and Safari (Patrick's check); the service worker precache list covers every file in `dist/`. Precache part done: `node scripts/check-precache.mjs` exits 0 on the build (index.html, the JS and CSS chunks, kernel_bg.wasm) and runs in CI; an offline reload of the built app in headless Chromium at close made no server requests. Waiting on Patrick's Chrome, Firefox and Safari check on the hosted URL.
 
 ## Impact
 

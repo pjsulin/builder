@@ -6,8 +6,9 @@
 
 ### Step 1: Sprint 1.1 Never lose work: autosave, versions, restore, hosted offline build
 
-- **Status:** in progress
+- **Status:** done
 - **Record:** sprint NeverLoseWork
+- **Commit:** 33f40d2
 
 ### Step 2: Sprint 1.2 Moves that stick: weld after Move, fold instead of reject
 

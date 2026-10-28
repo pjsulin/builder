@@ -11,6 +11,7 @@
     "build": "npm run build:kernel && tsc --noEmit && vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
+    "check:precache": "node scripts/check-precache.mjs",
     "test": "vitest run",
     "test:kernel": "cargo test --workspace"
   },
@@ -20,6 +21,7 @@
   "devDependencies": {
     "@types/node": "^26.6.5",
     "@types/three": "^0.186.0",
+    "fake-indexeddb": "^6.2.6",
     "typescript": "^7.0.2",
     "vite": "^8.3.5",
     "vitest": "^5.0.5"

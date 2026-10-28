@@ -73,6 +73,11 @@ export class Model {
   private k: Kernel;
   /** Bumped on every change so views know to rebuild. */
   revision = 0;
+  /** Name passed to the last begin(); the label autosave uses. */
+  lastOperation = "";
+  /** Called after commit() returns true and after undo()/redo() return a name,
+   *  never from abort(), so previews do not fire it. */
+  onCommit?: (operation: string) => void;
 
   constructor(kernel?: Kernel) {
     this.k = kernel ?? new Kernel();
@@ -93,19 +98,26 @@ export class Model {
 
   // ---- history ----
   begin(name: string): void {
+    this.lastOperation = name;
     this.k.begin(name);
   }
   commit(): boolean {
-    return this.changed(this.k.commit());
+    const committed = this.changed(this.k.commit());
+    if (committed) this.onCommit?.(this.lastOperation);
+    return committed;
   }
   abort(): void {
     this.changed(this.k.abort());
   }
   undo(): string | undefined {
-    return this.changed(this.k.undo());
+    const name = this.changed(this.k.undo());
+    if (name !== undefined) this.onCommit?.(`Undo ${name}`);
+    return name;
   }
   redo(): string | undefined {
-    return this.changed(this.k.redo());
+    const name = this.changed(this.k.redo());
+    if (name !== undefined) this.onCommit?.(`Redo ${name}`);
+    return name;
   }
   canUndo(): boolean {
     return this.k.canUndo();

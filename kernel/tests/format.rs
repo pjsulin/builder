@@ -135,7 +135,8 @@ fn files_without_attributes_still_load_and_write_none() {
 
 #[test]
 fn bad_attributes_are_rejected_with_their_path() {
-    let head = r#"{"format":"builder","version":1,"units":"inch","definitions":[{"name":"Model","kind":"root""#;
+    let head =
+        r#"{"format":"builder","version":1,"units":"inch","definitions":[{"name":"Model","kind":"root""#;
     let nested = format!(r#"{head},"attributes":{{"survey":{{"size":[1,2]}}}}}}]}}"#);
     let e = Document::from_json(&nested).unwrap_err().to_string();
     assert!(e.contains("definitions[0].attributes.survey.size"), "{e}");

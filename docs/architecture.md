@@ -173,6 +173,16 @@ Every arena write goes through one journal. A write records `(arena, slot, befor
 
 Memory cost is proportional to what changed, not to model size, unlike the prototype's full JSON snapshots.
 
+### Storage
+
+Autosave keeps the open model in the browser, in one IndexedDB database named `builder` (`app/src/store/autosave.ts`). A `versions` store holds a ring of autosaved versions keyed by an auto-increment id, each with the time, the file name, the name of the last operation and the whole `Model.toJson()` string; a `meta` store holds one `dirty` flag, true when a version was written after the last Save or load, which is what the restore prompt on start checks.
+
+The ring keeps at most 10 versions and 50 MB: after each write the oldest is dropped until both hold, and the version just written is never dropped. The stress model's JSON is 1,014,815 bytes, so 50 MB holds about 50 stress saves and the count limit binds first for anything; 10 versions is enough to step back past a bad edit without the dialog becoming a history browser. A version is the whole JSON, not journal deltas: `toJson()` is already the file format, restoring one is `Model.fromJson`, and the journal stays free to change shape.
+
+Writes hang off the model's commit points, not its `revision` counter: `Model.onCommit` fires from `commit()`, `undo()` and `redo()` (labeled `Undo <name>` / `Redo <name>`), never from `abort()`, and `changed()` bumps `revision` on every preview step, so a drag that aborts and re-applies its preview per pointer move schedules nothing. The `Autosaver` (`app/src/store/autosaver.ts`) restarts a 3 s debounce on each commit; its timer callback is the only place `toJson()` runs (12 ms warm, 30 ms cold on the stress model), and the store write is awaited outside the render loop. Save and loading a file clear the dirty flag and cancel a pending write.
+
+The hosted build works offline through a hand-written service worker, `app/sw.js`. An inline Vite plugin (`precachePlugin` in `vite.config.ts`) copies it into `dist/` at build time with `__PRECACHE__` replaced by the list of every built file and `__CACHE_VERSION__` by a hash of their contents, so the worker is deterministic and each build is its own cache. Install precaches the list, activate drops older `builder-*` caches, and fetch serves same-origin GETs cache-first with navigations mapped to `index.html`. `main.ts` registers it only in production builds, so `vite` dev and the Node tests never see one. The Google Fonts stylesheet is cross-origin and not cached; offline, the fonts fall back to system fonts.
+
 ## 4. File format
 
 **Decision:** an open, documented JSON format, `.builder`, written and read by the kernel. The spec lives in `docs/file-format.md`.
@@ -268,7 +278,8 @@ Extensions are a big part of why people stay on SketchUp, so the plugin API is d
 - `npm run dev` starts Vite. `npm run build` produces a static site.
 - `cargo test` runs the kernel tests: lines, welding, splitting, auto faces, holes, face splitting, push/pull in both modes on tilted faces, openings, move, erase and merge, groups, undo/redo, and file round-trips. Every test checks the full set of topology invariants (`kernel/tests/common/mod.rs`), including that no vertex lies inside an edge it doesn't split. `cargo run --release --example bench` times the stress model.
 - `npm test` runs Vitest: unit parsing and formatting, camera and ray math, inference priority and locks, picking, and tool tests that load the real WebAssembly kernel in Node and drive each tool with screen coordinates.
-- CI (`.github/workflows/ci.yml`) runs `cargo fmt --check`, `cargo clippy`, `cargo test`, the WebAssembly build, `tsc --noEmit` and `npm test` on every push.
+- `npm run check:precache` (`scripts/check-precache.mjs`) reads `dist/sw.js` after a build and fails if any built file is missing from its precache list or any listed file was not built: the headless stand-in for the offline check.
+- CI (`.github/workflows/ci.yml`) runs `cargo fmt --check`, `cargo clippy`, `cargo test`, the WebAssembly build, `tsc --noEmit`, `npm test`, `vite build` and the precache check on every push. On a push to `main` a second job deploys `dist/` to GitHub Pages at https://pjsulin.github.io/builder/ (repository setting: Pages source = GitHub Actions).
 
 ## 10. Status and known limits
 

@@ -185,21 +185,29 @@ impl Kernel {
         self.doc.set_transform(InstId(inst), m).map_err(js)
     }
 
-
     // ---- attributes, tags, materials ----
 
     /// Attributes of a definition, instance or face as a JSON object
     /// (`{"survey": {"kind": "wall"}}`). `kind` is "definition", "instance" or "face".
     pub fn attributes(&self, kind: &str, id: u32) -> Result<String, JsError> {
         let t = target(kind, id)?;
-        let a = self.doc.attributes(t).ok_or_else(|| JsError::new(&format!("that {kind} no longer exists")))?;
+        let a =
+            self.doc.attributes(t).ok_or_else(|| JsError::new(&format!("that {kind} no longer exists")))?;
         Ok(serde_json::to_string(a).expect("attributes are JSON"))
     }
 
     /// Set one attribute from its JSON value (`"wall"`, `4.5`, `true`); `"null"` deletes it.
     #[wasm_bindgen(js_name = setAttribute)]
-    pub fn set_attribute(&mut self, kind: &str, id: u32, ns: &str, key: &str, value_json: &str) -> Result<(), JsError> {
-        let v: Value = serde_json::from_str(value_json).map_err(|e| JsError::new(&format!("bad attribute value: {e}")))?;
+    pub fn set_attribute(
+        &mut self,
+        kind: &str,
+        id: u32,
+        ns: &str,
+        key: &str,
+        value_json: &str,
+    ) -> Result<(), JsError> {
+        let v: Value = serde_json::from_str(value_json)
+            .map_err(|e| JsError::new(&format!("bad attribute value: {e}")))?;
         let v = if v.is_null() { None } else { Some(v) };
         self.doc.set_attribute(target(kind, id)?, ns, key, v).map_err(js)
     }
