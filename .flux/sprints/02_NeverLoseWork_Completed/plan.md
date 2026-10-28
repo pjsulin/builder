@@ -105,7 +105,7 @@ Four phases, one commit each: an IndexedDB autosave ring (`app/src/store/autosav
 - **Files:**
   - Modify: docs/architecture.md
 - **Context:** [spec.md§Interfaces](spec.md#interfaces)
-- **Description:** In the Storage subsection, state the hook (`Model.onCommit` from `commit`/`undo`/`redo`, not `revision`, because `changed()` bumps `revision` per preview), the 3 s debounce, and that `toJson()` (12 ms on the stress model) runs only on the timer.
+- **Description:** In the Storage subsection, state the hook (`Model.onCommit` from `commit`/`undo`/`redo`, not `revision`, because `changed()` bumps `revision` per preview), the 3 s debounce, and that `toJson()` (12 ms on the stress model) runs only on the timer. (2026-10-28, close: a cold first `toJson()` on the stress model measured 30 ms in Node; the doc states both numbers.)
 
 ### Phase 3: Restore, Versions and Header
 

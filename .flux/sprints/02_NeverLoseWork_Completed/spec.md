@@ -879,6 +879,18 @@ expect(toJson).toHaveBeenCalledTimes(1);
 expect((await store.list())[0]).toMatchObject({ operation: "Push/Pull", fileName: "stress.builder" });
 ```
 
+## Added during implementation
+
+Recorded at close from `flux repomap --diff dd1c760 --record sprint-02`.
+
+- `app/src/store/autosave.ts:RingLimits` (`interface RingLimits { versions?: number; bytes?: number }`): the named type of the constructor's optional `limits` argument added in Phase 1 (Task 1.2 log line). Exported so tests can name it; no other caller.
+- `app/src/store/autosave.ts`: private helpers `request`, `complete`, `info`, `AutosaveStore.open` (IndexedDB request and transaction promises, lazy database open).
+- `app/src/store/autosaver.ts`: private `cancel`, `write` (the timer callback's body; the only `toJson()` call site).
+- `app/src/app.ts:openVersion` (`private async openVersion(id: number): Promise<void>`): the Versions dialog's Open handler, split out of `showVersions`.
+- `vite.config.ts:generateBundle`: the hook inside `precachePlugin`, as specified.
+- `scripts/check-precache.mjs:walk`: the script's directory walk.
+- `app/test/autosave.test.ts:FakeClock`, `advance`: the hand-rolled timer Task 2.4 asked for.
+
 ## Validation Criteria
 
 ```bash

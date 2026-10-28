@@ -1,10 +1,35 @@
-commit: 99501c3
+commit: 33f40d2
 budget: 1000
 
 app/src/math.ts:
 # Small 3D math used by tools, inference and picking. Pure functions over plain
 ⋮
 │export type Vec3 = [number, number, number];
+⋮
+
+app/src/store/autosave.ts:
+# Autosaved versions of the open model in IndexedDB. One database holds a ring
+⋮
+│export type VersionInfo = Omit<Version, "json">;
+│
+│export interface RingLimits {
+│  versions?: number;
+│  bytes?: number;
+⋮
+
+app/src/store/autosaver.ts:
+# Debounced autosave. Follows the model's commit points (`Model.onCommit`, which
+⋮
+│export interface AutosaverOptions {
+│  store: Pick<AutosaveStore, "put" | "setDirty">;
+│  /** Default DEBOUNCE_MS. */
+│  debounceMs?: number;
+│  /** Default Date.now. */
+│  now?: () => number;
+│  /** Default globalThis.setTimeout / clearTimeout; tests inject a fake clock. */
+│  setTimer?: (fn: () => void, ms: number) => unknown;
+│  clearTimer?: (handle: unknown) => void;
+│  /** Default console.error. Store failures land here, never in the tool that committed. */
 ⋮
 
 app/src/tools/tool.ts:
@@ -24,21 +49,6 @@ app/src/units.ts:
 ⋮
 │export type UnitSystem = "imperial" | "metric";
 │
-⋮
-
-app/src/view/scene.ts:
-# World-space view of the model for picking and inference, built from the kernel's
-⋮
-│export class SceneIndex {
-│  items: DrawItem[] = [];
-│  buffers = new Map<number, DefBuffers>();
-│  /** Front material per triangle of each definition's buffers, -1 for none. */
-│  faceMaterials = new Map<number, Int32Array>();
-│  /** Materials by id, for colour lookups. */
-│  materials = new Map<number, MaterialInfo>();
-│  /** Triangle corners in world space, 9 floats per triangle. */
-│  tri = new Float32Array(0);
-│  triFace = new Uint32Array(0);
 ⋮
 
 kernel/src/doc.rs:
@@ -98,10 +108,4 @@ survey/src/builder_survey/spec/ctx.py:
 │
 ⋮
 │    def len(self, val, field):
-⋮
-
-survey/tests/test_capture.py:
-# The capture server on a temp project: a v2 entry with a photo and a real audio
-⋮
-│def get(url):
 ⋮
