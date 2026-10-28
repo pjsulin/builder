@@ -231,13 +231,13 @@ Call sites that the changed behaviour reaches (from `ast-grep`): `insert_segment
 
 ### Phase 6: Wasm and App Commands
 
-**Status:** pending
+**Status:** completed
 **Dependencies:** [Phase 2, Phase 4]
 
 #### Task 6.1: Wasm exports
 
 - **Type:** implement
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** none
 - **Files:**
   - Modify: kernel-wasm/src/lib.rs
@@ -247,7 +247,7 @@ Call sites that the changed behaviour reaches (from `ast-grep`): `insert_segment
 #### Task 6.2: Model wrappers
 
 - **Type:** implement
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [6.1]
 - **Files:**
   - Modify: app/src/kernel/model.ts
@@ -257,7 +257,7 @@ Call sites that the changed behaviour reaches (from `ast-grep`): `insert_segment
 #### Task 6.3: Toolbar commands
 
 - **Type:** implement
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [6.2]
 - **Files:**
   - Modify: app/index.html
@@ -269,7 +269,7 @@ Call sites that the changed behaviour reaches (from `ast-grep`): `insert_segment
 #### Task 6.4: App tests for intersect and check
 
 - **Type:** test
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [6.2]
 - **Files:**
   - Create: app/test/intersect.test.ts
@@ -280,7 +280,7 @@ Call sites that the changed behaviour reaches (from `ast-grep`): `insert_segment
 #### Task 6.5: Features and README rows
 
 - **Type:** document
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [6.3]
 - **Files:**
   - Modify: docs/features.md

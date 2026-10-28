@@ -57,6 +57,17 @@ export interface InstanceProps {
   locked: boolean;
 }
 
+/** One problem `checkModel()` found; ids are in the owner definition. */
+export interface Finding {
+  kind: "overlapping_edges" | "non_planar_face" | "faceless_edge" | "duplicate_vertices";
+  owner: number;
+  faces: number[];
+  edges: number[];
+  vertices: number[];
+  /** A point near the problem, in the owner definition's coordinates. */
+  position: Vec3;
+}
+
 /** Load the kernel in a browser (fetches the .wasm next to the module). */
 export async function loadKernel(): Promise<void> {
   await init();
@@ -169,6 +180,15 @@ export class Model {
   }
   setTransform(inst: number, m: Mat4): void {
     this.changed(this.k.setTransform(inst, Float64Array.from(m)));
+  }
+  /** Intersect Faces: draw the edges where `faces` (and the faces inside `instances`)
+   *  cross the model (`withModel`) or each other, into `ctx`. Returns the edges drawn. */
+  intersectFaces(ctx: number, faces: number[], instances: number[], withModel: boolean): number[] {
+    return this.changed(Array.from(this.k.intersectFaces(ctx, u32(faces), u32(instances), withModel)));
+  }
+  /** The model check: an empty list means clean. */
+  checkModel(): Finding[] {
+    return JSON.parse(this.k.checkModel());
   }
 
   // ---- attributes, tags, materials ----

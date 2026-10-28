@@ -77,6 +77,8 @@ Use `make start PORT=8080` or `HOST=0.0.0.0` to change the address. Run `make` w
 | Ctrl+Z, Ctrl+Y, Ctrl+S, Ctrl+O, Ctrl+A | Undo, redo, save, open, select all |
 | Shift+Z | Zoom extents |
 
+Toolbar commands without keys: **Intersect with model** draws the edges where the selected faces or groups cross everything in the open context, **Intersect selection** only where they cross each other (the edges land in the open context; a group's own faces are cut by repeating the command inside it), and **Check model** reports overlapping edges, non-planar faces, faceless edges and duplicate vertices, or flashes "Model check: clean".
+
 ## Layout
 
 ```
