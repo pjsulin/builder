@@ -1952,10 +1952,14 @@ d.move_and_integrate(&verts, v(0.0, 10.0, 0.0)).unwrap();
 assert!(is_closed(&d, ROOT));
 validate(&d);
 
-// One box's face moved onto another's: one solid, no internal face.
-let side = face_at(&d, ROOT, v(20.0, 5.0, 5.0), -V3::X);
-d.move_and_integrate(&d.vertices_of(&[side], &[]), v(-10.0, 0.0, 0.0)).unwrap();
-assert_eq!(faces(&d, ROOT).len(), 10);
+// One box moved until its face lands on another's: one solid, no internal face.
+// (Amended at implementation: the facing sides cancel and the coplanar sides
+// merge across the shared edges, as push/pull's settle does, so the result is
+// one 20-inch box with 6 faces, not 10. Moving only the facing side stretches
+// the box instead, so the test moves every vertex of it.)
+let second: Vec<VId> = d.vertices_in(ROOT).filter(|(_, x)| x.pos.x > 15.0).map(|(id, _)| id).collect();
+d.move_and_integrate(&second, v(-10.0, 0.0, 0.0)).unwrap();
+assert_eq!(faces(&d, ROOT).len(), 6);
 assert!(is_closed(&d, ROOT));
 
 // A corner lifted: the top folds into two triangles, nothing fails.

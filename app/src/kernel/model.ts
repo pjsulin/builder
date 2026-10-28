@@ -154,6 +154,10 @@ export class Model {
   moveVertices(verts: number[], d: Vec3): void {
     this.changed(this.k.moveVertices(u32(verts), d[0], d[1], d[2]));
   }
+  /** Committed move: folds, moves, welds and settles. Preview uses moveVertices. */
+  moveAndIntegrate(verts: number[], d: Vec3): void {
+    this.changed(this.k.moveAndIntegrate(u32(verts), d[0], d[1], d[2]));
+  }
   erase(faces: number[], edges: number[], instances: number[]): void {
     this.changed(this.k.erase(u32(faces), u32(edges), u32(instances)));
   }

@@ -43,13 +43,13 @@ Make Move behave like SketchUp's: a committed move welds moved vertices and edge
 
 ### Phase 2: Integrate After Move
 
-**Status:** pending
+**Status:** completed
 **Dependencies:** [Phase 1]
 
 #### Task 2.1: integrate_moved and edges_of_vertices
 
 - **Type:** implement
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [Phase 1]
 - **Files:**
   - Modify: kernel/src/edit.rs
@@ -59,7 +59,7 @@ Make Move behave like SketchUp's: a committed move welds moved vertices and edge
 #### Task 2.2: Document::move_and_integrate
 
 - **Type:** implement
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [2.1]
 - **Files:**
   - Modify: kernel/src/edit.rs
@@ -70,7 +70,7 @@ Make Move behave like SketchUp's: a committed move welds moved vertices and edge
 #### Task 2.3: wasm and Model wrappers
 
 - **Type:** implement
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [2.2]
 - **Files:**
   - Modify: kernel-wasm/src/lib.rs
@@ -81,12 +81,12 @@ Make Move behave like SketchUp's: a committed move welds moved vertices and edge
 #### Task 2.4: Kernel tests for welding, settling and undo
 
 - **Type:** test
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [2.2]
 - **Files:**
   - Create: kernel/tests/move.rs
 - **Context:** [spec.md§Examples](spec.md#examples), [spec.md§Validation Criteria](spec.md#validation-criteria)
-- **Description:** New test file using `kernel/tests/common/mod.rs` helpers: `ridge_lifted_and_nudged_stays_closed` (120x96x96 box, ridge line, lift 36 then move 10 in y; `is_closed`, `validate`), `box_face_moved_onto_box_face_joins_them` (two boxes, move the facing side by the gap; 10 faces, `is_closed`, volume 2000, `validate`), `instance_moved_onto_loose_geometry_never_sticks` (group a box, loose rectangle, `set_transform` onto it; root face and edge counts unchanged), `undo_after_each_integrated_move_restores_the_file` (for each of the ridge, box-onto-box and instance cases above: commit, `to_json`, begin, the move, commit, `undo`, `to_json` byte-equal), `moving_vertices_from_two_definitions_is_refused` (`Error::Degenerate`) and `move_and_integrate_into_a_locked_definition_is_refused` (lock the tag of a grouped box as kernel/tests/attributes.rs:160 does, `move_and_integrate` on one of its vertices returns `Error::Locked`, nothing changes) and `vertex_moved_onto_a_vertex_merges_into_it` (a loose rectangle beside a loose line sharing the plane; move the line's free end onto a rectangle corner; `vertex_count` drops by one, `find_vertex` at the corner returns one id whose edges include the line, `validate`).
+- **Description:** New test file using `kernel/tests/common/mod.rs` helpers: `ridge_lifted_and_nudged_stays_closed` (120x96x96 box, ridge line, lift 36 then move 10 in y; `is_closed`, `validate`), `box_face_moved_onto_box_face_joins_them` (two boxes, move the facing side by the gap; 10 faces, `is_closed`, volume 2000, `validate`) (2026-10-28: the test moves every vertex of the second box, since moving only its facing side stretches it to volume 3000; the facing sides cancel and the coplanar sides merge as push/pull's settle does, so it asserts 6 faces, 12 edges, 8 vertices and volume 2000, not 10 faces; spec.md § Examples amended), `instance_moved_onto_loose_geometry_never_sticks` (group a box, loose rectangle, `set_transform` onto it; root face and edge counts unchanged), `undo_after_each_integrated_move_restores_the_file` (for each of the ridge, box-onto-box and instance cases above: commit, `to_json`, begin, the move, commit, `undo`, `to_json` byte-equal), `moving_vertices_from_two_definitions_is_refused` (`Error::Degenerate`) and `move_and_integrate_into_a_locked_definition_is_refused` (lock the tag of a grouped box as kernel/tests/attributes.rs:160 does, `move_and_integrate` on one of its vertices returns `Error::Locked`, nothing changes) and `vertex_moved_onto_a_vertex_merges_into_it` (a loose rectangle beside a loose line sharing the plane; move the line's free end onto a rectangle corner; `vertex_count` drops by one, `find_vertex` at the corner returns one id whose edges include the line, `validate`).
 
 ### Phase 3: Fold Instead of Reject
 

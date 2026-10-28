@@ -31,6 +31,163 @@ impl Document {
         Ok(())
     }
 
+    /// Committed move: move the vertices, then weld and settle what they landed on
+    /// in their own definition, as if the geometry had been drawn there. Preview
+    /// uses `move_vertices` alone. Every vertex must belong to one definition.
+    pub fn move_and_integrate(&mut self, verts: &[VId], offset: V3) -> Result<(), Error> {
+        let set: BTreeSet<VId> = verts.iter().copied().collect();
+        let mut owner: Option<DefId> = None;
+        for &v in &set {
+            let o = self.vertex(v).ok_or(Error::Missing("vertex"))?.owner;
+            if owner.is_some_and(|d| d != o) {
+                return Err(Error::Degenerate("vertices belong to more than one definition"));
+            }
+            owner = Some(o);
+        }
+        let Some(def) = owner else {
+            return Ok(());
+        };
+        self.check_def_unlocked(def)?;
+        self.move_vertices(verts, offset)?;
+        let edges = self.edges_of_vertices(verts);
+        self.integrate_moved(def, &edges)
+    }
+
+    /// Weld and settle geometry that was placed by a move (or a copy): vertices that
+    /// landed on another vertex merge into it, `edges` split and are split by edges
+    /// they cross or overlap, every plane they lie in is healed as `add_line` would,
+    /// and the faces around them settle as push/pull's do (cancelling against an
+    /// opposite face, merging with a same-facing coplanar neighbour). `def` owns
+    /// every edge.
+    pub(crate) fn integrate_moved(&mut self, def: DefId, edges: &[EId]) -> Result<(), Error> {
+        let mut verts: BTreeSet<VId> = BTreeSet::new();
+        for &e in edges {
+            if let Some(ed) = self.edge(e) {
+                verts.extend(ed.v);
+            }
+        }
+        for &v in &verts {
+            let Some(pos) = self.vertex(v).map(|x| x.pos) else { continue };
+            let into = self
+                .vertices_in(def)
+                .filter(|&(id, x)| id != v && x.pos.dist(pos) <= tol::LENGTH)
+                .min_by(|a, b| a.1.pos.dist(pos).total_cmp(&b.1.pos.dist(pos)))
+                .map(|(id, _)| id);
+            if let Some(into) = into {
+                self.merge_vertex_into(v, into)?;
+            }
+        }
+        // Re-inserting each edge as a segment splits it at vertices and edges it now
+        // touches, and splits those; the chain returned is the edge in its new pieces.
+        let mut chain: BTreeSet<EId> = BTreeSet::new();
+        for &e in edges {
+            let Some(ed) = self.edge(e).cloned() else { continue };
+            chain.extend(self.insert_segment(def, self.pos(ed.v[0]), self.pos(ed.v[1]))?);
+        }
+        let live = |d: &Document, set: &BTreeSet<EId>| {
+            set.iter().copied().filter(|&e| d.edge(e).is_some()).collect::<Vec<EId>>()
+        };
+        self.integrate_edges(def, &live(self, &chain))?;
+        self.heal_around(def, &live(self, &chain))?;
+        let mut touched: BTreeSet<FId> = BTreeSet::new();
+        for e in live(self, &chain) {
+            let ends = self.edge(e).map(|x| x.v).unwrap_or([VId(0); 2]);
+            for v in ends {
+                for ve in self.vertex(v).map(|x| x.edges.clone()).unwrap_or_default() {
+                    touched.extend(self.edge(ve).map(|x| x.faces.clone()).unwrap_or_default());
+                }
+            }
+        }
+        let touched: Vec<FId> = touched.into_iter().collect();
+        self.settle_faces(def, &touched)?;
+        Ok(())
+    }
+
+    /// The edges incident to `verts`, deduplicated and sorted.
+    pub(crate) fn edges_of_vertices(&self, verts: &[VId]) -> Vec<EId> {
+        let mut out: BTreeSet<EId> = BTreeSet::new();
+        for &v in verts {
+            if let Some(vx) = self.vertex(v) {
+                out.extend(vx.edges.iter().copied());
+            }
+        }
+        out.into_iter().collect()
+    }
+
+    /// Weld `from` into `into`, two vertices of one definition at the same position:
+    /// every face loop and edge using `from` is re-pointed to `into`, an edge that
+    /// would collapse or duplicate an existing `into` edge is dropped (its faces move
+    /// to the existing edge), and `from` is removed.
+    pub(crate) fn merge_vertex_into(&mut self, from: VId, into: VId) -> Result<(), Error> {
+        if from == into {
+            return Ok(());
+        }
+        let fx = self.vertex(from).cloned().ok_or(Error::Missing("vertex"))?;
+        self.vertex(into).ok_or(Error::Missing("vertex"))?;
+        let mut faces: BTreeSet<FId> = BTreeSet::new();
+        for &e in &fx.edges {
+            faces.extend(self.edge(e).map(|x| x.faces.clone()).unwrap_or_default());
+        }
+        for f in faces {
+            let mut face = self.face(f).cloned().ok_or(Error::Missing("face"))?;
+            for lp in std::iter::once(&mut face.outer).chain(face.holes.iter_mut()) {
+                for x in lp.iter_mut() {
+                    if *x == from {
+                        *x = into;
+                    }
+                }
+                // A collapsed edge leaves `into` twice in a row.
+                let mut i = 0;
+                while lp.len() > 1 && i < lp.len() {
+                    if lp[i] == lp[(i + 1) % lp.len()] {
+                        lp.remove(i);
+                    } else {
+                        i += 1;
+                    }
+                }
+            }
+            if face.outer.len() < 3 {
+                self.remove_face(f);
+                continue;
+            }
+            face.holes.retain(|h| h.len() >= 3);
+            let n = face.plane.normal;
+            self.prepare_face(&mut face, Some(n))?;
+            self.set_face(f, Some(face));
+        }
+        for e in fx.edges {
+            let Some(mut ed) = self.edge(e).cloned() else { continue };
+            let other = ed.other(from);
+            let existing = if other == into { None } else { self.edge_between(into, other) };
+            if other == into || existing.is_some() {
+                // Detach the faces so removing the edge keeps them.
+                let faces = std::mem::take(&mut ed.faces);
+                self.set_edge(e, Some(ed));
+                self.remove_edge(e);
+                if let Some(x) = existing {
+                    let mut ex = self.edge(x).cloned().ok_or(Error::Missing("edge"))?;
+                    for f in faces {
+                        if self.face(f).is_some() && !ex.faces.contains(&f) {
+                            ex.faces.push(f);
+                        }
+                    }
+                    self.set_edge(x, Some(ex));
+                }
+                continue;
+            }
+            let i = if ed.v[0] == from { 0 } else { 1 };
+            ed.v[i] = into;
+            self.set_edge(e, Some(ed));
+            let mut ix = self.vertex(into).cloned().ok_or(Error::Missing("vertex"))?;
+            ix.edges.push(e);
+            self.set_vertex(into, Some(ix));
+        }
+        if self.vertex(from).is_some() {
+            self.set_vertex(from, None);
+        }
+        Ok(())
+    }
+
     /// The vertices used by a set of faces and edges, for moving them.
     pub fn vertices_of(&self, faces: &[FId], edges: &[EId]) -> Vec<VId> {
         let mut out: BTreeSet<VId> = BTreeSet::new();

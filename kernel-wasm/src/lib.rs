@@ -142,6 +142,11 @@ impl Kernel {
         self.doc.move_vertices(&ids(&verts, VId), V3::new(dx, dy, dz)).map_err(js)
     }
 
+    #[wasm_bindgen(js_name = moveAndIntegrate)]
+    pub fn move_and_integrate(&mut self, verts: Vec<u32>, dx: f64, dy: f64, dz: f64) -> Result<(), JsError> {
+        self.doc.move_and_integrate(&ids(&verts, VId), V3::new(dx, dy, dz)).map_err(js)
+    }
+
     pub fn erase(&mut self, faces: Vec<u32>, edges: Vec<u32>, instances: Vec<u32>) -> Result<(), JsError> {
         for i in instances {
             if self.doc.instance(InstId(i)).is_some() {

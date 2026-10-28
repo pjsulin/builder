@@ -6,7 +6,8 @@
 //!
 //! * [`Document::add_line`] draws an edge, welding, splitting and creating faces.
 //! * [`Document::push_pull`] extrudes or stretches any planar face.
-//! * [`Document::move_vertices`], [`Document::erase`] edit geometry.
+//! * [`Document::move_vertices`] previews a move, [`Document::move_and_integrate`] commits
+//!   one (fold, weld, settle), [`Document::erase`] removes geometry.
 //! * [`Document::make_group`], [`Document::explode`] isolate geometry.
 //! * [`Document::set_attribute`], [`Document::set_tag_flags`] attach data and lock tags.
 //! * [`Document::begin`], [`Document::commit`], [`Document::abort`],
