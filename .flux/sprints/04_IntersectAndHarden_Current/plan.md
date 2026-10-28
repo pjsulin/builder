@@ -137,13 +137,13 @@ Call sites that the changed behaviour reaches (from `ast-grep`): `insert_segment
 
 ### Phase 4: Model Check
 
-**Status:** pending
+**Status:** completed
 **Dependencies:** none
 
 #### Task 4.1: check module
 
 - **Type:** implement
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** none
 - **Files:**
   - Create: kernel/src/check.rs
@@ -154,7 +154,7 @@ Call sites that the changed behaviour reaches (from `ast-grep`): `insert_segment
 #### Task 4.2: validate example prints findings
 
 - **Type:** implement
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [4.1]
 - **Files:**
   - Modify: kernel/examples/validate.rs
@@ -164,19 +164,19 @@ Call sites that the changed behaviour reaches (from `ast-grep`): `insert_segment
 #### Task 4.3: check tests and fixtures
 
 - **Type:** test
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [4.1, 4.2]
 - **Files:**
   - Create: kernel/tests/check.rs
   - Create: kernel/tests/fixtures/bad.builder
   - Create: kernel/tests/fixtures/clean.builder
 - **Context:** [spec.md§Examples](spec.md#examples)
-- **Description:** Build a box, push a vertex off its plane and add a vertex within `LENGTH` of another through the raw setters, assert the two findings with their ids; a clean box gives an empty list; write both documents' `to_json` to the fixtures and test that `Document::from_json(fixture)` followed by `check` reproduces the findings (the fixtures are what the validate example is run on in the Validation Criteria).
+- **Description:** Build a box, push a vertex off its plane and add a vertex within `LENGTH` of another through the raw setters, assert the two findings with their ids; a clean box gives an empty list; write both documents' `to_json` to the fixtures and test that `Document::from_json(fixture)` followed by `check` reproduces the findings (the fixtures are what the validate example is run on in the Validation Criteria). (2026-10-28: `from_json` refuses a non-planar face, as docs/file-format.md requires of every reader, so `bad.builder` cannot carry one. The fixture holds the three kinds a file can carry: a duplicate vertex, an overlapping edge and faceless edges. The non-planar finding is tested on the in-memory document bent through the raw setter, and the test asserts that its JSON does not load.)
 
 #### Task 4.4: README and architecture doc for the model check
 
 - **Type:** document
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [4.2]
 - **Files:**
   - Modify: README.md

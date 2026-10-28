@@ -90,7 +90,7 @@ Overlapping shapes can be cut into each other and then pushed and erased normall
 
 ### For Feature 5
 
-- [ ] `cargo run --example validate` on a file with a known non-planar face and a duplicate vertex reports both.
+- [ ] `cargo run --example validate` on a file with a known non-planar face and a duplicate vertex reports both. (2026-10-28: a `.builder` reader must refuse a non-planar face, docs/file-format.md § Faces, so no file can carry one; the fixture carries a duplicate vertex, an overlapping edge and faceless edges and the example reports them all, and the non-planar finding is covered by a kernel test on the live document.)
 
 ### For Feature 6
 

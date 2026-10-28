@@ -13,8 +13,10 @@
 //! * [`Document::set_attribute`], [`Document::set_tag_flags`] attach data and lock tags.
 //! * [`Document::begin`], [`Document::commit`], [`Document::abort`],
 //!   [`Document::undo`], [`Document::redo`] manage history.
-//! * [`Document::to_json`], [`Document::from_json`] read and write `.builder` files.
+//! * [`Document::to_json`], [`Document::from_json`] read and write `.builder` files;
+//!   [`check::check`] reports problems a loaded file may carry.
 
+pub mod check;
 pub mod doc;
 pub mod edit;
 pub mod format;

@@ -57,6 +57,7 @@ make stop      # stop it
 | `make build` | Production build into `dist/`. |
 | `make clean` | Stop the server and remove build output. |
 | `cargo run --release --example bench` | Kernel timings on a 2,000-box model. |
+| `cargo run -p builder-kernel --example validate -- FILE` | Load a `.builder` file and run the model check: overlapping edges, non-planar faces, faceless edges and duplicate vertices, one line each after the counts line. Exit 0 when the file loads clean, 1 when it does not load or has a problem. |
 
 Use `make start PORT=8080` or `HOST=0.0.0.0` to change the address. Run `make` with no target to list everything.
 

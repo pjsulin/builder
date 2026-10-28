@@ -2130,10 +2130,14 @@ expect(m.checkModel()).toEqual([]);
 
 ```sh
 cargo run -p builder-kernel --example validate -- kernel/tests/fixtures/bad.builder
-# 1 definitions, 0 instances, 0 tags
-# non_planar_face in definition 0 at (0, 0, 10.5): faces 4
-# duplicate_vertices in definition 0 at (0, 0, 0): vertices 0, 9
+# 1 definitions, 0 instances, 0 tags: 4 problems
+# faceless_edge in definition 0 at (5, 0, 0): edges 12
+# faceless_edge in definition 0 at (10, 10, -2.4998): edges 13
+# overlapping_edges in definition 0 at (5, 0, 0): edges 0, 12
+# duplicate_vertices in definition 0 at (10, 10, 0): vertices 2, 10
 # exit 1
+# (2026-10-28: the counts line ends ": ok" or ": N problems"; non_planar_face only comes from the live
+# document, see Validation Criteria)
 ```
 
 ## Validation Criteria
@@ -2146,7 +2150,9 @@ cargo test --workspace
 cargo test -p builder-kernel --test fuzz -- --ignored random_operations_long
 # Expected: passes (nightly use; not run in CI)
 cargo run -p builder-kernel --example validate -- kernel/tests/fixtures/bad.builder; echo $?
-# Expected: prints a non_planar_face and a duplicate_vertices finding; exit 1
+# Expected: prints two faceless_edge, an overlapping_edges and a duplicate_vertices finding; exit 1
+# (2026-10-28: a non_planar_face cannot come from a file, the reader refuses it per docs/file-format.md;
+# kernel/tests/check.rs covers it on the in-memory document)
 cargo run -p builder-kernel --example validate -- kernel/tests/fixtures/clean.builder; echo $?
 # Expected: counts line only; exit 0
 npm run build:kernel && npm run typecheck && npm test
