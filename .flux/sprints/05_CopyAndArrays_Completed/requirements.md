@@ -1,10 +1,11 @@
 ---
-sprint: "CopyAndArrays"
 created: 2026-10-28
-start: null    # commit; set by `flux sprint move <Name> Current`, close diffs against it
-started: null  # date; set by the same move
-step: "4"
+sprint: CopyAndArrays
+start: 480b033
+started: '2026-10-28'
+step: '4'
 ---
+
 # Requirements: CopyAndArrays
 
 ## Background
@@ -58,24 +59,24 @@ Repeated parts are fast: a joist drawn once becomes ten evenly spaced joists in 
 
 ### For Feature 1
 
-- [ ] Kernel tests: copied loose geometry is welded where it lands; a copied group has its own definition with equal geometry, materials and attributes; `validate` passes; undo removes the copy.
+- [x] Kernel tests: copied loose geometry is welded where it lands; a copied group has its own definition with equal geometry, materials and attributes; `validate` passes; undo removes the copy. Evidence: `kernel/tests/copy.rs::a_box_copied_flush_welds_into_one_solid` (one 20 x 10 x 10 box, volume 2000, `validate`, undo back to 6 faces), `a_copied_group_gets_its_own_equal_definition` (different definition, equal faces, edges, vertices, material, face, instance and definition attributes, translated transform, undo removes instance and definition), `a_nested_group_is_copied_recursively`.
 
 ### For Feature 2
 
-- [ ] Headless tool test: the copy modifier (Option on Mac, Ctrl elsewhere) during a move leaves the original and creates a copy at the offset.
+- [x] Headless tool test: the copy modifier (Option on Mac, Ctrl elsewhere) during a move leaves the original and creates a copy at the offset. Evidence: `app/test/tools.test.ts` \"Move with the copy modifier\": \"leaves the original and places a copy at the typed distance\" (original at the origin, copy at 16\", one `Undo Copy`), \"switches to a copy when the modifier goes down mid-move\"; `copyKey` in app.ts picks `altKey` on Mac, `ctrlKey` elsewhere.
 
 ### For Feature 3
 
-- [ ] Headless tool test: a 2×8 joist group copied 16" along red, then `9x`, gives ten evenly spaced joists in one undo step.
-- [ ] Headless tool test: `/9` across 12' gives ten joists end to end.
+- [x] Headless tool test: a 2×8 joist group copied 16" along red, then `9x`, gives ten evenly spaced joists in one undo step. Evidence: \"Linear arrays\" > \"makes ten joists at 16 inch centres from one copy and 9x, as one undo step\" (x = 0, 16, ..., 144; one `undo()` returns \"Copy\" and leaves one).
+- [x] Headless tool test: `/9` across 12' gives ten joists end to end. Evidence: \"spreads ten joists end to end with /9 across 12 feet\" (x = 0, 16, ..., 144).
 
 ### For Feature 4
 
-- [ ] A timed test shows a 50-instance array commits under a threshold set at plan time from the bench (set in spec.md Validation Criteria: 100 ms in a debug build).
+- [x] A timed test shows a 50-instance array commits under a threshold set at plan time from the bench (set in spec.md Validation Criteria: 100 ms in a debug build). Evidence: `kernel/tests/copy.rs::fifty_instance_copies_commit_quickly` asserts under 100 ms in a debug build; `cargo run --release --example bench` prints `copy instance ×50: 10.5ms`.
 
 ### For all
 
-- [ ] Browser check by Patrick of the joist example.
+- [ ] Browser check by Patrick of the joist example. Waiting on Patrick (close.md Gate 5): draw a 2x8 joist, group it, Move with Option (Mac) or Ctrl, type `16"`, then `9x`; Undo, then a 12' copy and `/9`.
 
 ## Impact
 

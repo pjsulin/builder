@@ -10,7 +10,8 @@ Early, but the core loop works on real geometry:
 - **Push/Pull on any flat face**, including tilted roofs. Faces stretch or extrude, and pushing a door outline through a wall leaves an opening.
 - **Inference**: endpoints, midpoints, edges, faces and the red, green and blue axes. Arrow keys lock an axis, and Shift locks the current inference.
 - **Measurements box**: just type `10'`, `8' 6"`, `30 1/2"`, `2.4m`, or `10', 8'` for rectangles. Retype right after an operation to change it.
-- Tools: Select (click, Shift-toggle, window and crossing boxes), Line, Rectangle, Push/Pull, Move, Eraser, Orbit and Pan.
+- Tools: Select (click, Shift-toggle, window and crossing boxes), Line, Rectangle, Push/Pull, Move (hold Ctrl, Option on a Mac, to copy instead), Eraser, Orbit and Pan.
+- **Copy and arrays**: hold Ctrl (Option on a Mac) while moving to copy instead; the cursor reads *copy*. Then type a count into the Measurements box: after copying a joist 16" along red, `9x` makes ten joists at 16" centres, and after a 12' copy `/9` spreads ten end to end. Retype the count to change it; one Undo removes the whole array.
 - **Groups**: make, double-click to edit inside, explode. Grouped geometry stops sticking to everything else.
 - Undo/redo for every change, and save/open in the open `.builder` format.
 - **Autosave**: 3 seconds after each change the model is written to the browser's storage, keeping the last 10 versions. On start the app offers to restore the last autosave when the previous session ended with unsaved changes; the Versions button lists older autosaves and opens one.
@@ -69,6 +70,7 @@ Use `make start PORT=8080` or `HOST=0.0.0.0` to change the address. Run `make` w
 | Middle or right drag; Shift + middle drag; scroll | Orbit; pan; zoom to cursor |
 | Right / Left / Up arrow | Lock to the red / green / blue axis. Down clears the lock. |
 | Shift (while drawing) | Lock the current inference |
+| Ctrl (Option on a Mac) while moving | Copy instead of move; the cursor reads *copy* |
 | Digits | Type into the Measurements box. Enter applies. |
 | G | Make a group from the selection |
 | Double-click | Edit a group, select a face with its edges, or repeat the last push/pull |

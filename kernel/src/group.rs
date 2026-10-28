@@ -3,7 +3,7 @@
 use std::collections::{BTreeSet, HashMap};
 
 use crate::doc::*;
-use crate::math::{mat_apply, mat_mul, Mat4, V3};
+use crate::math::{mat_apply, mat_mul, mat_translation, Mat4, V3};
 use crate::Error;
 
 /// What an explode put back into the parent context.
@@ -158,6 +158,75 @@ impl Document {
             self.set_definition(def, None);
         }
         Ok(out)
+    }
+
+    /// Copy an instance as a new group: a new definition with the same name, kind,
+    /// attributes and geometry (vertices, edges, faces with materials, back
+    /// materials and attributes), child instances copied recursively the same way,
+    /// and a new instance record cloned from `inst` (name, material, tag,
+    /// attributes) whose transform is `inst`'s translated by `offset` in the
+    /// parent's coordinates. Returns the new instance. Copies get their own
+    /// definition rather than sharing one because `world_transform` and the app's
+    /// group editing assume one instance per group definition; shared definitions
+    /// are what components will add. `Error::Locked` when `inst` is locked or the
+    /// parent definition the copy is written into is locked (ADR mvr2opid).
+    pub fn copy_instance(&mut self, inst: InstId, offset: V3) -> Result<InstId, Error> {
+        let src = self.instance(inst).cloned().ok_or(Error::Missing("instance"))?;
+        self.check_instance_unlocked(inst)?;
+        self.check_def_unlocked(src.parent)?;
+        if !offset.is_finite() {
+            return Err(Error::Degenerate("offset is not a number"));
+        }
+        let def = self.copy_definition(src.definition)?;
+        let id = self.new_instance(def, src.parent);
+        let mut x = src.clone();
+        x.definition = def;
+        x.transform = mat_mul(&mat_translation(offset), &src.transform);
+        self.set_instance(id, Some(x));
+        Ok(id)
+    }
+
+    /// Deep-copy `def` into a new group definition placed nowhere: its geometry,
+    /// materials and attributes, and its child instances with their own copied
+    /// definitions. `copy_instance` and its recursion use it.
+    fn copy_definition(&mut self, def: DefId) -> Result<DefId, Error> {
+        let src = self.definition(def).cloned().ok_or(Error::Missing("definition"))?;
+        let new = self.next_def();
+        self.set_definition(
+            new,
+            Some(Definition { name: src.name, kind: DefKind::Group, attributes: src.attributes }),
+        );
+        let mut vmap: HashMap<VId, VId> = HashMap::new();
+        let verts: Vec<(VId, V3)> = self.vertices_in(def).map(|(id, v)| (id, v.pos)).collect();
+        for (id, p) in verts {
+            let nv = self.add_vertex(new, p);
+            vmap.insert(id, nv);
+        }
+        let edges: Vec<[VId; 2]> = self.edges_in(def).map(|(_, e)| e.v).collect();
+        for [a, b] in edges {
+            self.add_edge(vmap[&a], vmap[&b])?;
+        }
+        let faces: Vec<Face> = self.faces_in(def).map(|(_, f)| f.clone()).collect();
+        for face in faces {
+            let outer = face.outer.iter().map(|v| vmap[v]).collect();
+            let holes = face.holes.iter().map(|h| h.iter().map(|v| vmap[v]).collect()).collect();
+            let nf = self.add_face(new, outer, holes, Some(face.plane.normal))?;
+            self.with_face(nf, |x| {
+                x.material = face.material;
+                x.back_material = face.back_material;
+                x.attributes = face.attributes.clone();
+            });
+        }
+        let children: Vec<Instance> = self.instances_in(def).map(|(_, i)| i.clone()).collect();
+        for child in children {
+            let cd = self.copy_definition(child.definition)?;
+            let ci = self.new_instance(cd, new);
+            let mut x = child;
+            x.definition = cd;
+            x.parent = new;
+            self.set_instance(ci, Some(x));
+        }
+        Ok(new)
     }
 
     fn delete_definition_contents(&mut self, def: DefId) {

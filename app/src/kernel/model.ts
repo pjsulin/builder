@@ -189,6 +189,16 @@ export class Model {
   setTransform(inst: number, m: Mat4): void {
     this.changed(this.k.setTransform(inst, Float64Array.from(m)));
   }
+  /** Copy loose geometry of `ctx` by `d` (context coordinates); the copy welds to
+   *  what it lands on. Returns the copy's faces and edges as they are after that. */
+  copyGeometry(ctx: number, faces: number[], edges: number[], d: Vec3): { faces: number[]; edges: number[] } {
+    return this.changed(JSON.parse(this.k.copyGeometry(ctx, u32(faces), u32(edges), d[0], d[1], d[2])));
+  }
+  /** Copy an instance as a new group placed `d` away (parent coordinates). */
+  copyInstance(inst: number, d: Vec3): number {
+    return this.changed(this.k.copyInstance(inst, d[0], d[1], d[2]));
+  }
+
   /** Intersect Faces: draw the edges where `faces` (and the faces inside `instances`)
    *  cross the model (`withModel`) or each other, into `ctx`. Returns the edges drawn. */
   intersectFaces(ctx: number, faces: number[], instances: number[], withModel: boolean): number[] {

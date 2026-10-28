@@ -1771,6 +1771,8 @@ impl Document {
     /// edges with what they land on (MovesThatStick). Faces bring their edges.
     /// Inputs not owned by `ctx` are ignored; nothing to copy is `Error::Empty`.
     /// `Error::Locked` when `ctx` is locked (ADR mvr2opid). Journaled.
+    /// (2026-10-28: `Copied` lists only the ids that still exist after the
+    /// integration; a copied face that cancelled against an opposite face is gone.)
     pub fn copy_geometry(&mut self, ctx: DefId, faces: &[FId], edges: &[EId], offset: V3) -> Result<Copied, Error>;
 }
 
@@ -1944,7 +1946,8 @@ let (f, e) = (faces(&d, ROOT), d.edges_in(ROOT).map(|(id, _)| id).collect::<Vec<
 d.begin("Copy");
 let c = d.copy_geometry(ROOT, &f, &e, v(10.0, 0.0, 0.0)).unwrap();   // lands flush: welded
 d.commit();
-assert_eq!(c.faces.len(), 6);
+assert_eq!(c.faces.len(), 5);   // (2026-10-28: `Copied` holds the ids alive after integration; the side that
+                                // landed on the original's side cancelled with it)
 assert!(approx(volume(&d, ROOT), 2000.0));
 validate(&d);
 d.undo();
@@ -2011,3 +2014,13 @@ npm run typecheck
 ```
 
 Browser check (Patrick): draw a 2×8 joist, group it, Move with Option (Mac) or Ctrl, type `16"`, then `9x`; then Undo and `/9` with a 12' copy. Cursor reads copy and the hint names the array syntax.
+
+## Added during implementation
+
+- `app/src/tools/move.ts:Selected` (private interface): the `{faces, edges, instances}` triple `Moving.selection`, `LastCopy.selection` and `last.selection` share.
+- `app/src/tools/move.ts:makeCopies(sel, offsets)` (private): the one Copy transaction `commit()` and `array()` both run, through `copyGeometry` and `copyInstance`, selecting the copies and flashing an error after aborting.
+- `app/src/tools/move.ts:copyIsLastStep()` (private): the stale-copy guard (`model.revision === lastCopy.revision`), clearing `lastCopy` and flashing "Copy something first" otherwise; used by `array()` and by a typed distance after a copy.
+- `app/src/tools/move.ts:start(..., copy = false)`: gains the copy flag so a retyped distance repeats a copy as a copy; `last` records `copy` and `commit()` sets it to what was committed (the modifier may change mid-move).
+- `app/src/tools/move.ts:pendingCopy` (private field): the modifier state reported while nothing was moving, read at the next pick-up.
+- `app/test/tools.test.ts:grouped`, `joist`, `copyAlongRed`, `box` (module scope): test helpers.
+- Test functions, one per line: `kernel/tests/copy.rs` `all`, `a_box_copied_flush_welds_into_one_solid`, `a_copy_clear_of_the_original_is_independent`, `a_copied_group_gets_its_own_equal_definition`, `a_nested_group_is_copied_recursively`, `locked_geometry_is_not_copied`, `fifty_instance_copies_commit_quickly`.

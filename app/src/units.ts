@@ -86,6 +86,29 @@ export function parseLength(text: string, units: UnitSystem = "imperial"): numbe
   return neg ? -v : v;
 }
 
+/** An array count typed into the Measurements box after a copy. */
+export interface ArraySpec {
+  /** "times": N more copies at the last spacing. "divide": N copies spread evenly over the last offset. */
+  kind: "times" | "divide";
+  /** A positive integer. */
+  n: number;
+}
+
+/**
+ * Parse an array count typed into the Measurements box: `5x`, `x5`, `5*`, `*5`
+ * (times) or `/5`, `5/` (divide). Whitespace and case are ignored. Anything else,
+ * including `0x`, `2.5x`, `-3x` and a bare `5`, is null so the caller can try
+ * `parseLength` next (which returns NaN for every array spelling).
+ */
+export function parseArray(text: string): ArraySpec | null {
+  const s = text.replace(/\s+/g, "").toLowerCase();
+  const m = s.match(/^(?:([x*\/])(\d+)|(\d+)([x*\/]))$/);
+  if (!m) return null;
+  const n = parseInt(m[2] ?? m[3], 10);
+  if (!(n > 0)) return null;
+  return { kind: (m[1] ?? m[4]) === "/" ? "divide" : "times", n };
+}
+
 /** Parse a comma-separated list of lengths, e.g. "10', 8'" for a rectangle. */
 export function parseLengths(text: string, units: UnitSystem = "imperial"): number[] {
   return text.split(/[,;]/).map((p) => parseLength(p, units));

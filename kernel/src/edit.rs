@@ -1,6 +1,6 @@
 //! Moving and erasing geometry.
 
-use std::collections::{BTreeSet, HashSet};
+use std::collections::{BTreeSet, HashMap, HashSet};
 
 use crate::doc::*;
 use crate::heal::OldRegion;
@@ -8,7 +8,79 @@ use crate::math::{point_segment, to_2d, Plane, P2, V3};
 use crate::tol;
 use crate::Error;
 
+/// What a copy of loose geometry made in the target context: the ids that still
+/// exist once the copy has been integrated (a copied face that landed on an
+/// opposite face cancelled with it).
+#[derive(Clone, Debug, Default)]
+pub struct Copied {
+    pub faces: Vec<FId>,
+    pub edges: Vec<EId>,
+}
+
 impl Document {
+    /// Duplicate faces and edges of `ctx` translated by `offset`, keeping materials,
+    /// back materials and face attributes, then integrate the new edges with what
+    /// they land on as a committed move does (`integrate_moved`). Faces bring their
+    /// edges. Inputs not owned by `ctx` are ignored; nothing to copy is
+    /// `Error::Empty`. `Error::Locked` when `ctx` is locked (ADR mvr2opid).
+    pub fn copy_geometry(
+        &mut self,
+        ctx: DefId,
+        faces: &[FId],
+        edges: &[EId],
+        offset: V3,
+    ) -> Result<Copied, Error> {
+        self.check_def_unlocked(ctx)?;
+        if !offset.is_finite() {
+            return Err(Error::Degenerate("offset is not a number"));
+        }
+        let faces: Vec<FId> =
+            faces.iter().copied().filter(|&f| self.face(f).is_some_and(|x| x.owner == ctx)).collect();
+        let mut edge_set: BTreeSet<EId> =
+            edges.iter().copied().filter(|&e| self.edge(e).is_some_and(|x| x.owner == ctx)).collect();
+        for &f in &faces {
+            let face = self.face(f).cloned().ok_or(Error::Missing("face"))?;
+            edge_set.extend(self.face_edges(&face));
+        }
+        if faces.is_empty() && edge_set.is_empty() {
+            return Err(Error::Empty);
+        }
+        // New vertices weld to whatever is already at the landing point.
+        let mut vmap: HashMap<VId, VId> = HashMap::new();
+        let mut map_v = |doc: &mut Document, v: VId| -> VId {
+            *vmap.entry(v).or_insert_with(|| {
+                let p = doc.pos(v) + offset;
+                doc.vertex_at(ctx, p)
+            })
+        };
+        let mut out = Copied::default();
+        for &e in &edge_set {
+            let ed = self.edge(e).cloned().ok_or(Error::Missing("edge"))?;
+            let (a, b) = (map_v(self, ed.v[0]), map_v(self, ed.v[1]));
+            if a != b {
+                out.edges.push(self.add_edge(a, b)?);
+            }
+        }
+        for &f in &faces {
+            let face = self.face(f).cloned().ok_or(Error::Missing("face"))?;
+            let outer: Vec<VId> = face.outer.iter().map(|&v| map_v(self, v)).collect();
+            let holes: Vec<Vec<VId>> =
+                face.holes.iter().map(|h| h.iter().map(|&v| map_v(self, v)).collect()).collect();
+            let nf = self.add_face(ctx, outer, holes, Some(face.plane.normal))?;
+            self.with_face(nf, |x| {
+                x.material = face.material;
+                x.back_material = face.back_material;
+                x.attributes = face.attributes.clone();
+            });
+            out.faces.push(nf);
+        }
+        let edges = out.edges.clone();
+        self.integrate_moved(ctx, &edges)?;
+        out.edges.retain(|&e| self.edge(e).is_some());
+        out.faces.retain(|&f| self.face(f).is_some());
+        Ok(out)
+    }
+
     /// Preview move: move vertices by `offset`. A face the move would bend is left
     /// as it was (its plane and triangulation stale) so the drag still shows; the
     /// committed `move_and_integrate` folds it. A face that would collapse or turn

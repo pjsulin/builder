@@ -10,13 +10,13 @@ Five phases, one commit each. Phase 1 adds the two journaled kernel copy operati
 
 ### Phase 1: Kernel Copy Operations
 
-**Status:** pending
+**Status:** completed
 **Dependencies:** none
 
 #### Task 1.1: copy_geometry in edit.rs
 
 - **Type:** implement
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** none
 - **Files:**
   - Modify: kernel/src/edit.rs
@@ -27,7 +27,7 @@ Five phases, one commit each. Phase 1 adds the two journaled kernel copy operati
 #### Task 1.2: copy_instance in group.rs
 
 - **Type:** implement
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** none
 - **Files:**
   - Modify: kernel/src/group.rs
@@ -37,7 +37,7 @@ Five phases, one commit each. Phase 1 adds the two journaled kernel copy operati
 #### Task 1.3: Bench copy case
 
 - **Type:** implement
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [1.1, 1.2]
 - **Files:**
   - Modify: kernel/examples/bench.rs
@@ -47,7 +47,7 @@ Five phases, one commit each. Phase 1 adds the two journaled kernel copy operati
 #### Task 1.4: Kernel copy tests
 
 - **Type:** test
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [1.1, 1.2]
 - **Files:**
   - Create: kernel/tests/copy.rs
@@ -57,7 +57,7 @@ Five phases, one commit each. Phase 1 adds the two journaled kernel copy operati
 #### Task 1.5: Architecture doc for copy
 
 - **Type:** document
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [1.1, 1.2]
 - **Files:**
   - Modify: docs/architecture.md
@@ -66,13 +66,13 @@ Five phases, one commit each. Phase 1 adds the two journaled kernel copy operati
 
 ### Phase 2: Wasm and Model Wrappers
 
-**Status:** pending
+**Status:** completed
 **Dependencies:** [Phase 1]
 
 #### Task 2.1: Wasm exports
 
 - **Type:** implement
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [Phase 1]
 - **Files:**
   - Modify: kernel-wasm/src/lib.rs
@@ -82,7 +82,7 @@ Five phases, one commit each. Phase 1 adds the two journaled kernel copy operati
 #### Task 2.2: Model wrappers
 
 - **Type:** implement
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [2.1]
 - **Files:**
   - Modify: app/src/kernel/model.ts
@@ -92,7 +92,7 @@ Five phases, one commit each. Phase 1 adds the two journaled kernel copy operati
 #### Task 2.3: Model copy tests
 
 - **Type:** test
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [2.2]
 - **Files:**
   - Modify: app/test/tools.test.ts
@@ -101,13 +101,13 @@ Five phases, one commit each. Phase 1 adds the two journaled kernel copy operati
 
 ### Phase 3: Array Parser
 
-**Status:** pending
+**Status:** completed
 **Dependencies:** none
 
 #### Task 3.1: parseArray in units.ts
 
 - **Type:** implement
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** none
 - **Files:**
   - Modify: app/src/units.ts
@@ -117,7 +117,7 @@ Five phases, one commit each. Phase 1 adds the two journaled kernel copy operati
 #### Task 3.2: Measurements-box auto-focus accepts x and *
 
 - **Type:** implement
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [3.1]
 - **Files:**
   - Modify: app/src/app.ts
@@ -127,7 +127,7 @@ Five phases, one commit each. Phase 1 adds the two journaled kernel copy operati
 #### Task 3.3: Parser tests
 
 - **Type:** test
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [3.1]
 - **Files:**
   - Modify: app/test/units.test.ts
@@ -136,13 +136,13 @@ Five phases, one commit each. Phase 1 adds the two journaled kernel copy operati
 
 ### Phase 4: Copy Modifier in Move
 
-**Status:** pending
+**Status:** completed
 **Dependencies:** [Phase 2]
 
 #### Task 4.1: Copy modifier in the tool framework and app
 
 - **Type:** implement
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [Phase 2]
 - **Files:**
   - Modify: app/src/tools/tool.ts
@@ -153,7 +153,7 @@ Five phases, one commit each. Phase 1 adds the two journaled kernel copy operati
 #### Task 4.2: MoveTool copy mode
 
 - **Type:** implement
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [4.1]
 - **Files:**
   - Modify: app/src/tools/move.ts
@@ -163,7 +163,7 @@ Five phases, one commit each. Phase 1 adds the two journaled kernel copy operati
 #### Task 4.3: Copy modifier tests
 
 - **Type:** test
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [4.2]
 - **Files:**
   - Modify: app/test/toolhost.ts
@@ -174,7 +174,7 @@ Five phases, one commit each. Phase 1 adds the two journaled kernel copy operati
 #### Task 4.4: Copy docs
 
 - **Type:** document
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [4.2]
 - **Files:**
   - Modify: docs/features.md
@@ -184,13 +184,13 @@ Five phases, one commit each. Phase 1 adds the two journaled kernel copy operati
 
 ### Phase 5: Linear Arrays
 
-**Status:** pending
+**Status:** completed
 **Dependencies:** [Phase 3, Phase 4]
 
 #### Task 5.1: Array replay in MoveTool
 
 - **Type:** implement
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [Phase 3, Phase 4]
 - **Files:**
   - Modify: app/src/tools/move.ts
@@ -200,7 +200,7 @@ Five phases, one commit each. Phase 1 adds the two journaled kernel copy operati
 #### Task 5.2: Array tests
 
 - **Type:** test
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [5.1]
 - **Files:**
   - Modify: app/test/tools.test.ts
@@ -210,7 +210,7 @@ Five phases, one commit each. Phase 1 adds the two journaled kernel copy operati
 #### Task 5.3: Array docs and roadmap
 
 - **Type:** document
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [5.1]
 - **Files:**
   - Modify: README.md

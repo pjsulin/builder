@@ -1,4 +1,4 @@
-commit: bda40f8
+commit: e41a3ad
 budget: 1000
 
 app/src/math.ts:
@@ -42,6 +42,8 @@ app/src/tools/tool.ts:
 │  shift: boolean;
 │  ctrl: boolean;
 │  alt: boolean;
+│  /** The copy modifier is held (Option on Mac, Ctrl elsewhere). */
+│  copy: boolean;
 ⋮
 
 app/src/units.ts:

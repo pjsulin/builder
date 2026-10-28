@@ -25,6 +25,12 @@ import { Viewport } from "./view/viewport";
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 
+/** Platform copy key for Move: Option on Mac (Ctrl is undo/redo/save/open there and
+ *  Ctrl-click is a context click), Ctrl elsewhere. */
+function copyKey(ev: KeyboardEvent | MouseEvent): boolean {
+  return /Mac|iPhone|iPad/.test(navigator.platform) ? ev.altKey : ev.ctrlKey;
+}
+
 const MARKER_CLASS: Record<string, string> = {
   endpoint: "end",
   origin: "end",
@@ -143,6 +149,7 @@ export class App implements ToolHost {
   hintChanged(): void {
     $("hint").textContent = this.tool.hint();
     $("vcbLabel").textContent = this.tool.vcbLabel();
+    this.view.canvas.style.cursor = this.tool.cursor;
   }
 
   enterGroup(instance: number): void {
@@ -630,7 +637,7 @@ export class App implements ToolHost {
 
   private pointer(ev: PointerEvent | MouseEvent | WheelEvent): ToolPointer {
     const r = this.view.canvas.getBoundingClientRect();
-    return { x: ev.clientX - r.left, y: ev.clientY - r.top, shift: ev.shiftKey, ctrl: ev.ctrlKey || ev.metaKey, alt: ev.altKey };
+    return { x: ev.clientX - r.left, y: ev.clientY - r.top, shift: ev.shiftKey, ctrl: ev.ctrlKey || ev.metaKey, alt: ev.altKey, copy: copyKey(ev) };
   }
 
   private bindUi(): void {
@@ -750,6 +757,10 @@ export class App implements ToolHost {
         this.inference.unlock();
         this.positionLabels();
       }
+      if ((ev.key === "Control" || ev.key === "Alt") && this.tool.modifier) {
+        this.tool.modifier(false);
+        this.hintChanged();
+      }
     });
     window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => this.readTheme());
     window.addEventListener("beforeunload", (ev) => {
@@ -776,6 +787,10 @@ export class App implements ToolHost {
     }
     const k = ev.key;
     const mod = ev.ctrlKey || ev.metaKey;
+    if (copyKey(ev) && !ev.repeat && this.tool.modifier) {
+      this.tool.modifier(true);
+      this.hintChanged();
+    }
     if (mod && k.toLowerCase() === "z") {
       ev.preventDefault();
       return this.undo(ev.shiftKey);
@@ -802,7 +817,7 @@ export class App implements ToolHost {
     if ((document.activeElement as HTMLElement | null)?.tagName === "BUTTON" && (k === "Enter" || k === " ")) return;
 
     // Typing a number goes straight to the Measurements box.
-    if (/^[0-9.'",\-/]$/.test(k)) {
+    if (/^[0-9.'",\-/x*]$/.test(k)) {
       ev.preventDefault();
       vcb.value = (this.vcbTyping ? vcb.value : "") + k;
       this.vcbTyping = true;
