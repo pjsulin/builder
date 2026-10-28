@@ -1,10 +1,11 @@
 ---
-sprint: "IntersectAndHarden"
 created: 2026-10-28
-start: null    # commit; set by `flux sprint move <Name> Current`, close diffs against it
-started: null  # date; set by the same move
-step: "3"
+sprint: IntersectAndHarden
+start: 480b033
+started: '2026-10-28'
+step: '3'
 ---
+
 # Requirements: IntersectAndHarden
 
 ## Background
