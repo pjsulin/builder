@@ -62,7 +62,7 @@ Users don't praise SketchUp for its feature count. They praise a small number of
 | Feature | Tier | Notes |
 | --- | --- | --- |
 | Push/Pull on any planar face (stretch, extrude, cut through) | Core | Built now. Ctrl to always create new faces is Later. |
-| Move and copy (Ctrl), with arrays (`5x`, `/5` in the VCB) | Core | Move built now. Copy and arrays come next. |
+| Move and copy (Ctrl), with arrays (`5x`, `/5` in the VCB) | Core | Move built now, welding what it moves to what it lands on and folding a face that would bend into planar pieces instead of refusing. Copy and arrays come next. |
 | Rotate with protractor, copy-rotate arrays | Core | |
 | Scale (uniform and per axis, typed factors) | Core | |
 | Follow Me (sweep a face along a path) | Core | Gutters, trim, handrails. |

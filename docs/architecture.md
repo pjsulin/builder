@@ -111,9 +111,9 @@ After either mode, the new or moved geometry is **settled** into what it touches
 
 This works on any planar face. The prototype only handled axis-aligned ones.
 
-**`move_vertices`**, **`erase`**, **`make_group`** and **`explode`** follow the same pattern: change the raw records, then re-validate.
+**`move_vertices`**, **`move_and_integrate`**, **`erase`**, **`make_group`** and **`explode`** follow the same pattern: change the raw records, then re-validate.
 
-- Move rejects a change that would bend a face out of plane or turn it inside out. SketchUp folds such faces into triangles, which we will add later.
+- Move has a preview and a committed form. `move_vertices` (every pointer move) only displaces vertices and re-derives the faces that stay planar; a face the move would bend is left as it was, so the drag still shows, and a face that would collapse or turn inside out fails the move. `move_and_integrate` (the commit) first runs `fold_for_move`, which replaces each face that would bend with planar pieces along diagonals chosen so the hinge runs between the moved vertex's neighbours and one piece stays in the old plane (materials and attributes are kept, and a face with holes that would bend is refused); then moves the vertices; then `integrate_moved`: a moved vertex that lands on another vertex merges into it, the moved edges are re-inserted as segments so they split and are split by edges they cross or overlap, every plane they lie in is healed, and `settle_faces`, the settle steps shared with push/pull, cancels a face that landed on an opposite face and merges coplanar neighbours. The result is as if the geometry had been drawn there. Moving a group instance (`set_transform`) never welds. Fold diagonals are ordinary edges; a soft-edge flag waits for styles.
 - Erase removes the faces bounded by an erased edge, heals the plane to merge coplanar neighbors, and dissolves vertices left between two collinear edges.
 - Make group copies the selected faces and edges into a new definition, adds an instance with an identity transform, and removes the originals. Edges still used by faces left outside stay, so the remaining geometry keeps its boundary.
 - Explode copies the definition's geometry back through the instance transform, welding to touching vertices, so the geometry sticks again.

@@ -126,13 +126,13 @@ Make Move behave like SketchUp's: a committed move welds moved vertices and edge
 
 ### Phase 4: Move Tool and Docs
 
-**Status:** pending
+**Status:** completed
 **Dependencies:** [Phase 3]
 
 #### Task 4.1: Move tool commits through moveAndIntegrate
 
 - **Type:** implement
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [Phase 3]
 - **Files:**
   - Modify: app/src/tools/move.ts
@@ -142,17 +142,17 @@ Make Move behave like SketchUp's: a committed move welds moved vertices and edge
 #### Task 4.2: Headless tool tests for a fold and a weld
 
 - **Type:** test
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [4.1]
 - **Files:**
   - Modify: app/test/tools.test.ts
 - **Context:** [spec.md§Validation Criteria](spec.md#validation-criteria)
-- **Description:** In `describe("Select, Move, Erase and groups")` add "commits a fold when a top edge is pushed sideways" (the `box(h)` shed box; `SelectTool` click on the top edge at [120, 48, 96]; `MoveTool` base [120, 48, 96], hover toward [120, 60, 96], `vcb("1'")`; the end faces y=0 and y=96 can no longer stay planar so each folds: `stats().faces` 8, `undo` restores 6; the tool has no vertex selection, so a single corner cannot be lifted through it) and "welds a face moved onto another" (two rectangles pulled into boxes with a gap, move the facing side by the gap, `stats().faces` 10). Both run through the wasm `moveAndIntegrate`.
+- **Description:** In `describe("Select, Move, Erase and groups")` add "commits a fold when a top edge is pushed sideways" (the `box(h)` shed box; `SelectTool` click on the top edge at [120, 48, 96]; `MoveTool` base [120, 48, 96], hover toward [120, 60, 96], `vcb("1'")`; the end faces y=0 and y=96 can no longer stay planar so each folds: `stats().faces` 8, `undo` restores 6; the tool has no vertex selection, so a single corner cannot be lifted through it) and "welds a face moved onto another" (two rectangles pulled into boxes with a gap, move the facing side by the gap, `stats().faces` 10). (2026-10-28: the second box sits 100" to the left so the moved face is visible to the test camera, and the result is 6 faces: the facing sides cancel and the coplanar sides merge, as in Task 2.4's log line.) Both run through the wasm `moveAndIntegrate`.
 
 #### Task 4.3: Architecture, features and roadmap
 
 - **Type:** document
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [4.1]
 - **Files:**
   - Modify: docs/architecture.md

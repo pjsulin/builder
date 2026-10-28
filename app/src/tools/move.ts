@@ -161,9 +161,17 @@ export class MoveTool implements Tool {
     if (dist([0, 0, 0], m.good) < 1e-3) {
       model.abort();
     } else {
+      // The preview only displaced vertices; the committed move also folds bent
+      // faces and welds what landed on other geometry.
+      model.abort();
+      model.begin("Move");
       try {
+        const local = this.host.toLocalDir(m.good);
+        if (m.verts.length) model.moveAndIntegrate(m.verts, local);
+        for (const inst of m.instances) model.setTransform(inst.id, mul(translation(local), inst.transform));
         model.commit();
       } catch (e) {
+        model.abort();
         this.host.flash(errorMessage(e));
       }
       if (this.last) this.last.dir = norm(m.good);
