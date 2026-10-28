@@ -458,3 +458,126 @@ describe("Move with the copy modifier", () => {
     expect(h.model.instances(ROOT).length).toBe(1);
   });
 });
+
+describe("Linear arrays", () => {
+  /** A 2x8 joist (1 1/2" x 8' x 7 1/4") drawn, pulled, grouped and selected. */
+  function joist(h: TestHost): number {
+    const rect = new RectangleTool(h);
+    h.click(rect, [0, 0, 0]);
+    h.hover(rect, [10, 50, 0]);
+    rect.vcb("1 1/2\", 8'");
+    h.refresh();
+    const pp = new PushPullTool(h);
+    h.click(pp, [0.75, 48, 0]);
+    h.hover(pp, [0.75, 48, 5]);
+    pp.vcb("7 1/4\"");
+    h.refresh();
+    const faces = [...new Set(h.scene().triFace)];
+    const g = h.model.transact("Make Group", () => h.model.makeGroup(ROOT, faces, [...h.scene().segEdge], []));
+    h.refresh();
+    h.selection.set([{ kind: "instance", id: g }]);
+    return g;
+  }
+  const xs = (h: TestHost) => h.model.instances(ROOT).map((i) => i.transform[12]).sort((a, b) => a - b);
+  /** Copy the selection along red by the typed distance. */
+  function copyAlongRed(h: TestHost, mv: MoveTool, distance: string) {
+    h.copyClick(mv, [0, 0, 0]);
+    h.hover(mv, [50, 0, 0]);
+    mv.vcb(distance);
+    h.refresh();
+  }
+
+  it("makes ten joists at 16 inch centres from one copy and 9x, as one undo step", () => {
+    const h = new TestHost();
+    joist(h);
+    const mv = new MoveTool(h);
+    copyAlongRed(h, mv, '16"');
+    expect(xs(h)).toEqual([0, 16]);
+    mv.vcb("9x");
+    expect(h.flashes).toEqual([]);
+    expect(xs(h)).toEqual([0, 16, 32, 48, 64, 80, 96, 112, 128, 144]);
+    expect(h.selection.ids("instance").length).toBe(9);
+    expect(h.model.undo()).toBe("Copy");
+    expect(xs(h)).toEqual([0]);
+  });
+
+  it("spreads ten joists end to end with /9 across 12 feet", () => {
+    const h = new TestHost();
+    joist(h);
+    const mv = new MoveTool(h);
+    copyAlongRed(h, mv, "12'");
+    expect(xs(h)).toEqual([0, 144]);
+    mv.vcb("/9");
+    expect(h.flashes).toEqual([]);
+    expect(xs(h)).toEqual([0, 16, 32, 48, 64, 80, 96, 112, 128, 144]);
+    expect(h.model.undo()).toBe("Copy");
+    expect(xs(h)).toEqual([0]);
+  });
+
+  it("retypes the count and refuses an array without a copy", () => {
+    const h = new TestHost();
+    joist(h);
+    const mv = new MoveTool(h);
+    copyAlongRed(h, mv, '16"');
+    mv.vcb("9x");
+    expect(xs(h).length).toBe(10);
+    mv.vcb("5x");
+    expect(xs(h)).toEqual([0, 16, 32, 48, 64, 80]);
+    expect(h.model.undo()).toBe("Copy");
+    expect(xs(h)).toEqual([0]);
+    // A plain move is not a copy.
+    h.selection.set([{ kind: "instance", id: h.model.instances(ROOT)[0].id }]);
+    h.click(mv, [0, 0, 0]);
+    h.hover(mv, [50, 0, 0]);
+    mv.vcb("1'");
+    expect(xs(h)).toEqual([12]);
+    mv.vcb("9x");
+    expect(h.flashes).toEqual(["Copy something first"]);
+    expect(xs(h)).toEqual([12]);
+  });
+
+  it("does nothing when the model changed since the copy", () => {
+    const h = new TestHost();
+    joist(h);
+    const mv = new MoveTool(h);
+    copyAlongRed(h, mv, '16"');
+    expect(xs(h)).toEqual([0, 16]);
+    expect(h.model.undo()).toBe("Copy");
+    mv.vcb("9x");
+    expect(h.flashes).toEqual(["Copy something first"]);
+    expect(xs(h)).toEqual([0]);
+    expect(h.model.canUndo()).toBe(true);
+    expect(h.model.undo()).toBe("Make Group");
+  });
+
+  it("arrays loose geometry and fifty groups in one transaction", () => {
+    const h = new TestHost();
+    box(h);
+    const sel = new SelectTool(h);
+    h.click(sel, [60, 48, 96]);
+    const mv = new MoveTool(h);
+    h.copyClick(mv, [60, 48, 96]);
+    h.hover(mv, [60, 48, 110]);
+    mv.vcb("1'");
+    h.refresh();
+    expect(h.model.stats().faces).toBe(7);
+    mv.vcb("4x");
+    h.refresh();
+    expect(h.model.stats().faces).toBe(10);
+    expect(h.scene().max[2]).toBeCloseTo(96 + 48);
+    expect(h.model.undo()).toBe("Copy");
+    h.refresh();
+    expect(h.model.stats().faces).toBe(6);
+
+    const h2 = new TestHost();
+    joist(h2);
+    const mv2 = new MoveTool(h2);
+    copyAlongRed(h2, mv2, '16"');
+    const before = h2.model.revision;
+    mv2.vcb("50x");
+    expect(h2.model.instances(ROOT).length).toBe(51);
+    expect(h2.model.revision).toBeGreaterThan(before);
+    expect(h2.model.undo()).toBe("Copy");
+    expect(h2.model.instances(ROOT).length).toBe(1);
+  });
+});

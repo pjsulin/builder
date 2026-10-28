@@ -31,7 +31,7 @@ The tools every real model uses, in order of how often they're needed.
 
 | # | Item | Size | Why |
 | --- | --- | --- | --- |
-| 2.1 | **Copy** (Ctrl with Move) and **arrays** (`5x`, `/5` in the Measurements box) | S | Joists, rafters, deck boards, shelves, fence posts. The most-repeated action in building models. |
+| 2.1 | **Copy** (Ctrl with Move) and **arrays** (`5x`, `/5` in the Measurements box). Done, sprint CopyAndArrays, 2026-10: Option on a Mac, copies of groups are independent groups until 3.1. | S | Joists, rafters, deck boards, shelves, fence posts. The most-repeated action in building models. |
 | 2.2 | **Rotate** with a protractor, plus rotate-copy | M | Turning furniture, angled walls, roof pitches. |
 | 2.3 | **Offset** (faces and edge chains) | M | Wall thickness, window frames, trim, table aprons. |
 | 2.4 | **Tape Measure and guides** (guide lines and points, measured distances) | M | How SketchUp users lay out positions before drawing. |

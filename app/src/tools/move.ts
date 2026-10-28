@@ -1,6 +1,6 @@
 import type { Inference } from "../inference/engine";
 import { add, dist, madd, mul, norm, sub, translation, type Mat4, type Vec3 } from "../math";
-import { parseLength } from "../units";
+import { parseArray, parseLength, type ArraySpec } from "../units";
 import { pickEntity } from "./pick";
 import type { Entity } from "../kernel/model";
 import { errorMessage, type Tool, type ToolHost, type ToolPointer } from "./tool";
@@ -175,6 +175,8 @@ export class MoveTool implements Tool {
   }
 
   vcb(text: string): void {
+    const spec = parseArray(text);
+    if (spec) return this.array(spec);
     const d = parseLength(text, this.host.units);
     if (!Number.isFinite(d)) return this.host.flash("Type a distance like 8' or 30\"");
     if (this.moving) {
@@ -198,6 +200,28 @@ export class MoveTool implements Tool {
       return;
     }
     this.host.flash("Move something first");
+  }
+
+  /** Replace the last copy by an array of it: `times` N puts N copies at the
+   *  copy's spacing, `divide` N spreads N copies evenly over the copy's offset.
+   *  The last Copy transaction is undone and the array made as one, so retyping
+   *  changes the count and one undo removes the whole array. */
+  private array(spec: ArraySpec): void {
+    if (!this.copyIsLastStep()) return;
+    const lc = this.lastCopy!;
+    const { model } = this.host;
+    const offsets: Vec3[] = [];
+    for (let k = 1; k <= spec.n; k++) offsets.push(madd([0, 0, 0], lc.offset, spec.kind === "times" ? k : k / spec.n));
+    model.undo();
+    if (this.makeCopies(lc.selection, offsets)) {
+      this.lastCopy = { ...lc, count: spec.n, revision: model.revision };
+    } else {
+      // The array failed part way; the single copy comes back as it was.
+      model.redo();
+      this.lastCopy = { ...lc, revision: model.revision };
+    }
+    this.host.refresh();
+    this.host.hintChanged();
   }
 
   /** True when the last Copy transaction is still the top of the undo stack;

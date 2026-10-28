@@ -184,13 +184,13 @@ Five phases, one commit each. Phase 1 adds the two journaled kernel copy operati
 
 ### Phase 5: Linear Arrays
 
-**Status:** pending
+**Status:** completed
 **Dependencies:** [Phase 3, Phase 4]
 
 #### Task 5.1: Array replay in MoveTool
 
 - **Type:** implement
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [Phase 3, Phase 4]
 - **Files:**
   - Modify: app/src/tools/move.ts
@@ -200,7 +200,7 @@ Five phases, one commit each. Phase 1 adds the two journaled kernel copy operati
 #### Task 5.2: Array tests
 
 - **Type:** test
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [5.1]
 - **Files:**
   - Modify: app/test/tools.test.ts
@@ -210,7 +210,7 @@ Five phases, one commit each. Phase 1 adds the two journaled kernel copy operati
 #### Task 5.3: Array docs and roadmap
 
 - **Type:** document
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [5.1]
 - **Files:**
   - Modify: README.md
