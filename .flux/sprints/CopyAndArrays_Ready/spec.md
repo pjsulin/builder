@@ -1782,7 +1782,9 @@ impl Document {
     /// same way, and a new instance record cloned from `inst` (name, material,
     /// tag, attributes) whose transform is `inst`'s translated by `offset` in
     /// the parent's coordinates. Returns the new instance. `Error::Locked`
-    /// when `inst` is locked (ADR mvr2opid). Journaled.
+    /// when `inst` is locked or the parent definition it is written into is
+    /// locked: `check_instance_unlocked(inst)` then `check_def_unlocked(parent)`,
+    /// as `make_group` checks `ctx` (ADR mvr2opid). Journaled.
     pub fn copy_instance(&mut self, inst: InstId, offset: V3) -> Result<InstId, Error>;
 
     /// Deep-copy `def` into a new definition placed nowhere; `copy_instance`
@@ -1892,6 +1894,8 @@ interface LastCopy {
   offset: Vec3;
   /** Copies made by the last array replay, or 1 after a plain copy. */
   count: number;
+  /** `model.revision` right after the Copy commit (or array replay). `array()` refuses when it has moved on. */
+  revision: number;
 }
 
 export class MoveTool implements Tool {
@@ -1912,6 +1916,7 @@ Array semantics (`array(spec)`), with `o` = `lastCopy.offset` and `S` = `lastCop
 - `divide` N: copies at `o*k/N` for `k = 1..N` (the Nth lands where the first copy was).
 - The last "Copy" transaction is undone first (`model.undo()`), then the N copies are made in one `transact("Copy")`, so retyping `5x` after `9x` leaves six parts (original plus five) and one undo removes the whole array. The originals are never touched, so instance copies always start from `S`'s ids, which survive the undo.
 - A plain move does not array: `last.dir` keeps only a unit direction (move.ts:169), so `lastCopy` is the only source and "Copy something first" is the message otherwise.
+- Stale copy guard, no App hook: `Model.revision` (model.ts:75) is bumped by every `changed()` call, including `undo`, `redo`, `commit` and `abort`. `commit()` stores `revision: model.revision` in `lastCopy` after the Copy transaction, and `array()` stores it again after the replay. `array()` first checks `model.revision === lastCopy.revision`; if anything changed the model since (a Cmd-Z, a redo, another tool's edit) it clears `lastCopy` and flashes "Copy something first", so the blind `model.undo()` never removes the wrong step. Hover previews do not touch the model, so moving the cursor between the copy and `9x` is fine.
 
 #### Test host (`app/test/toolhost.ts`)
 
@@ -1961,7 +1966,7 @@ const copies = this.host.model.transact("Copy", () => {
   const insts = m.instances.map((i) => this.host.model.copyInstance(i.id, local));
   return { ...g, instances: insts };
 });
-this.lastCopy = { selection: m.selection, offset: m.good, count: 1 };
+this.lastCopy = { selection: m.selection, offset: m.good, count: 1, revision: this.host.model.revision };
 ```
 
 ```ts
@@ -1991,7 +1996,8 @@ if (mod || ev.altKey) return;
 cargo test --workspace
 # kernel/tests/copy.rs: copied loose geometry welds where it lands (volume doubles, validate passes);
 # copied group has its own definition with equal faces, edges, materials, attributes;
-# undo removes the copy and leaves the original; locked tag refused with Error::Locked;
+# undo removes the copy and leaves the original; locked tag refused with Error::Locked, and so is a copy whose
+# parent definition is locked (nested unlocked instance inside a locked group);
 # fifty instance copies in one transaction commit in under 100 ms (debug build; bench: 2,000 boxes build in 24 ms release).
 cargo run --release --example bench -p builder-kernel
 # prints "copy instance ×50: ..." and "copy geometry ×50: ..."
@@ -1999,7 +2005,8 @@ npm test
 # app/test/units.test.ts: parseArray accepts 5x x5 5* *5 /5 5/, rejects 0x 2.5x -3x "5"; "3/4" is still a length
 # app/test/tools.test.ts: copy modifier leaves the original and adds a copy; copyGeometry/copyInstance inside
 # transact undo as one step; locked instance refused; joist copied 16" then 9x → 10 instances, one undo;
-# /9 across 12' → 10 end to end; 5x after 9x → 6; "Copy something first" with no lastCopy
+# /9 across 12' → 10 end to end; 5x after 9x → 6; "Copy something first" with no lastCopy;
+# undo() between the copy and 9x → "Copy something first", nothing replayed, instance count unchanged
 npm run typecheck
 ```
 

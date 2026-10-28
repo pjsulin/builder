@@ -1825,7 +1825,7 @@ Defines the kernel entry point `Document::move_and_integrate` (fold, move, weld,
 
 - None. The four open questions were settled at the plan checkpoint (`.flux/docs/plan-checkpoint-2026-10-28.md`):
   - **No `soft` edge flag this sprint.** `Edge` has no flag field and `FileDefinition.edges` is `Vec<[u32; 2]>`; the additive shape would be a per-definition `soft_edges` list plus an ADR and wasm exposure with nothing rendering it. Deferred to styles (5.3). Fold diagonals are ordinary edges.
-  - **Fold diagonal:** the diagonal whose two triangles' normals, at post-move positions, stay closest to the face's original plane (maximise the smaller of the two dot products). For the box corner this leaves one triangle in the old plane.
+  - **Fold diagonal:** the diagonal whose two triangles' normals, at post-move positions, stay closest to the face's original plane (maximise the larger of the two dot products, so the fold hinges on the moved vertex's neighbours). For the box corner this leaves one triangle in the old plane; maximising the smaller dot would pick the diagonal through the lifted corner and bend both triangles.
   - **Weld context:** integration runs in the moved vertices' own definition (`Vertex.owner`), SketchUp's rule; a vertex set spanning two definitions is refused with `Error::Degenerate`. A group instance moved with `set_transform` is never integrated.
   - **Weld tolerance:** `tol::LENGTH` (1e-3"), the same tolerance `find_vertex`, `insert_segment` and `split_edge_at` use.
 
@@ -1868,7 +1868,8 @@ impl Document {
     /// `Degenerate("vertices belong to more than one definition")`, `Collapsed`.
     pub fn move_and_integrate(&mut self, verts: &[VId], offset: V3) -> Result<(), Error>;
 
-    /// Weld and settle after geometry was placed: `integrate_edges` then `heal_around`
+    /// Weld and settle after geometry was placed: `merge_vertex_into` for each edge
+    /// vertex `find_vertex` resolves to another id, then `integrate_edges` then `heal_around`
     /// on `edges` (so crossed edges split and touched planes heal like `add_line`),
     /// then `settle_faces` on every face touching the edges' vertices afterwards.
     /// `def` is the owner of every edge. Reused by CopyAndArrays for copied geometry.
@@ -1876,6 +1877,14 @@ impl Document {
 
     /// The edges incident to `verts`, deduplicated and sorted.
     pub(crate) fn edges_of_vertices(&self, verts: &[VId]) -> Vec<EId>;
+
+    /// Weld `from` into `into` (same owner, positions within `tol::LENGTH`): every
+    /// edge and face loop using `from` is re-pointed to `into`, an edge that would
+    /// duplicate an existing `into` edge is dropped, and `from` is removed. Called
+    /// first by `integrate_moved` for each moved vertex that `find_vertex` resolves
+    /// to a different id, since push/pull creates vertices with `vertex_at` and the
+    /// settle path never sees two vertices at one position.
+    pub(crate) fn merge_vertex_into(&mut self, from: VId, into: VId) -> Result<(), Error>;
 
     /// Before a move: every face using one of `verts` whose outer loop would not be
     /// planar at `pos + offset` is replaced by planar triangles. Diagonals are added
@@ -1888,7 +1897,8 @@ impl Document {
 
 /// Pure: diagonals (index pairs into `pts`) that split a simple 3D polygon into
 /// planar pieces. At each step the diagonal whose two sub-polygon planes stay closest
-/// to `normal` (largest minimum dot product) is chosen; a sub-polygon already planar
+/// to `normal` (largest maximum dot product: one piece stays as flat as possible, the
+/// hinge runs between the moved vertex's neighbours) is chosen; a sub-polygon already planar
 /// within `tol::PLANE` is not split further. Returns an empty Vec for a planar input.
 pub(crate) fn fold_diagonals(pts: &[V3], normal: V3) -> Vec<(usize, usize)>;
 ```
@@ -1979,7 +1989,8 @@ cargo test --workspace
 # and the new kernel/tests/move.rs: ridge_lifted_and_nudged_stays_closed,
 # box_face_moved_onto_box_face_joins_them, instance_moved_onto_loose_geometry_never_sticks,
 # lifting_a_corner_folds_the_top, undo_after_each_integrated_move_restores_the_file,
-# moving_vertices_from_two_definitions_is_refused, move_and_integrate_into_a_locked_definition_is_refused;
+# moving_vertices_from_two_definitions_is_refused, move_and_integrate_into_a_locked_definition_is_refused,
+# vertex_moved_onto_a_vertex_merges_into_it;
 # kernel/tests/edit.rs: moving_one_corner_up_previews_without_folding (rewritten).
 
 npm run build:kernel && npm test

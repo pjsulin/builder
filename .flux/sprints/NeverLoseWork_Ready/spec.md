@@ -673,7 +673,9 @@ export interface AutosaverOptions {
 export class Autosaver {
   constructor(opts: AutosaverOptions);
   /** Follow `model`: sets model.onCommit to schedule(); cancels any pending
-   *  write; records fileName; setDirty(dirty). Called from App.loadModel. */
+   *  write; records fileName; setDirty(dirty). Called from App.loadModel.
+   *  The constructor's sample load clears the flag, so main.ts reads the
+   *  restore candidate before constructing App (see main.ts below). */
   attach(model: Model, fileName: string, dirty?: boolean): Promise<void>;
   /** Restart the debounce; `operation` labels the eventual version. */
   schedule(operation: string): void;
@@ -709,17 +711,21 @@ export class Model {
 
 ```ts
 export class App implements ToolHost {
-  private readonly store = new AutosaveStore();
-  private readonly autosaver = new Autosaver({ store: this.store });
+  private readonly store: AutosaveStore;
+  private readonly autosaver: Autosaver;
   private fileName = "model.builder";
   private savedRevision = 0;
 
+  /** `store` is the one main.ts already read the restore candidate from. */
+  constructor(store?: AutosaveStore);   // default new AutosaveStore()
   /** `saved: false` marks a restored or version-opened model as unsaved
    *  (savedRevision = -1) and keeps the store dirty. Default true. */
   loadModel(model: Model, name: string, opts?: { saved?: boolean }): void;
-  /** On start: if the store is dirty and has a latest version, confirm and
-   *  loadModel(Model.fromJson(v.json), v.fileName, { saved: false }). */
-  offerRestore(): Promise<boolean>;
+  /** On start, with the candidate main.ts read before the constructor's sample
+   *  load cleared the dirty flag: undefined returns false; else confirm and
+   *  loadModel(Model.fromJson(v.json), v.fileName, { saved: false }); on no,
+   *  store.setDirty(false). */
+  offerRestore(candidate: Version | undefined): Promise<boolean>;
   /** Fill and open <dialog id="versions"> from store.list(). */
   showVersions(): Promise<void>;
   /** Set #fileName text and #unsaved hidden from fileName and revision !== savedRevision. */
@@ -734,9 +740,12 @@ export class App implements ToolHost {
 
 ```ts
 loadKernel().then(async () => {
-  const app = new App();
+  const store = new AutosaveStore();
+  // Read before `new App()`: its sample load calls attach(..., false), which clears dirty.
+  const candidate = (await store.dirty()) ? await store.latest() : undefined;
+  const app = new App(store);
   (window as unknown as { builder: App }).builder = app;
-  await app.offerRestore();
+  await app.offerRestore(candidate);
 });
 if (import.meta.env.PROD && "serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js");
 ```
@@ -840,6 +849,16 @@ private save() {
   void this.autosaver.markClean();
   this.updateHeader();
 }
+```
+
+Start-up order (the reason `offerRestore` takes a candidate): `main.ts` reads `dirty()` and `latest()` first; `new App()` then loads the sample, whose `attach(sample, "sample.builder", false)` sets dirty false; `offerRestore(candidate)` still has the version. Headless shape, tested in Task 3.5:
+
+```ts
+await saver.attach(model, "shed.builder"); model.transact(...); fake.advance(3000); await saver.flush();
+const candidate = (await store.dirty()) ? await store.latest() : undefined;   // main.ts order
+await saver.attach(newModel(), "sample.builder", false);                        // the constructor's load
+expect(candidate).toBeDefined(); expect(await store.dirty()).toBe(false);
+expect(Model.fromJson(candidate!.json).canUndo()).toBe(false);
 ```
 
 Headless test shape (`app/test/autosave.test.ts`), using the real kernel via `newModel()` from `app/test/helpers.ts` and `buildStressTest()`:

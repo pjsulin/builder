@@ -75,7 +75,7 @@ Four phases, one commit each: an IndexedDB autosave ring (`app/src/store/autosav
 - **Files:**
   - Create: app/src/store/autosaver.ts
 - **Context:** [spec.md§Interfaces](spec.md#interfaces)
-- **Description:** `Autosaver` with injectable store, clock and timer: `attach(model, fileName, dirty)` sets `model.onCommit`, cancels a pending write and sets the dirty flag; `schedule` restarts the 3 s debounce; the timer callback is the only caller of `toJson()` and writes `{time, fileName, operation, json}` then `setDirty(true)`; `flush` and `markClean` as specified; write errors go to `onError`, never thrown into the tool.
+- **Description:** `Autosaver` with injectable store, clock and timer: `attach(model, fileName, dirty)` sets `model.onCommit`, cancels a pending write and sets the dirty flag (no special case for the constructor's load: main.ts reads the restore candidate first, Task 3.3); `schedule` restarts the 3 s debounce; the timer callback is the only caller of `toJson()` and writes `{time, fileName, operation, json}` then `setDirty(true)`; `flush` and `markClean` as specified; write errors go to `onError`, never thrown into the tool.
 
 #### Task 2.3: Wire the App
 
@@ -85,7 +85,7 @@ Four phases, one commit each: an IndexedDB autosave ring (`app/src/store/autosav
 - **Files:**
   - Modify: app/src/app.ts
 - **Context:** [spec.md§Examples](spec.md#examples)
-- **Description:** Add the `store` and `autosaver` fields; `loadModel` gains `opts?: { saved?: boolean }`, sets `savedRevision` to `-1` when `saved` is false and calls `autosaver.attach(model, name, !saved)` (covers the constructor, `open`, and the `newBtn`/`sampleBtn`/`stressBtn` call sites at app.ts:589-594 unchanged); `save()` calls `autosaver.markClean()` after setting `savedRevision`.
+- **Description:** Add the `store` and `autosaver` fields, with `constructor(store = new AutosaveStore())` so main.ts can hand in the store it read the restore candidate from; `loadModel` gains `opts?: { saved?: boolean }`, sets `savedRevision` to `-1` when `saved` is false and calls `autosaver.attach(model, name, !saved)` (covers the constructor, `open`, and the `newBtn`/`sampleBtn`/`stressBtn` call sites at app.ts:589-594 unchanged); `save()` calls `autosaver.markClean()` after setting `savedRevision`.
 
 #### Task 2.4: Scheduling tests
 
@@ -142,7 +142,7 @@ Four phases, one commit each: an IndexedDB autosave ring (`app/src/store/autosav
   - Modify: app/src/app.ts
   - Modify: app/src/main.ts
 - **Context:** [spec.md§Interfaces](spec.md#interfaces)
-- **Description:** `App.offerRestore()`: when `store.dirty()` and `store.latest()` exist, `confirm("Restore <fileName> autosaved <time> after <operation>?")`; on yes `loadModel(Model.fromJson(v.json), v.fileName, { saved: false })` and flash; on no `store.setDirty(false)`. `main.ts` awaits it after constructing `App`.
+- **Description:** `App.offerRestore(candidate)`: `undefined` returns false; else `confirm("Restore <fileName> autosaved <time> after <operation>?")`; on yes `loadModel(Model.fromJson(v.json), v.fileName, { saved: false })` and flash; on no `store.setDirty(false)`. `main.ts` creates the `AutosaveStore`, reads `candidate = (await store.dirty()) ? await store.latest() : undefined` **before** `new App(store)` (the constructor's sample load calls `attach(..., false)`, which clears the flag), then awaits `app.offerRestore(candidate)`.
 
 #### Task 3.4: Versions dialog
 
@@ -162,7 +162,7 @@ Four phases, one commit each: an IndexedDB autosave ring (`app/src/store/autosav
 - **Files:**
   - Modify: app/test/autosave.test.ts
 - **Context:** [spec.md§Validation Criteria](spec.md#validation-criteria)
-- **Description:** Headless path of the restore: after a commit and debounce on a shed built with `buildSample()`'s operations, `store.dirty()` is true, `Model.fromJson((await store.latest())!.json)` has `canUndo() === false`, `stats()` equal to the source model and `toJson()` byte-equal to the stored json; `markClean()` then `dirty()` is false so no restore would be offered.
+- **Description:** Headless path of the restore: after a commit and debounce on a shed built with `buildSample()`'s operations, `store.dirty()` is true, `Model.fromJson((await store.latest())!.json)` has `canUndo() === false`, `stats()` equal to the source model and `toJson()` byte-equal to the stored json; `markClean()` then `dirty()` is false so no restore would be offered. Start-up order (spec §Examples): after the debounced write, read the candidate as main.ts does, then `attach(newModel(), "sample.builder", false)` as the constructor's load; the candidate is still defined and `dirty()` is now false, so the sample load does not suppress the offer.
 
 #### Task 3.6: README autosave and restore
 
@@ -246,3 +246,14 @@ Document tasks make doc updates visible to close Gate 4.
 ## Completion
 
 Closed by `/close`.
+
+## Plan Review
+
+**Reviewed:** 2026-10-28
+
+- [x] Requirements to Spec traced
+- [x] Spec to Plan traced
+- [x] Proposed ADRs checked against accepted
+- [x] Checklist passed (1 warning accepted)
+
+**Plan Status:** Ready for implementation

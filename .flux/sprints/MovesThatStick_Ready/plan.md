@@ -54,7 +54,7 @@ Make Move behave like SketchUp's: a committed move welds moved vertices and edge
 - **Files:**
   - Modify: kernel/src/edit.rs
 - **Context:** [spec.md§Interfaces](spec.md#interfaces), [spec.md§Data Models](spec.md#data-models)
-- **Description:** Add `pub(crate) fn edges_of_vertices(&self, verts) -> Vec<EId>` and `pub(crate) fn integrate_moved(&mut self, def, edges)`: `integrate_edges(def, edges)`, then `heal_around(def, edges)` on the edges that still exist, then `settle_faces(def, touched)` where touched is every face of every edge incident to the edges' vertices. Named as a reusable step because CopyAndArrays calls it for copied geometry.
+- **Description:** Add `pub(crate) fn edges_of_vertices(&self, verts) -> Vec<EId>`, `pub(crate) fn merge_vertex_into(&mut self, from, into)` (re-point every edge and face loop using `from` to `into`, drop an edge that would duplicate an existing `into` edge, remove `from`; all through `set_*` so it journals) and `pub(crate) fn integrate_moved(&mut self, def, edges)`: for each vertex of `edges`, if `find_vertex(def, pos)` returns a different id, `merge_vertex_into(v, found)`; then `integrate_edges(def, edges)` on the edges that still exist, then `heal_around(def, edges)` on the edges that still exist, then `settle_faces(def, touched)` where touched is every face of every edge incident to the edges' vertices. Named as a reusable step because CopyAndArrays calls it for copied geometry.
 
 #### Task 2.2: Document::move_and_integrate
 
@@ -86,7 +86,7 @@ Make Move behave like SketchUp's: a committed move welds moved vertices and edge
 - **Files:**
   - Create: kernel/tests/move.rs
 - **Context:** [spec.md§Examples](spec.md#examples), [spec.md§Validation Criteria](spec.md#validation-criteria)
-- **Description:** New test file using `kernel/tests/common/mod.rs` helpers: `ridge_lifted_and_nudged_stays_closed` (120x96x96 box, ridge line, lift 36 then move 10 in y; `is_closed`, `validate`), `box_face_moved_onto_box_face_joins_them` (two boxes, move the facing side by the gap; 10 faces, `is_closed`, volume 2000, `validate`), `instance_moved_onto_loose_geometry_never_sticks` (group a box, loose rectangle, `set_transform` onto it; root face and edge counts unchanged), `undo_after_each_integrated_move_restores_the_file` (for each of the ridge, box-onto-box and instance cases above: commit, `to_json`, begin, the move, commit, `undo`, `to_json` byte-equal), `moving_vertices_from_two_definitions_is_refused` (`Error::Degenerate`) and `move_and_integrate_into_a_locked_definition_is_refused` (lock the tag of a grouped box as kernel/tests/attributes.rs:160 does, `move_and_integrate` on one of its vertices returns `Error::Locked`, nothing changes).
+- **Description:** New test file using `kernel/tests/common/mod.rs` helpers: `ridge_lifted_and_nudged_stays_closed` (120x96x96 box, ridge line, lift 36 then move 10 in y; `is_closed`, `validate`), `box_face_moved_onto_box_face_joins_them` (two boxes, move the facing side by the gap; 10 faces, `is_closed`, volume 2000, `validate`), `instance_moved_onto_loose_geometry_never_sticks` (group a box, loose rectangle, `set_transform` onto it; root face and edge counts unchanged), `undo_after_each_integrated_move_restores_the_file` (for each of the ridge, box-onto-box and instance cases above: commit, `to_json`, begin, the move, commit, `undo`, `to_json` byte-equal), `moving_vertices_from_two_definitions_is_refused` (`Error::Degenerate`) and `move_and_integrate_into_a_locked_definition_is_refused` (lock the tag of a grouped box as kernel/tests/attributes.rs:160 does, `move_and_integrate` on one of its vertices returns `Error::Locked`, nothing changes) and `vertex_moved_onto_a_vertex_merges_into_it` (a loose rectangle beside a loose line sharing the plane; move the line's free end onto a rectangle corner; `vertex_count` drops by one, `find_vertex` at the corner returns one id whose edges include the line, `validate`).
 
 ### Phase 3: Fold Instead of Reject
 
@@ -101,7 +101,7 @@ Make Move behave like SketchUp's: a committed move welds moved vertices and edge
 - **Files:**
   - Modify: kernel/src/edit.rs
 - **Context:** [spec.md§Interfaces](spec.md#interfaces), [spec.md§Decisions](spec.md#decisions)
-- **Description:** Add the pure `fold_diagonals(pts, normal) -> Vec<(usize, usize)>` (pick the diagonal whose two sub-polygon planes have the largest minimum dot with `normal`, recurse on sub-polygons not planar within `tol::PLANE`) and `fold_for_move(verts, offset)`: for each face using a moved vertex whose outer loop at post-move positions fails `Plane::contains`, a holed face returns `Error::NotPlanar`; otherwise add the diagonals with `add_edge`, `remove_face`, and `add_face` one triangle per piece with the old normal, material, back_material and attributes.
+- **Description:** Add the pure `fold_diagonals(pts, normal) -> Vec<(usize, usize)>` (pick the diagonal whose two sub-polygon planes have the largest maximum dot with `normal`, so one piece stays as flat as possible and the hinge runs between the moved vertex's neighbours; recurse on sub-polygons not planar within `tol::PLANE`) and `fold_for_move(verts, offset)`: for each face using a moved vertex whose outer loop at post-move positions fails `Plane::contains`, a holed face returns `Error::NotPlanar`; otherwise add the diagonals with `add_edge`, `remove_face`, and `add_face` one triangle per piece with the old normal, material, back_material and attributes.
 
 #### Task 3.2: Fold in move_and_integrate; preview tolerates bent faces
 
@@ -122,7 +122,7 @@ Make Move behave like SketchUp's: a committed move welds moved vertices and edge
   - Modify: kernel/tests/move.rs
   - Modify: kernel/tests/edit.rs
 - **Context:** [spec.md§Examples](spec.md#examples)
-- **Description:** In move.rs add `lifting_a_corner_folds_the_top` (7 faces, 13 edges, `is_closed`, `validate`, undo byte-equal) and a unit test of `fold_diagonals` on a bent quad choosing the diagonal that keeps one triangle in the old plane. In edit.rs rewrite `moving_one_corner_up_fails_because_faces_would_bend` (:24) as `moving_one_corner_up_previews_without_folding`: `move_vertices` returns `Ok`, face count stays 6, abort restores the JSON.
+- **Description:** In move.rs add `lifting_a_corner_folds_the_top` (7 faces, 13 edges, `is_closed`, `validate`, undo byte-equal) and a unit test of `fold_diagonals` on the box-corner quad (corner (10,10,10) lifted 3) expecting the single diagonal between the lifted corner's neighbours, so one triangle stays in the old plane (the diagonal through the lifted corner is rejected). In edit.rs rewrite `moving_one_corner_up_fails_because_faces_would_bend` (:24) as `moving_one_corner_up_previews_without_folding`: `move_vertices` returns `Ok`, face count stays 6, abort restores the JSON.
 
 ### Phase 4: Move Tool and Docs
 
@@ -173,3 +173,14 @@ Document tasks make doc updates visible to close Gate 4.
 ## Completion
 
 Closed by `/close`.
+
+## Plan Review
+
+**Reviewed:** 2026-10-28
+
+- [x] Requirements to Spec traced
+- [x] Spec to Plan traced
+- [x] Proposed ADRs checked against accepted
+- [x] Checklist passed (1 warning accepted)
+
+**Plan Status:** Ready for implementation

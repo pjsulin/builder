@@ -372,3 +372,14 @@ Document tasks make doc updates visible to close Gate 4.
 ## Completion
 
 Closed by `/close`.
+
+## Plan Review
+
+**Reviewed:** 2026-10-28
+
+- [x] Requirements to Spec traced
+- [x] Spec to Plan traced
+- [x] Proposed ADRs checked against accepted
+- [x] Checklist passed (0 warnings accepted; 5 fixed in place)
+
+**Plan Status:** Ready for implementation

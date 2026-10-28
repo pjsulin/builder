@@ -37,8 +37,9 @@ Overlapping shapes can be cut into each other and then pushed and erased normall
 
 ### Feature 2: Piercing lines cut faces
 
-**What:** A line that passes through a face (not lying in its plane) cuts it at the piercing point.
+**What:** A line that passes through a face (not lying in its plane) is split at the piercing point and a vertex welded onto the face's plane there; the face itself splits when an in-plane edge passes through that vertex.
 **Why:** Sprint text; needed so drawn edges and intersections agree.
+**Details:** An endpoint resting on the face's plane, or a segment lying in it, is not a piercing. The piercing vertex alone does not split the face.
 **Integration:** `insert_segment` / `heal_around` in line.rs.
 
 ### Feature 3: Randomized kernel test
@@ -75,7 +76,7 @@ Overlapping shapes can be cut into each other and then pushed and erased normall
 
 ### For Feature 2
 
-- [ ] Kernel test: a line through a face splits the face and the line at the piercing point.
+- [ ] Kernel test: a line through a face is split at the piercing point with one vertex on the face's plane; an in-plane line between two piercing vertices splits the face; an endpoint on the face is a touch, not a piercing.
 
 ### For Feature 3
 

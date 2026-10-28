@@ -32,7 +32,7 @@ Five phases, one commit each. Phase 1 adds the two journaled kernel copy operati
 - **Files:**
   - Modify: kernel/src/group.rs
 - **Context:** [spec.md§Interfaces](spec.md#interfaces), [spec.md§Data Models](spec.md#data-models)
-- **Description:** Add private `copy_definition(def)` (the explode vmap pattern, group.rs:102-125, but into a new `DefKind::Group` definition with the source's name and attributes, recursing into child instances) and `Document::copy_instance(inst, offset)`: `check_instance_unlocked(inst)`, deep-copy the definition, `new_instance` in the same parent, then `set_instance` with the cloned record (name, material, tag, attributes) and the transform translated by `offset`.
+- **Description:** Add private `copy_definition(def)` (the explode vmap pattern, group.rs:102-125, but into a new `DefKind::Group` definition with the source's name and attributes, recursing into child instances) and `Document::copy_instance(inst, offset)`: `check_instance_unlocked(inst)` then `check_def_unlocked(parent)` (the parent definition the copy is written into, as `make_group` checks `ctx` at group.rs:28), deep-copy the definition, `new_instance` in the same parent, then `set_instance` with the cloned record (name, material, tag, attributes) and the transform translated by `offset`.
 
 #### Task 1.3: Bench copy case
 
@@ -52,7 +52,7 @@ Five phases, one commit each. Phase 1 adds the two journaled kernel copy operati
 - **Files:**
   - Create: kernel/tests/copy.rs
 - **Context:** [spec.md§Examples](spec.md#examples), [spec.md§Validation Criteria](spec.md#validation-criteria)
-- **Description:** Using `tests/common`: a box copied flush welds (volume doubles, shared vertices found by `find_vertex`, `validate`); a copy clear of the original is independent; a copied group has a different definition with equal face count, edge count, materials and attributes and the translated transform; nested group copied recursively; undo removes the copy and leaves the original; `Error::Locked` for a copy on a locked tag and for `copy_geometry` in a locked definition; a timed test that 50 instance copies of a 6-face box in one transaction take under 100 ms.
+- **Description:** Using `tests/common`: a box copied flush welds (volume doubles, shared vertices found by `find_vertex`, `validate`); a copy clear of the original is independent; a copied group has a different definition with equal face count, edge count, materials and attributes and the translated transform; nested group copied recursively; undo removes the copy and leaves the original; `Error::Locked` for a copy on a locked tag, for `copy_instance` of an unlocked instance nested inside a locked group (locked parent definition), and for `copy_geometry` in a locked definition; a timed test that 50 instance copies of a 6-face box in one transaction take under 100 ms.
 
 #### Task 1.5: Architecture doc for copy
 
@@ -158,7 +158,7 @@ Five phases, one commit each. Phase 1 adds the two journaled kernel copy operati
 - **Files:**
   - Modify: app/src/tools/move.ts
 - **Context:** [spec.md§Interfaces](spec.md#interfaces), [spec.md§Examples](spec.md#examples)
-- **Description:** `Moving` gains `copy` and `selection`; `cursor` becomes a getter returning `"copy"` while copying; `hint()` names the copy and the array syntax; `modifier(copy)` sets the flag during a move and remembers it for the next `down()` (also read from `p.copy` in `down`); `commit()` (move.ts:157) in copy mode aborts the Move preview and runs `copyGeometry`/`copyInstance` at `toLocalDir(good)` in one `transact("Copy")`, selects the copies, sets `lastCopy = {selection, offset: good, count: 1}`; `lastCopy` is cleared in `start()` and `deactivate()`. Errors flash via `errorMessage` as today.
+- **Description:** `Moving` gains `copy` and `selection`; `cursor` becomes a getter returning `"copy"` while copying; `hint()` names the copy and the array syntax; `modifier(copy)` sets the flag during a move and remembers it for the next `down()` (also read from `p.copy` in `down`); `commit()` (move.ts:157) in copy mode aborts the Move preview and runs `copyGeometry`/`copyInstance` at `toLocalDir(good)` in one `transact("Copy")`, selects the copies, sets `lastCopy = {selection, offset: good, count: 1, revision: model.revision}`; `lastCopy` is cleared in `start()` and `deactivate()`. Errors flash via `errorMessage` as today.
 
 #### Task 4.3: Copy modifier tests
 
@@ -195,7 +195,7 @@ Five phases, one commit each. Phase 1 adds the two journaled kernel copy operati
 - **Files:**
   - Modify: app/src/tools/move.ts
 - **Context:** [spec.md§Interfaces](spec.md#interfaces), [spec.md§Data Models](spec.md#data-models)
-- **Description:** `vcb()` (move.ts:134) tries `parseArray` first and dispatches to `array(spec)`; `array` flashes "Copy something first" without `lastCopy`, else undoes the last Copy transaction and replays N copies at `offset*k` (times) or `offset*k/N` (divide) in one `transact("Copy")`, selects them and updates `lastCopy.count`. Plain moves never array.
+- **Description:** `vcb()` (move.ts:134) tries `parseArray` first and dispatches to `array(spec)`; `array` flashes "Copy something first" without `lastCopy` or when `model.revision !== lastCopy.revision` (clearing `lastCopy`: an undo, redo or other edit happened since the copy, spec.md Array semantics "Stale copy guard"), else undoes the last Copy transaction and replays N copies at `offset*k` (times) or `offset*k/N` (divide) in one `transact("Copy")`, selects them and updates `lastCopy.count` and `lastCopy.revision`. `commit()`'s copy branch (Task 4.2) stores `revision: model.revision` after its transaction. Plain moves never array.
 
 #### Task 5.2: Array tests
 
@@ -205,7 +205,7 @@ Five phases, one commit each. Phase 1 adds the two journaled kernel copy operati
 - **Files:**
   - Modify: app/test/tools.test.ts
 - **Context:** [spec.md§Examples](spec.md#examples), [spec.md§Validation Criteria](spec.md#validation-criteria)
-- **Description:** A 2×8 joist group copied 16" then `9x` gives ten instances at 16" steps and one `undo()` leaves one; a 12' copy then `/9` gives ten end to end (last at 144"); `5x` after `9x` leaves six; `9x` after a plain move flashes "Copy something first"; loose geometry arrays too (face count) and the 50-instance array commits in one transaction.
+- **Description:** A 2×8 joist group copied 16" then `9x` gives ten instances at 16" steps and one `undo()` leaves one; a 12' copy then `/9` gives ten end to end (last at 144"); `5x` after `9x` leaves six; `9x` after a plain move flashes "Copy something first"; `h.model.undo()` between the copy and `9x` flashes "Copy something first", replays nothing and leaves the instance count at 1 (no second undo happens); loose geometry arrays too (face count) and the 50-instance array commits in one transaction.
 
 #### Task 5.3: Array docs and roadmap
 
@@ -230,3 +230,14 @@ Document tasks make doc updates visible to close Gate 4.
 ## Completion
 
 Closed by `/close`.
+
+## Plan Review
+
+**Reviewed:** 2026-10-28
+
+- [x] Requirements to Spec traced
+- [x] Spec to Plan traced
+- [x] Proposed ADRs checked against accepted
+- [x] Checklist passed (1 warning accepted: Task 3.2's one-character `app.ts` keydown regex change has no test, as keydown is DOM-bound and untested today)
+
+**Plan Status:** Ready for implementation
