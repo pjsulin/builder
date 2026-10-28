@@ -336,13 +336,13 @@ Call sites that the changed behaviour reaches (from `ast-grep`): `insert_segment
 
 ### Phase 8: Shed Walkthrough
 
-**Status:** pending
+**Status:** completed
 **Dependencies:** [Phase 7]
 
 #### Task 8.1: Walkthrough document
 
 - **Type:** document
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** none
 - **Files:**
   - Create: docs/walkthrough-shed.md
@@ -352,7 +352,7 @@ Call sites that the changed behaviour reaches (from `ast-grep`): `insert_segment
 #### Task 8.2: Roadmap status
 
 - **Type:** document
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [8.1]
 - **Files:**
   - Modify: docs/roadmap.md
