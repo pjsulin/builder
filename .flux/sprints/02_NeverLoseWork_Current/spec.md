@@ -637,8 +637,9 @@ export interface Version {
 export type VersionInfo = Omit<Version, "json">;
 
 export class AutosaveStore {
-  /** `factory` is injectable so tests pass fake-indexeddb's IDBFactory. */
-  constructor(name?: string, factory?: IDBFactory);
+  /** `factory` is injectable so tests pass fake-indexeddb's IDBFactory; `limits`
+   *  (default MAX_VERSIONS / MAX_BYTES) so they can exercise the byte budget. */
+  constructor(name?: string, factory?: IDBFactory, limits?: { versions?: number; bytes?: number });
   /** Append a version, then drop the oldest until count <= MAX_VERSIONS and
    *  sum(bytes) <= MAX_BYTES; the version just written is never dropped. */
   put(v: Omit<Version, "id" | "bytes">): Promise<VersionInfo>;

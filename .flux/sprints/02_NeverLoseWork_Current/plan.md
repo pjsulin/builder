@@ -8,13 +8,13 @@ Four phases, one commit each: an IndexedDB autosave ring (`app/src/store/autosav
 
 ### Phase 1: Autosave Store
 
-**Status:** pending
+**Status:** completed
 **Dependencies:** none
 
 #### Task 1.1: Add fake-indexeddb
 
 - **Type:** implement
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** none
 - **Files:**
   - Modify: package.json
@@ -25,17 +25,17 @@ Four phases, one commit each: an IndexedDB autosave ring (`app/src/store/autosav
 #### Task 1.2: AutosaveStore ring
 
 - **Type:** implement
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** none
 - **Files:**
   - Create: app/src/store/autosave.ts
 - **Context:** [spec.md§Interfaces](spec.md#interfaces), [spec.md§Data Models](spec.md#data-models)
-- **Description:** `AutosaveStore` over IndexedDB database `builder` with stores `versions` (autoIncrement) and `meta` (`dirty`); `put` appends then trims to `MAX_VERSIONS` / `MAX_BYTES` without dropping the newest; `list`, `get`, `latest`, `dirty`, `setDirty`, `clear`. The `IDBFactory` is a constructor argument so tests inject fake-indexeddb.
+- **Description:** `AutosaveStore` over IndexedDB database `builder` with stores `versions` (autoIncrement) and `meta` (`dirty`); `put` appends then trims to `MAX_VERSIONS` / `MAX_BYTES` without dropping the newest; `list`, `get`, `latest`, `dirty`, `setDirty`, `clear`. The `IDBFactory` is a constructor argument so tests inject fake-indexeddb. (2026-10-28: the constructor also takes an optional `limits` argument, `{ versions?, bytes? }`, so Task 1.3's byte-budget test runs with small strings instead of 50 MB of JSON; spec.md § Interfaces amended to match.)
 
 #### Task 1.3: Store tests
 
 - **Type:** test
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [1.1, 1.2]
 - **Files:**
   - Create: app/test/autosave.test.ts
@@ -45,7 +45,7 @@ Four phases, one commit each: an IndexedDB autosave ring (`app/src/store/autosav
 #### Task 1.4: Document the store
 
 - **Type:** document
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [1.2]
 - **Files:**
   - Modify: docs/architecture.md

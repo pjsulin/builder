@@ -1,10 +1,11 @@
 ---
-sprint: "NeverLoseWork"
 created: 2026-10-28
-start: null    # commit; set by `flux sprint move <Name> Current`, close diffs against it
-started: null  # date; set by the same move
-step: "1"
+sprint: NeverLoseWork
+start: dd1c760
+started: '2026-10-28'
+step: '1'
 ---
+
 # Requirements: NeverLoseWork
 
 ## Background
