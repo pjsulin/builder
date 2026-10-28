@@ -176,13 +176,13 @@ Four phases, one commit each: an IndexedDB autosave ring (`app/src/store/autosav
 
 ### Phase 4: Hosted Build and Offline
 
-**Status:** pending
+**Status:** completed
 **Dependencies:** [Phase 3]
 
 #### Task 4.1: Service worker and precache plugin
 
 - **Type:** implement
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** none
 - **Files:**
   - Create: app/sw.js
@@ -193,7 +193,7 @@ Four phases, one commit each: an IndexedDB autosave ring (`app/src/store/autosav
 #### Task 4.2: Register the worker
 
 - **Type:** implement
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [4.1]
 - **Files:**
   - Modify: app/src/main.ts
@@ -203,7 +203,7 @@ Four phases, one commit each: an IndexedDB autosave ring (`app/src/store/autosav
 #### Task 4.3: Precache check script and CI step
 
 - **Type:** test
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [4.1]
 - **Files:**
   - Create: scripts/check-precache.mjs
@@ -214,7 +214,7 @@ Four phases, one commit each: an IndexedDB autosave ring (`app/src/store/autosav
 #### Task 4.4: Pages deploy job
 
 - **Type:** implement
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [4.3]
 - **Files:**
   - Modify: .github/workflows/ci.yml
@@ -224,7 +224,7 @@ Four phases, one commit each: an IndexedDB autosave ring (`app/src/store/autosav
 #### Task 4.5: Hosting and offline docs
 
 - **Type:** document
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [4.4]
 - **Files:**
   - Modify: README.md

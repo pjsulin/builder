@@ -129,7 +129,7 @@ Users don't praise SketchUp for its feature count. They praise a small number of
 | Feature | Tier | Notes |
 | --- | --- | --- |
 | Native open file format with save and open | Core | Built now. See `docs/file-format.md`. |
-| Autosave and recovery | Core | |
+| Autosave and recovery | Core | Built now. IndexedDB ring of the last 10 versions, written 3 s after each change; restore prompt on start and a Versions dialog. |
 | Export glTF/GLB, OBJ, STL | Core | glTF for web and AR, STL for 3D printing, OBJ for everything. |
 | Import OBJ, STL, glTF | Core | As triangle meshes, merged into planar faces where coplanar. |
 | DXF/DWG 2D import (site plans, floor plans) and export | Later | DXF first. DWG needs the ODA SDK or LibreDWG. |
@@ -175,8 +175,8 @@ Users don't praise SketchUp for its feature count. They praise a small number of
 | Feature | Tier | Notes |
 | --- | --- | --- |
 | Undo/redo of every model change | Core | Built now as kernel transactions. |
-| Runs in the browser with no install | Core | |
-| Works offline (installable PWA) | Core | |
+| Runs in the browser with no install | Core | Built now. GitHub Pages deploy of `dist/` from `main`: https://pjsulin.github.io/builder/ |
+| Works offline (installable PWA) | Core | Built now. A service worker precaches every built file (`app/sw.js`, filled in by the build); no manifest yet, so not installable. |
 | Touch and pencil input | Later | Shapr3D shows how. |
 | Desktop app | Later | Tauri around the same web UI with the kernel built natively. |
 | Extension/plugin API | Later | Designed now, opened up after Core. See the architecture doc. |

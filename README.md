@@ -35,7 +35,9 @@ See [survey/README.md](survey/README.md) and [survey/docs/](survey/docs/) (spec 
 
 ## Run it
 
-You need Rust ([rustup.rs](https://rustup.rs)), Node 20 or newer, and `make`.
+Use it at **https://pjsulin.github.io/builder/**: nothing to install, and after the first visit it loads and works with no network. Every push to `main` deploys there.
+
+To run it from source you need Rust ([rustup.rs](https://rustup.rs)), Node 20 or newer, and `make`.
 
 ```sh
 make install   # one-time: wasm32 target, wasm-bindgen-cli 0.2.129, npm packages

@@ -181,6 +181,8 @@ The ring keeps at most 10 versions and 50 MB: after each write the oldest is dro
 
 Writes hang off the model's commit points, not its `revision` counter: `Model.onCommit` fires from `commit()`, `undo()` and `redo()` (labeled `Undo <name>` / `Redo <name>`), never from `abort()`, and `changed()` bumps `revision` on every preview step, so a drag that aborts and re-applies its preview per pointer move schedules nothing. The `Autosaver` (`app/src/store/autosaver.ts`) restarts a 3 s debounce on each commit; its timer callback is the only place `toJson()` runs (12 ms on the stress model), and the store write is awaited outside the render loop. Save and loading a file clear the dirty flag and cancel a pending write.
 
+The hosted build works offline through a hand-written service worker, `app/sw.js`. An inline Vite plugin (`precachePlugin` in `vite.config.ts`) copies it into `dist/` at build time with `__PRECACHE__` replaced by the list of every built file and `__CACHE_VERSION__` by a hash of their contents, so the worker is deterministic and each build is its own cache. Install precaches the list, activate drops older `builder-*` caches, and fetch serves same-origin GETs cache-first with navigations mapped to `index.html`. `main.ts` registers it only in production builds, so `vite` dev and the Node tests never see one. The Google Fonts stylesheet is cross-origin and not cached; offline, the fonts fall back to system fonts.
+
 ## 4. File format
 
 **Decision:** an open, documented JSON format, `.builder`, written and read by the kernel. The spec lives in `docs/file-format.md`.
@@ -276,7 +278,8 @@ Extensions are a big part of why people stay on SketchUp, so the plugin API is d
 - `npm run dev` starts Vite. `npm run build` produces a static site.
 - `cargo test` runs the kernel tests: lines, welding, splitting, auto faces, holes, face splitting, push/pull in both modes on tilted faces, openings, move, erase and merge, groups, undo/redo, and file round-trips. Every test checks the full set of topology invariants (`kernel/tests/common/mod.rs`), including that no vertex lies inside an edge it doesn't split. `cargo run --release --example bench` times the stress model.
 - `npm test` runs Vitest: unit parsing and formatting, camera and ray math, inference priority and locks, picking, and tool tests that load the real WebAssembly kernel in Node and drive each tool with screen coordinates.
-- CI (`.github/workflows/ci.yml`) runs `cargo fmt --check`, `cargo clippy`, `cargo test`, the WebAssembly build, `tsc --noEmit` and `npm test` on every push.
+- `npm run check:precache` (`scripts/check-precache.mjs`) reads `dist/sw.js` after a build and fails if any built file is missing from its precache list or any listed file was not built: the headless stand-in for the offline check.
+- CI (`.github/workflows/ci.yml`) runs `cargo fmt --check`, `cargo clippy`, `cargo test`, the WebAssembly build, `tsc --noEmit`, `npm test`, `vite build` and the precache check on every push. On a push to `main` a second job deploys `dist/` to GitHub Pages at https://pjsulin.github.io/builder/ (repository setting: Pages source = GitHub Actions).
 
 ## 10. Status and known limits
 

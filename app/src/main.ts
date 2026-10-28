@@ -24,3 +24,6 @@ loadKernel()
     document.getElementById("hint")!.textContent = `The geometry kernel failed to load: ${e}`;
     console.error(e);
   });
+
+// The built app works offline after the first visit; `vite` dev and the Node tests register nothing.
+if (import.meta.env.PROD && "serviceWorker" in navigator) void navigator.serviceWorker.register("./sw.js");
