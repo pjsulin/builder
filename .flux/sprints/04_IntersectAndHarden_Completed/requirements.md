@@ -1,10 +1,11 @@
 ---
-sprint: "IntersectAndHarden"
 created: 2026-10-28
-start: null    # commit; set by `flux sprint move <Name> Current`, close diffs against it
-started: null  # date; set by the same move
-step: "3"
+sprint: IntersectAndHarden
+start: 480b033
+started: '2026-10-28'
+step: '3'
 ---
+
 # Requirements: IntersectAndHarden
 
 ## Background
@@ -71,29 +72,29 @@ Overlapping shapes can be cut into each other and then pushed and erased normall
 
 ### For Feature 1
 
-- [ ] Kernel test: a gable roof group intersected with the walls gives roof–wall edges; pushing and erasing the resulting faces works; `validate` passes.
-- [ ] Kernel test: intersect with selection only cuts selected pairs.
+- [x] Kernel test: a gable roof group intersected with the walls gives roof–wall edges; pushing and erasing the resulting faces works; `validate` passes. Evidence: `kernel/tests/intersect.rs::a_gable_roof_group_cuts_the_walls_it_passes_through` (6 cuts, 10 faces, push_pull and erase of the above-roof pieces, `validate` after each step).
+- [x] Kernel test: intersect with selection only cuts selected pairs. Evidence: `kernel/tests/intersect.rs::with_selection_only_the_selected_pair_is_cut` (the third face keeps its area; `IntersectWith::Model` then cuts it).
 
 ### For Feature 2
 
-- [ ] Kernel test: a line through a face is split at the piercing point with one vertex on the face's plane; an in-plane line between two piercing vertices splits the face; an endpoint on the face is a touch, not a piercing.
+- [x] Kernel test: a line through a face is split at the piercing point with one vertex on the face's plane; an in-plane line between two piercing vertices splits the face; an endpoint on the face is a touch, not a piercing. Evidence: `kernel/tests/lines.rs::a_line_through_a_face_is_cut_where_it_pierces` (2 edges, 7 vertices, then an in-plane line across the face through both piercing vertices splits it into 2 faces and 3 edges) and `an_endpoint_on_a_face_is_a_touch_not_a_piercing`.
 
 ### For Feature 3
 
-- [ ] The randomized test runs in CI at a fixed seed and step count under one minute with no invariant failure.
-- [ ] Each bug found during the sprint has a regression test naming its seed or script.
+- [x] The randomized test runs in CI at a fixed seed and step count under one minute with no invariant failure. Evidence: `kernel/tests/fuzz.rs::random_operations_keep_invariants`, seed 0x5eed2026, 1,500 steps, 22 s in a debug build on the cloud runner (2,000 took 29.5 s; Task 5.2 lowered it), asserts under 60 s; `random_operations_long` run once at seed 1, 50,000 steps: `test result: ok` in 562 s (release build).
+- [x] Each bug found during the sprint has a regression test naming its seed or script. Evidence: `kernel/tests/fuzz_regressions.rs::move_of_a_face_beside_a_coplanar_neighbour` (seed 0x5eed2026 op 222, fold diagonal outside a notched face, fixed in edit.rs) and `move_onto_geometry_after_intersections` (seed 0x5eed2026 op 216, pinched hole loop, fixed in heal.rs), each the shrunk `render_test` body with the seed in its comment.
 
 ### For Feature 4
 
-- [ ] A failed operation offers a download containing the model and the last operations (headless test of the report builder).
+- [x] A failed operation offers a download containing the model and the last operations (headless test of the report builder). Evidence: `app/test/report.test.ts` (operations in order, error, model loads back, file name, 50-name ring); `App.offerReport` at the five catch sites downloads `buildReport` JSON after `confirm`.
 
 ### For Feature 5
 
-- [ ] `cargo run --example validate` on a file with a known non-planar face and a duplicate vertex reports both.
+- [x] `cargo run --example validate` on a file with a known non-planar face and a duplicate vertex reports both. Evidence: `cargo run -p builder-kernel --example validate -- kernel/tests/fixtures/bad.builder` prints `1 definitions, 0 instances, 0 tags: 4 problems`, two `faceless_edge`, one `overlapping_edges`, one `duplicate_vertices`, exit 1; `clean.builder` prints `: ok`, exit 0; the non-planar finding on the live document: `kernel/tests/check.rs::a_face_bent_in_memory_is_non_planar`, whose JSON the reader refuses as docs/file-format.md requires. (2026-10-28: a `.builder` reader must refuse a non-planar face, docs/file-format.md § Faces, so no file can carry one; the fixture carries a duplicate vertex, an overlapping edge and faceless edges and the example reports them all, and the non-planar finding is covered by a kernel test on the live document.)
 
 ### For Feature 6
 
-- [ ] The shed walkthrough is recorded in `docs/` with the steps and results; Patrick repeats it in the browser.
+- [ ] The shed walkthrough is recorded in `docs/` with the steps and results; Patrick repeats it in the browser. Evidence for the first half: `docs/walkthrough-shed.md`, 16 steps with the counts from the same operations run through the kernel (14 faces, 45 edges, 1 group, check clean). The browser repeat is Patrick's and is still waiting; recorded in close.md Gate 5.
 
 ## Impact
 

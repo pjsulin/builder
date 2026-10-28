@@ -1,5 +1,7 @@
 #![allow(dead_code)]
 
+pub mod fuzz;
+
 use builder_kernel::math::{signed_area2, to_2d};
 use builder_kernel::*;
 use std::collections::HashSet;

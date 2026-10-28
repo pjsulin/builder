@@ -1,4 +1,4 @@
-commit: 33f40d2
+commit: bda40f8
 budget: 1000
 
 app/src/math.ts:
@@ -80,9 +80,6 @@ kernel/src/math.rs:
 │    }
 │    pub fn dot(self, o: V3) -> f64 {
 ⋮
-│    pub fn len(self) -> f64 {
-│        self.dot(self).sqrt()
-⋮
 │    pub fn is_finite(self) -> bool {
 │        self.x.is_finite() && self.y.is_finite() && self.z.is_finite()
 ⋮
@@ -98,14 +95,4 @@ survey/src/builder_survey/generate/fixtures/registry.py:
 │        if name in TYPES:
 │            sys.exit(f"fixture type {name!r} is registered twice")
 │        TYPES[name] = (builder, own_z)
-⋮
-
-survey/src/builder_survey/spec/ctx.py:
-# Value resolution for one spec entry: MISSING / ~ bookkeeping, levels, lengths.
-⋮
-│class Ctx:
-│    """Resolves values and records MISSING / placeholder use for one element."""
-│
-⋮
-│    def len(self, val, field):
 ⋮

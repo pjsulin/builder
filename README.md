@@ -57,6 +57,7 @@ make stop      # stop it
 | `make build` | Production build into `dist/`. |
 | `make clean` | Stop the server and remove build output. |
 | `cargo run --release --example bench` | Kernel timings on a 2,000-box model. |
+| `cargo run -p builder-kernel --example validate -- FILE` | Load a `.builder` file and run the model check: overlapping edges, non-planar faces, faceless edges and duplicate vertices, one line each after the counts line. Exit 0 when the file loads clean, 1 when it does not load or has a problem. |
 
 Use `make start PORT=8080` or `HOST=0.0.0.0` to change the address. Run `make` with no target to list everything.
 
@@ -76,6 +77,12 @@ Use `make start PORT=8080` or `HOST=0.0.0.0` to change the address. Run `make` w
 | Ctrl+Z, Ctrl+Y, Ctrl+S, Ctrl+O, Ctrl+A | Undo, redo, save, open, select all |
 | Shift+Z | Zoom extents |
 
+Toolbar commands without keys: **Intersect with model** draws the edges where the selected faces or groups cross everything in the open context, **Intersect selection** only where they cross each other (the edges land in the open context; a group's own faces are cut by repeating the command inside it), and **Check model** reports overlapping edges, non-planar faces, faceless edges and duplicate vertices, or flashes "Model check: clean".
+
+## Report a problem
+
+When an operation fails (erase, group, explode, intersect, or opening a file), the error is flashed and the app offers to save a problem report, `<name>-report.json`: the model as `.builder` JSON plus the names of the last 50 operations, the error message and the date. It holds operation names, not replayable operations, so attach the report to an issue at https://github.com/pjsulin/builder/issues together with what you did; nothing is sent anywhere by itself. `cargo run -p builder-kernel --example validate -- FILE` runs the model check on the `model` field once it is saved to a file.
+
 ## Layout
 
 ```
@@ -92,6 +99,7 @@ prototype/     the original single-file prototype
 - [docs/features.md](docs/features.md): a feature survey of SketchUp and other building tools, tagged Core, Later or Full app, and the behaviors that make SketchUp feel easy.
 - [docs/architecture.md](docs/architecture.md): the kernel, document model, file format, rendering, tools and inference, plugins and license, plus current limits.
 - [docs/file-format.md](docs/file-format.md): the `.builder` format specification.
+- [docs/walkthrough-shed.md](docs/walkthrough-shed.md): the Milestone 1 test project step by step in the browser, with the counts to expect.
 - [docs/roadmap.md](docs/roadmap.md): the prioritized plan to a workable application, split into sprints in [docs/sprints.md](docs/sprints.md).
 - [HANDOFF.md](HANDOFF.md): where the project came from.
 

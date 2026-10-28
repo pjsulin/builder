@@ -67,7 +67,7 @@ Users don't praise SketchUp for its feature count. They praise a small number of
 | Scale (uniform and per axis, typed factors) | Core | |
 | Follow Me (sweep a face along a path) | Core | Gutters, trim, handrails. |
 | Erase (with hide and soften modifiers) | Core | Erase built now. Erasing the edge between coplanar faces merges them. |
-| Intersect Faces (with model, with selection, with context) | Core | Needed to make roof planes meet. |
+| Intersect Faces (with model, with selection, with context) | Core | Built now: with model and with selection, from the toolbar, writing the edges into the open context (a group's faces are read, not cut; repeat inside the group). With context is Later. A line that pierces a face gets a vertex on it, so edges drawn through the piercing points cut the face. |
 | Flip, reverse faces, orient faces | Core | |
 | Soften/smooth edges | Later | |
 | Solid tools (union, subtract, intersect, trim, split, outer shell) | Later | Use a manifold boolean library on closed groups. |

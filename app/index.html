@@ -22,6 +22,9 @@
       <span class="sep" aria-hidden="true"></span>
       <button class="btn" id="groupBtn" title="Make a group from the selection (G)">Make group</button>
       <button class="btn" id="explodeBtn" title="Explode the selected group back into loose geometry">Explode</button>
+      <button class="btn" id="intersectModelBtn" title="Draw the edges where the selected faces or groups cross everything in this context">Intersect with model</button>
+      <button class="btn" id="intersectSelBtn" title="Draw the edges where the selected faces or groups cross each other">Intersect selection</button>
+      <button class="btn" id="checkBtn" title="Report overlapping edges, non-planar faces, faceless edges and duplicate vertices">Check model</button>
       <span class="sep" aria-hidden="true"></span>
       <button class="btn" id="zoomBtn" title="Zoom extents (Shift+Z)">Zoom extents</button>
       <button class="btn" id="unitsBtn" title="Switch display units">Feet &amp; inches</button>
@@ -63,6 +66,11 @@
     <label class="vcb"><span id="vcbLabel">Measurements</span><input id="vcb" autocomplete="off" spellcheck="false" aria-label="Measurements"></label>
   </footer>
 </div>
+<dialog id="findings">
+  <h2>Model check</h2>
+  <ul id="findingList"></ul>
+  <button class="btn" id="findingsClose">Close</button>
+</dialog>
 <dialog id="versions">
   <h2>Autosaved versions</h2>
   <ul id="versionList"></ul>

@@ -19,7 +19,12 @@ impl Document {
         Ok(edges)
     }
 
-    /// Insert a segment's edges without healing faces.
+    /// Insert a segment's edges without healing faces. The segment is cut at every
+    /// vertex it passes through, every edge it crosses or overlaps, and every face
+    /// of `ctx` it pierces (passes through the face's interior, not lying in its
+    /// plane): the piercing vertex sits exactly on the face's plane so that an edge
+    /// later drawn in the plane through it splits the face. An endpoint resting on
+    /// a face's plane is a touch, not a piercing.
     pub fn insert_segment(&mut self, ctx: DefId, a: V3, b: V3) -> Result<Vec<EId>, Error> {
         if !a.is_finite() || !b.is_finite() {
             return Err(Error::Degenerate("line has a non-finite point"));
@@ -86,7 +91,31 @@ impl Document {
             }
         }
 
-        // 3. Existing edges the segment overlaps: split them at our endpoints and at
+        // 3. Faces the segment pierces: a vertex on the face's plane at the hit. A hit
+        //    on the face's boundary was already found as an edge crossing.
+        let pierced: Vec<(Plane, FId)> = self
+            .faces_in(ctx)
+            .filter(|(_, f)| {
+                let pts = f.loops().flatten().map(|&x| self.pos(x));
+                crate::math::bbox(pts).is_some_and(|(lo, hi)| near(lo, hi))
+            })
+            .map(|(id, f)| (f.plane, id))
+            .collect();
+        for (plane, f) in pierced {
+            let (da, db) = (plane.dist(a), plane.dist(b));
+            if da.abs() <= tol::PLANE || db.abs() <= tol::PLANE || (da > 0.0) == (db > 0.0) {
+                continue;
+            }
+            let hit = plane.project(a + dir * (da / (da - db)));
+            let Some(face) = self.face(f) else { continue };
+            if !self.face_contains_point(face, hit) || self.near_face_boundary(face, hit) {
+                continue;
+            }
+            let w = self.vertex_at(ctx, hit);
+            cuts.push((point_segment(self.pos(w), a, b).1, w));
+        }
+
+        // 4. Existing edges the segment overlaps: split them at our endpoints and at
         //    every touch point inside them, so overlapping pieces become one edge.
         for e in collinear {
             if self.edge(e).is_none() {
@@ -99,7 +128,7 @@ impl Document {
             }
         }
 
-        // 4. The endpoints themselves.
+        // 5. The endpoints themselves.
         let va = self.vertex_at(ctx, a);
         let vb = self.vertex_at(ctx, b);
         cuts.push((0.0, va));
