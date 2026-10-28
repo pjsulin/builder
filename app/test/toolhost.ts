@@ -71,14 +71,21 @@ export class TestHost implements ToolHost {
 
   // ---- driving tools ----
 
-  at(p: Vec3): ToolPointer {
+  at(p: Vec3, opts: { copy?: boolean } = {}): ToolPointer {
     const s = this.camera.project(p);
     if (!s) throw new Error(`point ${p} is behind the camera`);
-    return { x: s.x, y: s.y, shift: false, ctrl: false, alt: false };
+    return { x: s.x, y: s.y, shift: false, ctrl: false, alt: false, copy: opts.copy ?? false };
   }
   /** Hover then click at a world point. */
   click(tool: Tool, p: Vec3): void {
     const ptr = this.at(p);
+    tool.move(ptr);
+    tool.down(ptr);
+    tool.up(ptr, false);
+  }
+  /** `click` with the copy modifier held. */
+  copyClick(tool: Tool, p: Vec3): void {
+    const ptr = this.at(p, { copy: true });
     tool.move(ptr);
     tool.down(ptr);
     tool.up(ptr, false);

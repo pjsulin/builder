@@ -208,7 +208,7 @@ describe("Select, Move, Erase and groups", () => {
     const all = [[0, 0, 0], [120, 0, 0], [120, 96, 0], [0, 96, 0], [0, 0, 96], [120, 0, 96], [120, 96, 96], [0, 96, 96]].map((p) => h.camera.project(p as [number, number, number])!);
     const x0 = Math.min(...all.map((s) => s.x)) - 10, x1 = Math.max(...all.map((s) => s.x)) + 10;
     const y0 = Math.min(...all.map((s) => s.y)) - 10, y1 = Math.max(...all.map((s) => s.y)) + 10;
-    const ptr = (x: number, y: number) => ({ x, y, shift: false, ctrl: false, alt: false });
+    const ptr = (x: number, y: number) => ({ x, y, shift: false, ctrl: false, alt: false, copy: false });
     sel.down(ptr(x0, y0));
     sel.move(ptr(x1, y1));
     sel.up(ptr(x1, y1), true);
@@ -361,5 +361,100 @@ describe("Model copy", () => {
     const before = h.model.stats();
     expect(() => h.model.transact("Copy", () => h.model.copyInstance(g, [0, 120, 0]))).toThrow("locked tag");
     expect(h.model.stats()).toEqual(before);
+  });
+});
+
+describe("Move with the copy modifier", () => {
+  /** A grouped 10' x 8' x 8' box, selected. */
+  function grouped(h: TestHost): number {
+    box(h);
+    const faces = [...new Set(h.scene().triFace)];
+    const g = h.model.transact("Make Group", () => h.model.makeGroup(ROOT, faces, [...h.scene().segEdge], []));
+    h.refresh();
+    h.selection.set([{ kind: "instance", id: g }]);
+    return g;
+  }
+  const origin = (h: TestHost, id: number) => h.model.instances(ROOT).find((i) => i.id === id)!.transform.slice(12, 15);
+
+  it("leaves the original and places a copy at the typed distance", () => {
+    const h = new TestHost();
+    const g = grouped(h);
+    const mv = new MoveTool(h);
+    h.copyClick(mv, [0, 0, 0]);
+    expect(mv.cursor).toBe("copy");
+    expect(mv.hint()).toContain("5x");
+    h.hover(mv, [50, 0, 0]);
+    mv.vcb('16"');
+    h.refresh();
+    const insts = h.model.instances(ROOT);
+    expect(insts.length).toBe(2);
+    expect(origin(h, g)).toEqual([0, 0, 0]);
+    expect(insts.find((i) => i.id !== g)!.transform.slice(12, 15)).toEqual([16, 0, 0]);
+    expect(h.selection.ids("instance")).toEqual([insts.find((i) => i.id !== g)!.id]);
+    expect(h.flashes).toEqual([]);
+    expect(h.model.undo()).toBe("Copy");
+    expect(h.model.instances(ROOT).length).toBe(1);
+    expect(origin(h, g)).toEqual([0, 0, 0]);
+  });
+
+  it("copies a loose face without changing the original", () => {
+    const h = new TestHost();
+    box(h);
+    const sel = new SelectTool(h);
+    h.click(sel, [60, 48, 96]);
+    const mv = new MoveTool(h);
+    h.copyClick(mv, [60, 48, 96]);
+    h.hover(mv, [60, 48, 110]);
+    mv.vcb("2'");
+    h.refresh();
+    expect(h.model.stats().faces).toBe(7);
+    expect(h.scene().max[2]).toBeCloseTo(120);
+    expect(h.selection.ids("face").length).toBe(1);
+    expect(h.model.undo()).toBe("Copy");
+    h.refresh();
+    expect(h.model.stats().faces).toBe(6);
+    expect(h.scene().max[2]).toBeCloseTo(96);
+  });
+
+  it("switches to a copy when the modifier goes down mid-move", () => {
+    const h = new TestHost();
+    grouped(h);
+    const mv = new MoveTool(h);
+    h.click(mv, [0, 0, 0]);
+    expect(mv.cursor).toBe("move");
+    mv.modifier(true);
+    expect(mv.cursor).toBe("copy");
+    mv.modifier(false);
+    expect(mv.cursor).toBe("move");
+    mv.modifier(true);
+    h.hover(mv, [50, 0, 0]);
+    mv.vcb("2'");
+    expect(h.flashes).toEqual([]);
+    expect(h.model.instances(ROOT).length).toBe(2);
+    expect(mv.cursor).toBe("move");
+    // Retyping the distance moves the copy, not the original.
+    mv.vcb("3'");
+    expect(h.flashes).toEqual([]);
+    const insts = h.model.instances(ROOT);
+    expect(insts.length).toBe(2);
+    expect(insts.map((i) => i.transform[12]).sort((a, b) => a - b)).toEqual([0, 36]);
+  });
+
+  it("refuses to copy a locked group", () => {
+    const h = new TestHost();
+    const g = grouped(h);
+    h.model.transact("Lock", () => {
+      const tag = h.model.newTag("Existing");
+      h.model.setInstanceTag(g, tag);
+      h.model.setTagFlags(tag, true, true);
+    });
+    h.refresh();
+    h.selection.set([{ kind: "instance", id: g }]);
+    const mv = new MoveTool(h);
+    h.copyClick(mv, [0, 0, 0]);
+    expect(mv.busy()).toBe(false);
+    expect(h.flashes.length).toBe(1);
+    expect(h.flashes[0]).toMatch(/locked/i);
+    expect(h.model.instances(ROOT).length).toBe(1);
   });
 });

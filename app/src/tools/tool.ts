@@ -16,6 +16,8 @@ export interface ToolPointer {
   shift: boolean;
   ctrl: boolean;
   alt: boolean;
+  /** The copy modifier is held (Option on Mac, Ctrl elsewhere). */
+  copy: boolean;
 }
 
 /** What a tool wants drawn on top of the model. Plain data, rendered by the app. */
@@ -83,6 +85,8 @@ export interface Tool {
   key?(key: string, shift: boolean): boolean;
   /** A value typed into the Measurements box. */
   vcb(text: string): void;
+  /** The copy modifier went down or up while the tool is active (keyboard, no pointer). */
+  modifier?(copy: boolean): void;
 }
 
 /** The current selection, in the active context. */

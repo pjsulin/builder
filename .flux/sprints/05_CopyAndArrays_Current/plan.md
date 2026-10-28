@@ -136,13 +136,13 @@ Five phases, one commit each. Phase 1 adds the two journaled kernel copy operati
 
 ### Phase 4: Copy Modifier in Move
 
-**Status:** pending
+**Status:** completed
 **Dependencies:** [Phase 2]
 
 #### Task 4.1: Copy modifier in the tool framework and app
 
 - **Type:** implement
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [Phase 2]
 - **Files:**
   - Modify: app/src/tools/tool.ts
@@ -153,7 +153,7 @@ Five phases, one commit each. Phase 1 adds the two journaled kernel copy operati
 #### Task 4.2: MoveTool copy mode
 
 - **Type:** implement
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [4.1]
 - **Files:**
   - Modify: app/src/tools/move.ts
@@ -163,7 +163,7 @@ Five phases, one commit each. Phase 1 adds the two journaled kernel copy operati
 #### Task 4.3: Copy modifier tests
 
 - **Type:** test
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [4.2]
 - **Files:**
   - Modify: app/test/toolhost.ts
@@ -174,7 +174,7 @@ Five phases, one commit each. Phase 1 adds the two journaled kernel copy operati
 #### Task 4.4: Copy docs
 
 - **Type:** document
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [4.2]
 - **Files:**
   - Modify: docs/features.md
