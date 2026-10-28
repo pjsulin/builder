@@ -1919,6 +1919,9 @@ impl Finding {
 
 ```rust
 // kernel/tests/fuzz.rs (test crate, not library code)
+// (2026-10-28: the harness below lives in kernel/tests/common/fuzz.rs, `pub` items of
+// `common::fuzz`, because fuzz_regressions.rs is a separate test binary and replays with
+// the same `Op` and `apply`; fuzz.rs holds the two #[test]s.)
 /// xorshift64*: deterministic, no dependency.
 struct Rng(u64);
 impl Rng {
@@ -1969,7 +1972,7 @@ fn shrink(ops: Vec<Op>) -> Vec<Op>;
 /// A Rust test body replaying `ops`, ready to paste into fuzz_regressions.rs.
 fn render_test(name: &str, ops: &[Op]) -> String;
 
-#[test] fn random_operations_keep_invariants();            // seed 0x5eed_2026, 2_000 steps
+#[test] fn random_operations_keep_invariants();            // seed 0x5eed_2026, 1_500 steps (2026-10-28: 2,000 took 29.5 s in debug, Task 5.2's rule lowered it)
 #[test] #[ignore] fn random_operations_long();             // seed from BUILDER_FUZZ_SEED or 1, 50_000 steps
 ```
 
@@ -2146,7 +2149,7 @@ cargo run -p builder-kernel --example validate -- kernel/tests/fixtures/bad.buil
 cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace
 # Expected: all pass, including kernel/tests/intersect.rs, lines.rs (piercing), pushpull.rs (regression),
-# check.rs, fuzz.rs (random_operations_keep_invariants, 2,000 steps, under 60 s), fuzz_regressions.rs
+# check.rs, fuzz.rs (random_operations_keep_invariants, 1,500 steps, under 60 s), fuzz_regressions.rs
 cargo test -p builder-kernel --test fuzz -- --ignored random_operations_long
 # Expected: passes (nightly use; not run in CI)
 cargo run -p builder-kernel --example validate -- kernel/tests/fixtures/bad.builder; echo $?

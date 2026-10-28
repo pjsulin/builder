@@ -186,13 +186,13 @@ Call sites that the changed behaviour reaches (from `ast-grep`): `insert_segment
 
 ### Phase 5: Randomized Kernel Test
 
-**Status:** pending
+**Status:** completed
 **Dependencies:** [Phase 2, Phase 3]
 
 #### Task 5.1: Fuzz harness with shrinker
 
 - **Type:** implement
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** none
 - **Files:**
   - Create: kernel/tests/fuzz.rs
@@ -202,27 +202,27 @@ Call sites that the changed behaviour reaches (from `ast-grep`): `insert_segment
 #### Task 5.2: CI and long fuzz tests
 
 - **Type:** test
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [5.1]
 - **Files:**
   - Modify: kernel/tests/fuzz.rs
 - **Context:** [spec.md§Validation Criteria](spec.md#validation-criteria)
-- **Description:** `random_operations_keep_invariants` at seed `0x5eed_2026` and 2,000 steps, asserting under 60 s and printing seed, step and the shrunk test body on failure; `#[ignore] random_operations_long` at 50,000 steps with the seed from `BUILDER_FUZZ_SEED`. Measure the CI budget: time `cargo test -p builder-kernel --test fuzz random_operations_keep_invariants` in a debug build (CI's `cargo test --workspace` is debug) and record the wall time in the Phase 5 commit message; if it exceeds 30 s, lower the step count until it is under 30 s so the 60 s assertion has headroom on CI runners, and update spec.md's step count to match. Run the long test once during the sprint and fix or record what it finds.
+- **Description:** `random_operations_keep_invariants` at seed `0x5eed_2026` and 2,000 steps, asserting under 60 s and printing seed, step and the shrunk test body on failure; `#[ignore] random_operations_long` at 50,000 steps with the seed from `BUILDER_FUZZ_SEED`. Measure the CI budget: time `cargo test -p builder-kernel --test fuzz random_operations_keep_invariants` in a debug build (CI's `cargo test --workspace` is debug) and record the wall time in the Phase 5 commit message; if it exceeds 30 s, lower the step count until it is under 30 s so the 60 s assertion has headroom on CI runners, and update spec.md's step count to match. Run the long test once during the sprint and fix or record what it finds. (2026-10-28: 2,000 steps measured 29.5 s in a debug build on the cloud runner, so the CI test runs 1,500 steps, about 22 s; spec.md updated. The generator keeps the model near 300 edges, erasing and undoing above that and skipping Intersect above 250, because an unbounded model made every step slower and 2,000 steps took minutes.)
 
 #### Task 5.3: Regression tests for bugs found
 
 - **Type:** test
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [5.2]
 - **Files:**
   - Create: kernel/tests/fuzz_regressions.rs
 - **Context:** [spec.md§Interfaces](spec.md#interfaces)
-- **Description:** One test per bug the fuzz runs found during the sprint, each the `render_test` output with the seed in a comment, plus the fixes they need in the kernel (listed in the commit). With no bug found, the file holds the CI seed's first 20 ops as the format's smoke test.
+- **Description:** One test per bug the fuzz runs found during the sprint, each the `render_test` output with the seed in a comment, plus the fixes they need in the kernel (listed in the commit). With no bug found, the file holds the CI seed's first 20 ops as the format's smoke test. (2026-10-28: two bugs found and fixed, both in MovesThatStick code: fold diagonals could leave a notched face, and the arrangement walk returned one loop for a hole pinched to the outer boundary; `kernel/src/edit.rs` and `kernel/src/heal.rs` are modified by this phase.)
 
 #### Task 5.4: Tests section in the architecture doc
 
 - **Type:** document
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [5.2]
 - **Files:**
   - Modify: docs/architecture.md

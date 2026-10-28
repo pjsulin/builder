@@ -398,7 +398,9 @@ impl Document {
 }
 
 /// Split a sequence of half-edges (in walk order, spikes removed) into closed loops
-/// of vertex ids.
+/// of vertex ids. A walk that comes back to a vertex already in its loop has gone
+/// around a loop pinched to the boundary at that vertex (a hole touching the outer
+/// loop at one point); that loop is cut off on its own.
 fn split_loops(kept: &[usize], from: &[VId], to: &[VId]) -> Vec<Vec<VId>> {
     let n = kept.len();
     let mut used = vec![false; n];
@@ -408,7 +410,7 @@ fn split_loops(kept: &[usize], from: &[VId], to: &[VId]) -> Vec<Vec<VId>> {
             continue;
         }
         let start_vertex = from[kept[s]];
-        let mut lp = Vec::new();
+        let mut lp: Vec<VId> = Vec::new();
         let mut i = s;
         loop {
             used[i] = true;
@@ -416,6 +418,12 @@ fn split_loops(kept: &[usize], from: &[VId], to: &[VId]) -> Vec<Vec<VId>> {
             let end = to[kept[i]];
             if end == start_vertex {
                 break;
+            }
+            if let Some(k) = lp.iter().position(|&x| x == end) {
+                let pinched = lp.split_off(k);
+                if pinched.len() >= 3 {
+                    loops.push(pinched);
+                }
             }
             // The next unused half-edge leaving `end`, searching forward in walk order.
             let next = (1..n).map(|k| (i + k) % n).find(|&j| !used[j] && from[kept[j]] == end);
