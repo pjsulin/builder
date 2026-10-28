@@ -122,7 +122,7 @@ This works on any planar face. The prototype only handled axis-aligned ones.
 
 Floating-point tolerance is part of the design from the start rather than patched in later:
 
-- One tolerance policy in `kernel/src/tol.rs`: `LENGTH = 1e-3` inches for welding points and point-on-line tests (SketchUp uses a thousandth of an inch too), `PLANE = 1e-3` inches for point-on-plane, `ANGLE = 1e-9` (as `1 − |cos θ|`, about 0.003°) for parallel planes, and `AREA = 1e-6` square inches for degenerate faces.
+- One tolerance policy in `kernel/src/tol.rs`: `LENGTH = 1e-3` inches for welding points and point-on-line tests (SketchUp uses a thousandth of an inch too), `PLANE = 1e-3` inches for point-on-plane, `ANGLE = 1e-9` (as `1 − |cos θ|`, about 0.003°) for parallel planes, `AREA = 1e-6` square inches for degenerate faces, and `INTERSECT_SIN = 1e-2` (the sine of the angle between two planes) below which Intersect Faces treats the planes as parallel and draws nothing: a `PLANE`-sized error in either plane moves their intersection line by up to `PLANE / INTERSECT_SIN`, so a smaller bound would put the line anywhere.
 - Points are welded on creation, so two vertices are never closer than `LENGTH`. All later tests can then compare vertex ids instead of coordinates.
 - Planes are stored as a normal and offset, recomputed with Newell's method from the loop so long thin faces stay stable.
 - 2D arrangement work uses each face's own orthonormal basis, so precision does not depend on where the face sits in world space.

@@ -10,13 +10,13 @@ Call sites that the changed behaviour reaches (from `ast-grep`): `insert_segment
 
 ### Phase 1: Plane Intersection Math
 
-**Status:** pending
+**Status:** completed
 **Dependencies:** none
 
 #### Task 1.1: Intersection tolerance
 
 - **Type:** implement
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** none
 - **Files:**
   - Modify: kernel/src/tol.rs
@@ -26,7 +26,7 @@ Call sites that the changed behaviour reaches (from `ast-grep`): `insert_segment
 #### Task 1.2: Plane::intersect and 3D bounds helpers
 
 - **Type:** implement
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [1.1]
 - **Files:**
   - Modify: kernel/src/math.rs
@@ -36,7 +36,7 @@ Call sites that the changed behaviour reaches (from `ast-grep`): `insert_segment
 #### Task 1.3: Unit tests for plane intersection
 
 - **Type:** test
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [1.2]
 - **Files:**
   - Modify: kernel/src/math.rs
@@ -46,7 +46,7 @@ Call sites that the changed behaviour reaches (from `ast-grep`): `insert_segment
 #### Task 1.4: Tolerance section
 
 - **Type:** document
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [1.2]
 - **Files:**
   - Modify: docs/architecture.md
