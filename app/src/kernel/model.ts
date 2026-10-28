@@ -80,12 +80,18 @@ export function loadKernelSync(bytes: BufferSource): void {
 
 const u32 = (a: number[]) => Uint32Array.from(a);
 
+/** How many transaction names `Model.journal` keeps. */
+export const JOURNAL_SIZE = 50;
+
 export class Model {
   private k: Kernel;
   /** Bumped on every change so views know to rebuild. */
   revision = 0;
   /** Name passed to the last begin(); the label autosave uses. */
   lastOperation = "";
+  /** Names of the last transactions begun, oldest first, at most JOURNAL_SIZE.
+   *  A problem report carries them; they are names, not replayable operations. */
+  readonly journal: string[] = [];
   /** Called after commit() returns true and after undo()/redo() return a name,
    *  never from abort(), so previews do not fire it. */
   onCommit?: (operation: string) => void;
@@ -110,6 +116,8 @@ export class Model {
   // ---- history ----
   begin(name: string): void {
     this.lastOperation = name;
+    this.journal.push(name);
+    if (this.journal.length > JOURNAL_SIZE) this.journal.shift();
     this.k.begin(name);
   }
   commit(): boolean {

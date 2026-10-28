@@ -79,6 +79,10 @@ Use `make start PORT=8080` or `HOST=0.0.0.0` to change the address. Run `make` w
 
 Toolbar commands without keys: **Intersect with model** draws the edges where the selected faces or groups cross everything in the open context, **Intersect selection** only where they cross each other (the edges land in the open context; a group's own faces are cut by repeating the command inside it), and **Check model** reports overlapping edges, non-planar faces, faceless edges and duplicate vertices, or flashes "Model check: clean".
 
+## Report a problem
+
+When an operation fails (erase, group, explode, intersect, or opening a file), the error is flashed and the app offers to save a problem report, `<name>-report.json`: the model as `.builder` JSON plus the names of the last 50 operations, the error message and the date. It holds operation names, not replayable operations, so attach the report to an issue at https://github.com/pjsulin/builder/issues together with what you did; nothing is sent anywhere by itself. `cargo run -p builder-kernel --example validate -- FILE` runs the model check on the `model` field once it is saved to a file.
+
 ## Layout
 
 ```

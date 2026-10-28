@@ -290,13 +290,13 @@ Call sites that the changed behaviour reaches (from `ast-grep`): `insert_segment
 
 ### Phase 7: Report a Problem
 
-**Status:** pending
+**Status:** completed
 **Dependencies:** [Phase 6]
 
 #### Task 7.1: Transaction journal on Model
 
 - **Type:** implement
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** none
 - **Files:**
   - Modify: app/src/kernel/model.ts
@@ -306,7 +306,7 @@ Call sites that the changed behaviour reaches (from `ast-grep`): `insert_segment
 #### Task 7.2: Report builder and offer
 
 - **Type:** implement
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [7.1]
 - **Files:**
   - Create: app/src/report.ts
@@ -317,7 +317,7 @@ Call sites that the changed behaviour reaches (from `ast-grep`): `insert_segment
 #### Task 7.3: Report builder test
 
 - **Type:** test
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [7.2]
 - **Files:**
   - Create: app/test/report.test.ts
@@ -327,7 +327,7 @@ Call sites that the changed behaviour reaches (from `ast-grep`): `insert_segment
 #### Task 7.4: README report section
 
 - **Type:** document
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [7.2]
 - **Files:**
   - Modify: README.md

@@ -14,6 +14,7 @@ import { RectangleTool } from "./tools/rectangle";
 import { SelectTool } from "./tools/select";
 import { groupSelection, lockedMessage, surveyTags, SurveyPanel } from "./survey/mode";
 import { exportProposed } from "./survey/plan-export";
+import { buildReport, reportFileName } from "./report";
 import { AutosaveStore, type Version } from "./store/autosave";
 import { Autosaver } from "./store/autosaver";
 import { errorMessage, Selection, type Overlay, type Tool, type ToolHost, type ToolPointer } from "./tools/tool";
@@ -293,7 +294,7 @@ export class App implements ToolHost {
     try {
       this.model.transact("Erase", () => this.model.erase(s.ids("face"), s.ids("edge"), s.ids("instance")));
     } catch (e) {
-      this.flash(errorMessage(e));
+      this.offerReport(e);
     }
     this.selection.clear();
     this.refresh();
@@ -309,7 +310,7 @@ export class App implements ToolHost {
       const tag = this.activeTag !== null && this.ctx === ROOT ? this.model.tags().find((t) => t.id === this.activeTag) : null;
       this.flash(tag ? `Grouped on ${tag.name}` : "Grouped");
     } catch (e) {
-      this.flash(errorMessage(e));
+      this.offerReport(e);
     }
   }
 
@@ -326,7 +327,7 @@ export class App implements ToolHost {
         }
       });
     } catch (e) {
-      this.flash(errorMessage(e));
+      this.offerReport(e);
     }
     this.refresh();
     this.selection.set(out);
@@ -343,7 +344,7 @@ export class App implements ToolHost {
       this.refresh();
       this.flash(edges.length ? `Intersect: ${edges.length} edge${edges.length === 1 ? "" : "s"} drawn` : "Intersect: nothing crosses");
     } catch (e) {
-      this.flash(errorMessage(e));
+      this.offerReport(e);
     }
   }
 
@@ -411,8 +412,23 @@ export class App implements ToolHost {
       this.loadModel(model, file.name);
       this.flash(`Opened ${file.name}`);
     } catch (e) {
-      this.flash(errorMessage(e));
+      this.offerReport(e);
     }
+  }
+
+  /** A failed operation: flash the error and offer to download a problem report
+   *  (the model JSON and the last operation names; nothing is sent anywhere). */
+  private offerReport(e: unknown): void {
+    this.flash(errorMessage(e));
+    if (!confirm(`${errorMessage(e)}\n\nSave a problem report?`)) return;
+    const report = buildReport(this.model, this.fileName, e);
+    const blob = new Blob([JSON.stringify(report)], { type: "application/json" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = reportFileName(this.fileName);
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    this.flash(`Saved ${a.download}`);
   }
 
   private confirmDiscard(): boolean {
