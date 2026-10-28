@@ -63,7 +63,7 @@ impl Document {
         self.face_region_contains(face, to_2d(p, u, v), u, v)
     }
 
-    fn near_face_boundary(&self, face: &Face, p: V3) -> bool {
+    pub(crate) fn near_face_boundary(&self, face: &Face, p: V3) -> bool {
         face.loops().any(|lp| {
             (0..lp.len())
                 .any(|i| point_segment(p, self.pos(lp[i]), self.pos(lp[(i + 1) % lp.len()])).0 <= tol::LENGTH)

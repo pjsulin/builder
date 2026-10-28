@@ -232,3 +232,41 @@ fn pushing_a_door_on_a_thick_wall_twice_keeps_valid_topology() {
     assert!(approx(volume(&d, ROOT), 40.0 * 12.0 * 30.0 - 10.0 * 12.0 * 20.0));
     validate(&d);
 }
+
+#[test]
+fn a_box_pulled_through_a_loose_face_settles_with_piercing_vertices() {
+    let mut d = Document::new();
+    // A loose horizontal face at z = 5, then a box pulled up through it.
+    rect_xy(&mut d, ROOT, -5.0, -5.0, 15.0, 15.0, 5.0);
+    let shelf = only_face(&d, ROOT);
+    rect_xy(&mut d, ROOT, 0.0, 0.0, 10.0, 10.0, 0.0);
+    let ground = face_at(&d, ROOT, v(5.0, 5.0, 0.0), -V3::Z);
+    d.push_pull(ground, -10.0).unwrap();
+    validate(&d);
+    assert_eq!(faces(&d, ROOT).len(), 7);
+    // The four vertical edges pierce the shelf: a vertex on its plane at each corner.
+    for (x, y) in [(0.0, 0.0), (10.0, 0.0), (10.0, 10.0), (0.0, 10.0)] {
+        let w = d.find_vertex(ROOT, v(x, y, 5.0)).expect("piercing vertex");
+        assert_eq!(d.vertex(w).unwrap().edges.len(), 2);
+    }
+    assert_eq!(edge_count(&d, ROOT), 20, "each vertical edge is in two pieces");
+    assert_eq!(d.face(shelf).unwrap().outer.len(), 4, "the shelf is not split by vertices alone");
+    // The pierced box still stretches, carrying the shelf's piercing vertices along
+    // its vertical edges.
+    let top = face_at(&d, ROOT, v(5.0, 5.0, 10.0), V3::Z);
+    d.push_pull(top, 4.0).unwrap();
+    validate(&d);
+    assert_eq!(faces(&d, ROOT).len(), 7);
+    assert_eq!(edge_count(&d, ROOT), 20);
+    // Intersecting the box with the shelf cuts the shelf around the box and the
+    // walls along the shelf, after which the shelf inside the box can be erased.
+    let walls = faces(&d, ROOT);
+    let edges = d.intersect_faces(ROOT, &walls, &[], IntersectWith::Model).unwrap();
+    assert_eq!(edges.len(), 4);
+    validate(&d);
+    let inner = face_at(&d, ROOT, v(5.0, 5.0, 5.0), V3::Z);
+    d.erase(&[inner], &[]).unwrap();
+    validate(&d);
+    let outer = face_at(&d, ROOT, v(-2.0, -2.0, 5.0), V3::Z);
+    assert_eq!(d.face(outer).unwrap().holes.len(), 1);
+}

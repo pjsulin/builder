@@ -74,7 +74,7 @@ All editing goes through a few operations, and each one keeps the topology valid
 **`add_line(ctx, a, b)`**
 
 1. Weld `a` and `b` to existing vertices within tolerance.
-2. Find every place the segment touches existing geometry in `ctx`: vertices lying on it, edges it crosses (coplanar crossing), and edges it overlaps (collinear). Split those edges at the touch points. Splitting an edge updates every face loop that uses it, so faces stay closed.
+2. Find every place the segment touches existing geometry in `ctx`: vertices lying on it, edges it crosses (coplanar crossing), faces it pierces, and edges it overlaps (collinear). Split those edges at the touch points. Splitting an edge updates every face loop that uses it, so faces stay closed. A piercing (the endpoints on opposite sides of a face's plane, the hit inside the face and not on its boundary) gets a vertex placed exactly on the face's plane; the vertex alone does not split the face, but an edge later drawn in the plane through it does, and that is what Intersect Faces draws. An endpoint resting on the plane, or a segment lying in it, is a touch, not a piercing.
 3. Cut the segment at all touch points and create the missing pieces as edges, reusing edges that already exist. Drawing over an existing edge is a no-op for topology, but it still counts as "touched," which is how redrawing one edge heals a deleted face.
 4. **Heal** every plane the new edges lie in.
 
@@ -293,7 +293,6 @@ Built and tested: the kernel (lines, welding, splitting, auto faces, holes, face
 
 Known limits, roughly in the order we plan to address them:
 
-- A line that pierces a face (rather than lying in it) does not cut it. That is Intersect Faces, a Core feature still to build.
 - Moved vertices do not weld to geometry they land on. Push/pull does settle its results.
 - Push/pull settling handles faces that land exactly on other faces. Partial overlaps with geometry the extrusion passes through are not intersected.
 - A move that would bend a face is rejected rather than folding the face into triangles.

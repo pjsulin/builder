@@ -101,13 +101,13 @@ Call sites that the changed behaviour reaches (from `ast-grep`): `insert_segment
 
 ### Phase 3: Piercing Lines
 
-**Status:** pending
+**Status:** completed
 **Dependencies:** [Phase 2]
 
 #### Task 3.1: Piercing cuts in insert_segment
 
 - **Type:** implement
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** none
 - **Files:**
   - Modify: kernel/src/line.rs
@@ -117,18 +117,18 @@ Call sites that the changed behaviour reaches (from `ast-grep`): `insert_segment
 #### Task 3.2: Piercing and push/pull regression tests
 
 - **Type:** test
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [3.1]
 - **Files:**
   - Modify: kernel/tests/lines.rs
   - Modify: kernel/tests/pushpull.rs
 - **Context:** [spec.md§Examples](spec.md#examples)
-- **Description:** lines.rs: a vertical line through a horizontal face is split into two edges with one vertex on the face plane; two piercings joined by an in-plane line split the face; an endpoint resting on the face is a touch, not a piercing. pushpull.rs: a box pulled through a loose face still settles with every existing test passing and `validate` clean.
+- **Description:** lines.rs: a vertical line through a horizontal face is split into two edges with one vertex on the face plane; two piercings joined by an in-plane line split the face; an endpoint resting on the face is a touch, not a piercing. pushpull.rs: a box pulled through a loose face still settles with every existing test passing and `validate` clean. (2026-10-28: a line between two interior piercing points is a spike and never splits a face, so the in-plane line in the test runs across the face through both piercing vertices and is cut at them; the spec's Phase 3 contract was read the same way.)
 
 #### Task 3.3: Piercing in the architecture doc
 
 - **Type:** document
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [3.1]
 - **Files:**
   - Modify: docs/architecture.md
