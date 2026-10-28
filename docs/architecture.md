@@ -173,6 +173,12 @@ Every arena write goes through one journal. A write records `(arena, slot, befor
 
 Memory cost is proportional to what changed, not to model size, unlike the prototype's full JSON snapshots.
 
+### Storage
+
+Autosave keeps the open model in the browser, in one IndexedDB database named `builder` (`app/src/store/autosave.ts`). A `versions` store holds a ring of autosaved versions keyed by an auto-increment id, each with the time, the file name, the name of the last operation and the whole `Model.toJson()` string; a `meta` store holds one `dirty` flag, true when a version was written after the last Save or load, which is what the restore prompt on start checks.
+
+The ring keeps at most 10 versions and 50 MB: after each write the oldest is dropped until both hold, and the version just written is never dropped. The stress model's JSON is 1,014,815 bytes, so 50 MB holds about 50 stress saves and the count limit binds first for anything; 10 versions is enough to step back past a bad edit without the dialog becoming a history browser. A version is the whole JSON, not journal deltas: `toJson()` is already the file format, restoring one is `Model.fromJson`, and the journal stays free to change shape.
+
 ## 4. File format
 
 **Decision:** an open, documented JSON format, `.builder`, written and read by the kernel. The spec lives in `docs/file-format.md`.
