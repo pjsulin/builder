@@ -191,7 +191,10 @@ impl Document {
                 if fd.kind == DefKind::Root {
                     return Err(Error::Format("only the first definition can be the root".into()));
                 }
-                doc.set_definition(def, Some(Definition { name: fd.name.clone(), kind: fd.kind, attributes }));
+                doc.set_definition(
+                    def,
+                    Some(Definition { name: fd.name.clone(), kind: fd.kind, attributes }),
+                );
             } else {
                 let mut root = doc.definition(ROOT).cloned().expect("new documents have a root");
                 root.attributes = attributes;
@@ -278,7 +281,9 @@ impl Document {
 fn write_attributes(attrs: &Attributes) -> FileAttributes {
     attrs
         .iter()
-        .map(|(ns, keys)| (ns.clone(), Value::Object(keys.iter().map(|(k, v)| (k.clone(), v.clone())).collect())))
+        .map(|(ns, keys)| {
+            (ns.clone(), Value::Object(keys.iter().map(|(k, v)| (k.clone(), v.clone())).collect()))
+        })
         .collect()
 }
 

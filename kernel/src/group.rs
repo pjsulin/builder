@@ -48,7 +48,14 @@ impl Document {
 
         let def = self.next_def();
         let n = self.definitions.count();
-        self.set_definition(def, Some(Definition { name: format!("Group#{n}"), kind: DefKind::Group, attributes: Attributes::new() }));
+        self.set_definition(
+            def,
+            Some(Definition {
+                name: format!("Group#{n}"),
+                kind: DefKind::Group,
+                attributes: Attributes::new(),
+            }),
+        );
         let inst = self.new_instance(def, ctx);
 
         let mut vmap: HashMap<VId, VId> = HashMap::new();

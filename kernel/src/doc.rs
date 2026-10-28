@@ -246,7 +246,10 @@ macro_rules! setter {
 impl Document {
     pub fn new() -> Self {
         let mut d = Document::default();
-        d.set_definition(DefId(0), Some(Definition { name: "Model".into(), kind: DefKind::Root, attributes: Attributes::new() }));
+        d.set_definition(
+            DefId(0),
+            Some(Definition { name: "Model".into(), kind: DefKind::Root, attributes: Attributes::new() }),
+        );
         d.pending.clear();
         d
     }
@@ -441,7 +444,8 @@ impl Document {
         key: &str,
         value: Option<AttrValue>,
     ) -> Result<(), Error> {
-        check_attribute(ns, key, value.as_ref()).map_err(|why| Error::Attribute(format!("{ns}.{key}: {why}")))?;
+        check_attribute(ns, key, value.as_ref())
+            .map_err(|why| Error::Attribute(format!("{ns}.{key}: {why}")))?;
         let edit = |attrs: &mut Attributes| match value {
             Some(v) => {
                 attrs.entry(ns.to_string()).or_default().insert(key.to_string(), v);
