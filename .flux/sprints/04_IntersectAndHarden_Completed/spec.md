@@ -2163,3 +2163,16 @@ npm run build:kernel && npm run typecheck && npm test
 ```
 
 Phase 8 (`docs/walkthrough-shed.md`) is verified by Patrick repeating it in the browser after NeverLoseWork and MovesThatStick are merged; `/verify-docs` checks its claims against the code.
+
+## Added during implementation
+
+- `kernel/src/check.rs:FindingKind::name` (`pub fn name(self) -> &'static str`): the snake_case name shared by `Display` and `to_json`.
+- `kernel/src/check.rs:Span` (private) and `overlap_midpoint` (private): the edge-overlap sweep's record and test.
+- `kernel/src/intersect.rs:Placed`, `Span`, `contains`, `near_boundary`, `spans`, `place`, `place_instance` (all private): a face placed into `ctx` coordinates and the clipping of the plane–plane line to it.
+- `kernel/src/edit.rs:is_diagonal`, `area2` (private): the inside-diagonal test the fuzz run's first bug needed; `fold_pieces` and `split_piece` (private) take the face's 2D loop as an extra `flat: &[P2]` argument. `fold_diagonals` keeps its signature.
+- `kernel/src/heal.rs:near_face_boundary`: `pub(crate)` instead of private, for `insert_segment`'s piercing test.
+- `kernel/tests/common/fuzz.rs` (the harness, see the Phase 5 note): private helpers `grid`, `pick_face`, `nearest_edge`, `panic_message`, `fails_quietly`, `render_op`, `v3`, `Op::name`; `Rng::new`, `next_u64`, `f64`, `range`, `choose` as specified. `BUILDER_FUZZ_TRACE` prints each op and a count line every 100 steps.
+- `kernel/tests/fuzz.rs:fuzz` (private): the generate, replay-on-failure, shrink and print sequence both tests share.
+- `app/src/app.ts:describeFinding` (`export function describeFinding(f: Finding): string`): one line per finding for the dialog, exported so `app/test/check.test.ts` can check it. A new exported helper, not in spec; Patrick to confirm it may stay exported (it could be a private method otherwise).
+- `app/src/kernel/model.ts:JOURNAL_SIZE` (`export const JOURNAL_SIZE = 50`): the ring size the spec gave as a literal, exported for the report test.
+- Test functions, one per line: `kernel/src/math.rs` `tests::{plane, parallel_and_near_parallel_planes_do_not_intersect, perpendicular_planes_meet_on_a_unit_line, boxes_touching_within_tolerance_overlap}`; `kernel/src/edit.rs` `tests::fold_diagonals_stay_inside_a_notched_face`; `kernel/tests/intersect.rs` `shed_with_roof`, `a_gable_roof_group_cuts_the_walls_it_passes_through`, `inside_the_group_the_walls_cut_the_roof`, `with_selection_only_the_selected_pair_is_cut`, `a_locked_context_and_bad_ids_are_refused`, `near_parallel_and_touching_faces_draw_nothing`; `kernel/tests/lines.rs` `a_line_through_a_face_is_cut_where_it_pierces`, `an_endpoint_on_a_face_is_a_touch_not_a_piercing`, `a_line_through_a_grouped_face_does_not_pierce_it`; `kernel/tests/pushpull.rs` `a_box_pulled_through_a_loose_face_settles_with_piercing_vertices`; `kernel/tests/check.rs` `bad_box`, `kinds`, `a_clean_box_has_no_findings`, `problems_are_reported_with_their_ids_and_positions`, `a_face_bent_in_memory_is_non_planar`, `the_fixtures_load_and_report_as_built`, `findings_are_per_definition`; `kernel/tests/fuzz_regressions.rs` `move_of_a_face_beside_a_coplanar_neighbour`, `move_onto_geometry_after_intersections`; `app/test/intersect.test.ts` `cross`.
