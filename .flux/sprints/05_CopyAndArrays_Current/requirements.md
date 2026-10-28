@@ -1,10 +1,11 @@
 ---
-sprint: "CopyAndArrays"
 created: 2026-10-28
-start: null    # commit; set by `flux sprint move <Name> Current`, close diffs against it
-started: null  # date; set by the same move
-step: "4"
+sprint: CopyAndArrays
+start: 480b033
+started: '2026-10-28'
+step: '4'
 ---
+
 # Requirements: CopyAndArrays
 
 ## Background
