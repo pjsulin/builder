@@ -27,3 +27,8 @@
 - **Status:** done
 - **Record:** sprint CopyAndArrays
 - **Commit:** 898ecc0
+
+### Step 5: Sprint 2.2 Rotate and offset: Rotate with a protractor and rotate-copy arrays, Offset of faces and edge chains
+
+- **Status:** in progress
+- **Record:** sprint RotateAndOffset
