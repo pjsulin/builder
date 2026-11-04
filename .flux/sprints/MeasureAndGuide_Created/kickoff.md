@@ -33,7 +33,8 @@ Sprints 1.1–2.2 are Completed and merged; the deck test project of Milestone 2
 - Scale, Flip, Orient faces, rotated rectangle: 2.4.
 - A guides tag or layer: guides are a document list with one visibility flag; grouping by tag waits for the tag panel (3.3).
 - Dimensions (placed, saved, updating): 4.2.
-- Guide lines bounded to a segment, or guides inside groups transformed with the group: not needed for the deck layout; revisit with Components (3.1).
+- Guide lines bounded to a segment: SketchUp's are infinite; none needed.
+- Resizing the model from a Tape Measure measurement: a scale operation, added with Scale in 2.4.
 
 ## Technical Approach
 
@@ -46,11 +47,15 @@ Sprints 1.1–2.2 are Completed and merged; the deck test project of Milestone 2
 
 ## Open Questions
 
-- Does a guide point also want a position inference label ("Guide Point") and does a guide line give an "On Guide" cue, or only its intersections: decide from SketchUp's behaviour and keep the smaller set if the labels crowd the cursor.
-- How many recent hovered edges feed parallel/perpendicular (SketchUp uses the last one), and how long from-point memory lasts (until the next click, likely).
-- Whether `guides_visible` is a file setting or an app setting: file, unless `docs/sprints.md` § 3.3's settings question lands otherwise; confirm at plan time.
-- Whether measuring between two points should also offer "scale the model to this length" (SketchUp's Tape Measure resize): proposed out of scope, confirm.
-- Where the magenta parallel cue draws when the hovered edge is behind a face (skipped like hidden points, or still offered).
+Resolved 2026-11-04 from SketchUp's documented defaults (help.sketchup.com "Measuring angles and distances", "Using guides"; community sources for the Down-arrow sequence), read through search summaries because the help site is outside this session's network.
+
+- **Guide cues:** a guide point is a point inference labelled `Guide Point`, ranked with endpoint and midpoint; a guide line gives `On Guide` (ranked with On Edge) and crossings of guides with guides or edges give `Intersection`. SketchUp shows a guide point as a short dashed stub with an x, a guide line as an infinite dotted line; Builder draws the same.
+- **Reference edges and from-point memory:** one referenced edge, the last one hovered long enough to show its On Edge cue, feeds parallel and perpendicular, as in SketchUp. Down arrow cycles parallel, perpendicular, off; Shift holds whatever cue is showing. From-point memory holds the last hovered point until the next click.
+- **Guides visibility is saved in the file:** SketchUp keeps View > Guides in the style stored with the model, so hiding survives save. `guides_visible` is a top-level file key; Edit > Delete Guides erases all guides in one undo step and is in scope.
+- **Tape Measure's resize-the-model prompt is out of scope:** SketchUp offers it when a typed length follows a two-point measurement. It is a scale operation and waits for Scale in 2.4, where the same prompt can be added on top of `scale`. Measure mode only reports.
+- **Hidden reference edges are skipped:** parallel and perpendicular cues come only from a hovered edge, and the engine already skips points behind faces, so an edge that cannot be hovered cannot be referenced. No special case.
+- **Adopted defaults (SketchUp):** Tape Measure starts in guide-create mode with a `+` cursor; Ctrl (Option on a Mac) toggles measure-only, the same tap toggle Move and Rotate use for copy. Clicking an endpoint makes a guide point; clicking a midpoint, an edge or a face and dragging makes a parallel infinite guide line at the dragged or typed distance; clicking a guide point or line as the first point measures from it. Protractor snaps to its 15° ticks near the centre and measures finer farther out, accepts a decimal angle or a slope such as `3:12`, lies on the face under the cursor, and Shift or the arrow keys lock its plane, reusing Rotate's rules. Tape Measure's key is T; Protractor has no default shortcut in SketchUp, so Builder leaves it a toolbar button until the command palette (5.x).
+- **Guides belong to their editing context:** a guide drawn inside a group is owned by that definition and moves with its instances, which the kernel's `DefId` ownership gives for free; this closes the "guides inside groups" item that was out of scope.
 
 ## References
 
