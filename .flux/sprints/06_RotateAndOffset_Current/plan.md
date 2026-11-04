@@ -193,13 +193,13 @@ Eight phases, one commit each. Phases 1–3 are kernel only: the transform path 
 
 ### Phase 5: Rotate Tool
 
-**Status:** pending
+**Status:** completed
 **Dependencies:** [Phase 4]
 
 #### Task 5.1: Protractor in the overlay
 
 - **Type:** implement
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [Phase 4]
 - **Files:**
   - Modify: app/src/tools/tool.ts
@@ -209,7 +209,7 @@ Eight phases, one commit each. Phases 1–3 are kernel only: the transform path 
 #### Task 5.2: RotateTool
 
 - **Type:** implement
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [5.1]
 - **Files:**
   - Create: app/src/tools/rotate.ts
@@ -219,7 +219,7 @@ Eight phases, one commit each. Phases 1–3 are kernel only: the transform path 
 #### Task 5.3: App wiring and protractor drawing
 
 - **Type:** implement
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [5.2]
 - **Files:**
   - Modify: app/src/app.ts
@@ -230,7 +230,7 @@ Eight phases, one commit each. Phases 1–3 are kernel only: the transform path 
 #### Task 5.4: Rotate tool tests
 
 - **Type:** test
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [5.2]
 - **Files:**
   - Create: app/test/rotate.test.ts
@@ -240,7 +240,7 @@ Eight phases, one commit each. Phases 1–3 are kernel only: the transform path 
 #### Task 5.5: Rotate docs
 
 - **Type:** document
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [5.2]
 - **Files:**
   - Modify: docs/features.md

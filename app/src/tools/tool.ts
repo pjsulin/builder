@@ -35,6 +35,18 @@ export interface Overlay {
   dims?: { pos: Vec3; text: string }[];
   /** Selection rectangle in pixels; dashed when crossing. */
   marquee?: { x0: number; y0: number; x1: number; y1: number; crossing: boolean } | null;
+  /** The Rotate tool's protractor: a circle in the plane, tick marks every 15°,
+   *  and, once a start direction exists, the start ray and the swept arc. */
+  protractor?: {
+    center: Vec3;
+    /** Unit normal of the protractor's plane (the rotation axis). */
+    normal: Vec3;
+    radius: number;
+    /** Unit direction of the start ray, in the plane. */
+    start?: Vec3;
+    /** Swept angle in radians, counter-clockwise about `normal`. */
+    angle?: number;
+  } | null;
 }
 
 export interface ToolHost {

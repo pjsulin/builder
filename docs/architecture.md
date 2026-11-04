@@ -246,7 +246,7 @@ interface Tool {
 }
 ```
 
-Tools never touch Three.js or the DOM. They get a `ToolHost` (`app/src/tools/tool.ts`) with the model, the active context, the camera model, the inference engine, the selection, and calls to show an overlay (plain data: segments, fill, dimension labels, the inference marker) and set the Measurements box. The tests drive every tool through a headless `ToolHost` against the real WebAssembly kernel. Live previews use `begin` / `abort`, and finishing uses `commit`. Every tool gets undo, cancel and preview behavior the same way.
+Tools never touch Three.js or the DOM. They get a `ToolHost` (`app/src/tools/tool.ts`) with the model, the active context, the camera model, the inference engine, the selection, and calls to show an overlay (plain data: segments, fill, dimension labels, the inference marker, and the Rotate tool's protractor as a centre, plane normal, radius, start ray and swept angle that the app draws as a circle with 15° ticks) and set the Measurements box. The tests drive every tool through a headless `ToolHost` against the real WebAssembly kernel. Live previews use `begin` / `abort`, and finishing uses `commit`. Every tool gets undo, cancel and preview behavior the same way.
 
 **One inference engine** serves every tool. Given the cursor, the camera, an optional anchor point (the start of the current line) and an optional plane, it returns the best candidate by priority:
 
@@ -293,13 +293,12 @@ Extensions are a big part of why people stay on SketchUp, so the plugin API is d
 
 ## 10. Status and known limits
 
-Built and tested: the kernel (lines, welding, splitting, auto faces, holes, face splitting and merging, push/pull in both modes on any planar face, openings, move, erase, groups, undo/redo, file format), the inference engine with locks, the Measurements box with retyping, and the Line, Rectangle, Push/Pull, Select, Move, Erase, Orbit and Pan tools, group editing, and save/open.
+Built and tested: the kernel (lines, welding, splitting, auto faces, holes, face splitting and merging, push/pull in both modes on any planar face, openings, move and rotate through one transform path that welds and folds, copy, erase, groups, undo/redo, file format), the inference engine with locks, the Measurements box with retyping, and the Line, Rectangle, Push/Pull, Select, Move, Rotate, Erase, Orbit and Pan tools, group editing, and save/open.
 
 Known limits, roughly in the order we plan to address them:
 
-- Moved vertices do not weld to geometry they land on. Push/pull does settle its results.
 - Push/pull settling handles faces that land exactly on other faces. Partial overlaps with geometry the extrusion passes through are not intersected.
-- A move that would bend a face is rejected rather than folding the face into triangles.
+- A face with holes that a move or rotation would bend is refused rather than folded.
 - Components (many instances), tags (with lock), materials and attributes exist in the kernel and file format; the UI for them is the survey panel's minimal tag strip and attribute view, pending Milestone 3's panels.
 - Vertex and edge lookups are linear scans with bounding-box rejection. A spatial grid will replace them when models grow past the stress test.
 

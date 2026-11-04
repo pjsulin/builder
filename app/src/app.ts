@@ -3,7 +3,7 @@
 
 import { AXES, InferenceEngine, type Inference } from "./inference/engine";
 import { Model, ROOT, type Entity, type Finding } from "./kernel/model";
-import { add, applyDir, apply, invert, IDENTITY, scale, type Mat4, type Vec3 } from "./math";
+import { add, applyDir, apply, cross, invert, IDENTITY, madd, planeBasis, scale, type Mat4, type Vec3 } from "./math";
 import { buildSample, buildStressTest } from "./samples";
 import { EraseTool } from "./tools/erase";
 import { LineTool } from "./tools/line";
@@ -11,6 +11,7 @@ import { MoveTool } from "./tools/move";
 import { NavTool } from "./tools/nav";
 import { PushPullTool } from "./tools/pushpull";
 import { RectangleTool } from "./tools/rectangle";
+import { RotateTool } from "./tools/rotate";
 import { SelectTool } from "./tools/select";
 import { groupSelection, lockedMessage, surveyTags, SurveyPanel } from "./survey/mode";
 import { exportProposed } from "./survey/plan-export";
@@ -81,6 +82,7 @@ export class App implements ToolHost {
       rectangle: new RectangleTool(this),
       pushpull: new PushPullTool(this),
       move: new MoveTool(this),
+      rotate: new RotateTool(this),
       erase: new EraseTool(this),
       orbit: new NavTool(this, "orbit", nav),
       pan: new NavTool(this, "pan", nav),
@@ -543,6 +545,7 @@ export class App implements ToolHost {
     } else v.clearLayer("hover");
     if (!o.hoverEntity) v.clearLayer("hoverEdges");
     v.setSegments("preview", (o.segments ?? []).flat(), "preview");
+    v.setSegments("protractor", o.protractor ? protractorSegments(o.protractor) : [], "preview");
     if (o.fill && o.fill.length >= 3) {
       const f = o.fill;
       const tris: number[] = [];
@@ -847,7 +850,7 @@ export class App implements ToolHost {
       return;
     }
     const keys: Record<string, string> = {
-      " ": "select", l: "line", r: "rectangle", p: "pushpull", m: "move", e: "erase", o: "orbit", h: "pan",
+      " ": "select", l: "line", r: "rectangle", p: "pushpull", m: "move", q: "rotate", e: "erase", o: "orbit", h: "pan",
     };
     if (k === " ") ev.preventDefault();
     if (k === "Z" && ev.shiftKey) return this.zoomExtents();
@@ -882,4 +885,34 @@ export function describeFinding(f: Finding): string {
     .join("; ");
   const at = f.position.map((x) => Math.round(x * 1000) / 1000).join(", ");
   return `${kind} in definition ${f.owner} at (${at}): ${ids}`;
+}
+
+/**
+ * The Rotate tool's protractor as line segments: a 72-segment circle, ticks every
+ * 15° (longer every 90°) counted from the start ray when there is one, the start
+ * ray, and the swept arc with its end ray.
+ */
+function protractorSegments(p: NonNullable<Overlay["protractor"]>): number[] {
+  const [bu, bv] = planeBasis(p.normal);
+  const u = p.start ?? bu;
+  const v = p.start ? cross(p.normal, p.start) : bv;
+  const at = (a: number, r: number): Vec3 => madd(madd(p.center, u, Math.cos(a) * r), v, Math.sin(a) * r);
+  const segs: number[] = [];
+  const R = p.radius;
+  for (let i = 0; i < 72; i++) segs.push(...at((i * Math.PI) / 36, R), ...at(((i + 1) * Math.PI) / 36, R));
+  for (let i = 0; i < 24; i++) {
+    const a = (i * Math.PI) / 12;
+    segs.push(...at(a, R), ...at(a, R * (i % 6 === 0 ? 0.82 : 0.92)));
+  }
+  if (p.start) {
+    segs.push(...p.center, ...at(0, R * 1.15));
+    if (p.angle) {
+      const steps = Math.max(1, Math.ceil(Math.abs(p.angle) / (Math.PI / 36)));
+      for (let i = 0; i < steps; i++) {
+        segs.push(...at((p.angle * i) / steps, R * 0.6), ...at((p.angle * (i + 1)) / steps, R * 0.6));
+      }
+      segs.push(...p.center, ...at(p.angle, R * 1.15));
+    }
+  }
+  return segs;
 }
