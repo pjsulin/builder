@@ -54,21 +54,22 @@ export class MoveTool implements Tool {
   constructor(private host: ToolHost) {}
 
   get cursor(): string {
-    return this.moving?.copy ? "copy" : "move";
+    return (this.moving ? this.moving.copy : this.pendingCopy) ? "copy" : "move";
   }
 
   hint(): string {
     if (this.moving?.copy) return "Click to place the copy, or type a distance. Then type 5x or /5 for an array.";
-    return this.moving
-      ? "Click to place, or type a distance. Arrow keys lock an axis."
-      : "Click a point on the selection (or on what you hover) to pick it up. Hold Ctrl (Option on Mac) to copy.";
+    if (this.moving) return "Click to place, or type a distance. Arrow keys lock an axis.";
+    return this.pendingCopy
+      ? "Copy is on: click a point on the selection to pick up a copy. Tap Ctrl (Option on Mac) again to move instead."
+      : "Click a point on the selection (or on what you hover) to pick it up. Tap Ctrl (Option on Mac) to copy.";
   }
 
-  /** The copy modifier went down or up: switch the move in progress, or remember
-   *  it for the next pick-up. */
-  modifier(copy: boolean): void {
-    if (this.moving) this.moving.copy = copy;
-    else this.pendingCopy = copy;
+  /** The copy key was tapped: switch the move in progress between move and copy,
+   *  or arm a copy for the next pick-up. */
+  modifier(): void {
+    if (this.moving) this.moving.copy = !this.moving.copy;
+    else this.pendingCopy = !this.pendingCopy;
   }
   vcbLabel(): string {
     return "Distance";
@@ -151,6 +152,7 @@ export class MoveTool implements Tool {
   private start(base: Vec3, faces: number[], edges: number[], instances: number[], copy = false): void {
     const { model, ctx } = this.host;
     this.lastCopy = null;
+    this.pendingCopy = false;
     const verts = model.verticesOf(faces, edges);
     const all = model.instances(ctx);
     const insts = instances.map((id) => ({ id, transform: all.find((i) => i.id === id)?.transform ?? [] })).filter((i) => i.transform.length);
@@ -262,6 +264,7 @@ export class MoveTool implements Tool {
   private commit(): void {
     const m = this.moving!;
     this.moving = null;
+    this.pendingCopy = false;
     const { model } = this.host;
     if (dist([0, 0, 0], m.good) < 1e-3) {
       model.abort();

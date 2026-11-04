@@ -16,7 +16,7 @@ export interface ToolPointer {
   shift: boolean;
   ctrl: boolean;
   alt: boolean;
-  /** The copy modifier is held (Option on Mac, Ctrl elsewhere). */
+  /** The copy key is held (Option on Mac, Ctrl elsewhere). */
   copy: boolean;
 }
 
@@ -97,8 +97,10 @@ export interface Tool {
   key?(key: string, shift: boolean): boolean;
   /** A value typed into the Measurements box. */
   vcb(text: string): void;
-  /** The copy modifier went down or up while the tool is active (keyboard, no pointer). */
-  modifier?(copy: boolean): void;
+  /** The copy key was tapped (pressed and released with no click or other key in
+   *  between): toggle copy for the operation in progress, or for the next pick-up.
+   *  Holding the key while clicking sets `ToolPointer.copy` instead. */
+  modifier?(): void;
 }
 
 /** The current selection, in the active context. */

@@ -5,7 +5,8 @@ The Milestone 2 test project as far as the tools go today: a 12' × 10' rim buil
 ## Prerequisites
 
 - The hosted build at https://pjsulin.github.io/builder/ (every push to `main` deploys there), or `make start` from a checkout and the URL it prints.
-- Units left at feet and inches. Typed values go into the Measurements box at the bottom right: type, then Enter. `Ctrl` below is `Option` on a Mac.
+- Units left at feet and inches. Typed values go into the Measurements box at the bottom right: type, then Enter.
+- "Move with Ctrl" below means: press M, tap Ctrl (Option on a Mac) so the cursor reads *copy*, then click. Holding Ctrl while you click does the same; the mode ends with the operation.
 - The perf line at the bottom right reads `<draw time> ms draw · <N> faces`; it counts every face in the model, groups included.
 - A **box selection** is Select (Space) dragged from left to right around the part: only entities fully inside the box are taken, so a post under the frame can be boxed without the frame.
 

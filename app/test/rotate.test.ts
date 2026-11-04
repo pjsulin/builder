@@ -275,17 +275,17 @@ describe("Rotate-copy and radial arrays", () => {
     expect(h.model.instances(ROOT).length).toBe(1);
   });
 
-  it("switches to a copy when the modifier goes down mid-rotate, and retypes the copy's angle", () => {
+  it("switches to a copy when the copy key is tapped mid-rotate, and retypes the copy's angle", () => {
     const h = new TestHost();
     const g = post(h);
     const rot = new RotateTool(h);
     h.click(rot, [0, 0, 0]);
     expect(rot.cursor).toBe("crosshair");
-    rot.modifier(true);
+    rot.modifier();
     expect(rot.cursor).toBe("copy");
-    rot.modifier(false);
+    rot.modifier();
     expect(rot.cursor).toBe("crosshair");
-    rot.modifier(true);
+    rot.modifier();
     h.click(rot, [50, 0, 0]);
     rot.vcb("90");
     h.refresh();
@@ -298,6 +298,27 @@ describe("Rotate-copy and radial arrays", () => {
     expect(h.flashes).toEqual([]);
     expect(h.model.instances(ROOT).length).toBe(2);
     expect(angles(h)).toEqual([0, 120]);
+  });
+
+  it("rotates a copy when the copy key is tapped before the centre is picked, then the original next time", () => {
+    const h = new TestHost();
+    const g = post(h);
+    const rot = new RotateTool(h);
+    rot.modifier();
+    expect(rot.cursor).toBe("copy");
+    expect(rot.hint()).toMatch(/Copy is on/);
+    pickUp(h, rot);
+    expect(rot.cursor).toBe("copy");
+    rot.vcb("60");
+    h.refresh();
+    expect(h.model.instances(ROOT).length).toBe(2);
+    expectMatrix(transformOf(h, g), [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]);
+    expect(rot.cursor).toBe("crosshair");
+    h.selection.set([{ kind: "instance", id: g }]);
+    pickUp(h, rot);
+    rot.vcb("45");
+    expect(h.model.instances(ROOT).length).toBe(2);
+    expectMatrix(transformOf(h, g), rotation([0, 0, 0], [0, 0, 1], 45 * DEG));
   });
 
   it("welds a loose face rotate-copied about a shared edge", () => {

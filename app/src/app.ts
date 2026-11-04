@@ -27,11 +27,17 @@ import { Viewport } from "./view/viewport";
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 
-/** Platform copy key for Move: Option on Mac (Ctrl is undo/redo/save/open there and
- *  Ctrl-click is a context click), Ctrl elsewhere. */
+const MAC = /Mac|iPhone|iPad/.test(navigator.platform);
+
+/** Platform copy key for Move and Rotate: Option on Mac (Ctrl is undo/redo/save/open
+ *  there and Ctrl-click is a context click), Ctrl elsewhere. Held while clicking it
+ *  picks up a copy; tapped on its own (`COPY_KEY` down and up with nothing in
+ *  between) it toggles copy for the operation, since a key cannot be held while
+ *  typing a distance or an angle. */
 function copyKey(ev: KeyboardEvent | MouseEvent): boolean {
-  return /Mac|iPhone|iPad/.test(navigator.platform) ? ev.altKey : ev.ctrlKey;
+  return MAC ? ev.altKey : ev.ctrlKey;
 }
+const COPY_KEY = MAC ? "Alt" : "Control";
 
 const MARKER_CLASS: Record<string, string> = {
   endpoint: "end",
@@ -67,6 +73,8 @@ export class App implements ToolHost {
   private vcbTyping = false;
   private fileName = "model.builder";
   private savedRevision = 0;
+  /** The copy key is down and nothing else has happened since: a tap if released now. */
+  private copyTap = false;
   private readonly store: AutosaveStore;
   private readonly autosaver: Autosaver;
 
@@ -653,6 +661,7 @@ export class App implements ToolHost {
       canvas.setPointerCapture(ev.pointerId);
       if (document.activeElement === $("vcb")) $("vcb").blur();
       const p = this.pointer(ev);
+      this.copyTap = false;
       if (ev.button === 1 || ev.button === 2) {
         drag = { mode: ev.shiftKey ? "pan" : "orbit", x: p.x, y: p.y, moved: false };
         canvas.style.cursor = "grabbing";
@@ -762,10 +771,11 @@ export class App implements ToolHost {
         this.inference.unlock();
         this.positionLabels();
       }
-      if ((ev.key === "Control" || ev.key === "Alt") && this.tool.modifier) {
-        this.tool.modifier(false);
+      if (ev.key === COPY_KEY && this.copyTap && this.tool.modifier) {
+        this.tool.modifier();
         this.hintChanged();
       }
+      if (ev.key === COPY_KEY) this.copyTap = false;
     });
     window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => this.readTheme());
     window.addEventListener("beforeunload", (ev) => {
@@ -792,10 +802,12 @@ export class App implements ToolHost {
     }
     const k = ev.key;
     const mod = ev.ctrlKey || ev.metaKey;
-    if (copyKey(ev) && !ev.repeat && this.tool.modifier) {
-      this.tool.modifier(true);
-      this.hintChanged();
+    // A copy-key tap toggles copy on release, unless another key or a click came first.
+    if (k === COPY_KEY) {
+      if (!ev.repeat) this.copyTap = true;
+      return;
     }
+    this.copyTap = false;
     if (mod && k.toLowerCase() === "z") {
       ev.preventDefault();
       return this.undo(ev.shiftKey);

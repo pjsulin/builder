@@ -67,23 +67,25 @@ export class RotateTool implements Tool {
   constructor(private host: ToolHost) {}
 
   get cursor(): string {
-    return this.rotating?.copy ? "copy" : "crosshair";
+    return (this.rotating ? this.rotating.copy : this.pendingCopy) ? "copy" : "crosshair";
   }
 
   hint(): string {
     if (!this.rotating) {
-      return "Click the centre of rotation on the selection (or on what you hover). The protractor follows the face under the cursor; arrow keys lock an axis. Hold Ctrl (Option on Mac) to copy.";
+      return this.pendingCopy
+        ? "Copy is on: click the centre of rotation to rotate a copy. Tap Ctrl (Option on Mac) again to rotate the original instead."
+        : "Click the centre of rotation on the selection (or on what you hover). The protractor follows the face under the cursor; arrow keys lock an axis. Tap Ctrl (Option on Mac) to copy.";
     }
     if (!this.rotating.start) return "Click a start direction on the protractor.";
     if (this.rotating.copy) return "Click to place the rotated copy, or type an angle. Then type 6x or /6 for a radial array.";
     return "Move to set the angle and click, or type it. Steps of 15° off geometry; a point or edge sets it exactly.";
   }
 
-  /** The copy modifier went down or up: switch the rotation in progress, or
-   *  remember it for the next pick-up. */
-  modifier(copy: boolean): void {
-    if (this.rotating) this.rotating.copy = copy;
-    else this.pendingCopy = copy;
+  /** The copy key was tapped: switch the rotation in progress between rotate and
+   *  copy, or arm a copy for the next pick-up. */
+  modifier(): void {
+    if (this.rotating) this.rotating.copy = !this.rotating.copy;
+    else this.pendingCopy = !this.pendingCopy;
   }
   vcbLabel(): string {
     return "Angle";
@@ -256,6 +258,7 @@ export class RotateTool implements Tool {
   private start(center: Vec3, normal: Vec3, selection: Selected, copy = false): Rotating | null {
     const { model, ctx } = this.host;
     this.lastCopy = null;
+    this.pendingCopy = false;
     const verts = model.verticesOf(selection.faces, selection.edges);
     const all = model.instances(ctx);
     const insts = selection.instances
@@ -371,6 +374,7 @@ export class RotateTool implements Tool {
   private commit(): void {
     const m = this.rotating!;
     this.rotating = null;
+    this.pendingCopy = false;
     const { model } = this.host;
     if (Math.abs(m.angle) < 1e-6) {
       model.abort();
