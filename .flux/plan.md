@@ -30,5 +30,6 @@
 
 ### Step 5: Sprint 2.2 Rotate and Offset: protractor rotate, rotate-copy arrays, offset
 
-- **Status:** in progress
+- **Status:** done
 - **Record:** sprint RotateAndOffset
+- **Commit:** 8508d66

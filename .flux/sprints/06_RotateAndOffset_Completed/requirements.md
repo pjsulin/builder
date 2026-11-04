@@ -75,39 +75,39 @@ Angled parts and thickened outlines: a stair stringer rotated to 37° by typing 
 
 ### For Feature 1
 
-- [ ] Kernel tests: a box rotated whole about a corner stays closed with the same volume; a box's top rotated about its front edge gives a closed wedge with no folds; a top edge rotated so a wall would bend folds it; a copy rotated 180° about a shared edge welds into one solid; `copy_instance_transformed` gives `rotation × transform`; `move_and_integrate` tests unchanged and passing; `Error::Locked` on a locked definition; `validate` after each.
-- [ ] `mat_rotation` unit tests: 90° about Z maps X to Y, the centre stays fixed, angle 0 is the identity, a zero axis is `None`.
+- [x] Kernel tests: a box rotated whole about a corner stays closed with the same volume; a box's top rotated about its front edge gives a closed wedge with no folds; a top edge rotated so a wall would bend folds it; a copy rotated 180° about a shared edge welds into one solid; `copy_instance_transformed` gives `rotation × transform`; `move_and_integrate` tests unchanged and passing; `Error::Locked` on a locked definition; `validate` after each. (`kernel/tests/rotate.rs`: six tests, `cargo test --test rotate` 6 passed; `move.rs` 10 and `copy.rs` 7 passed through the wrappers)
+- [x] `mat_rotation` unit tests: 90° about Z maps X to Y, the centre stays fixed, angle 0 is the identity, a zero axis is `None`. (`math::tests::rotation_about_z_maps_x_to_y_and_keeps_the_centre`, `zero_angle_is_the_identity_and_a_zero_axis_is_none`)
 
 ### For Feature 2
 
-- [ ] Kernel tests: a 120 × 96 rectangle offset inward 4" gives a ring and a 112 × 88 inner face; outward 3" gives a 126 × 102 ring around it; a face with a hole offsets the hole with it; an L-shaped face offset inward past its notch is refused with `Error::SelfIntersecting` and the document is unchanged; a two-edge chain offset 2" adds two edges and no face; the chain offset on a face splits the face; non-chain edges are refused; locked refused; undo removes the offset.
-- [ ] `offset_loop` unit tests: a square inward and outward, a triangle, collinear points, a closed loop versus an open chain.
+- [x] Kernel tests: a 120 × 96 rectangle offset inward 4" gives a ring and a 112 × 88 inner face; outward 3" gives a 126 × 102 ring around it; a face with a hole offsets the hole with it; an L-shaped face offset inward past its notch is refused with `Error::SelfIntersecting` and the document is unchanged; a two-edge chain offset 2" adds two edges and no face; the chain offset on a face splits the face; non-chain edges are refused; locked refused; undo removes the offset. (`kernel/tests/offset.rs`: eight tests, 8 passed)
+- [x] `offset_loop` unit tests: a square inward and outward, a triangle, collinear points, a closed loop versus an open chain. (`offset::tests`: five tests including the thin rectangle and the L past its notch as `None`)
 
 ### For Feature 3
 
-- [ ] Headless tool test: a 2 × 10 stringer group rotated by typing `37` about the ground plane has a transform equal to `rotation(centre, Z, 37°)` applied to the original; retyping `30` changes it; one undo returns "Rotate".
-- [ ] Headless tool test: a sweep at 22° with the cursor on nothing commits 15° and the dims label reads `15°`; a sweep to an endpoint commits the exact angle.
-- [ ] Headless tool test: the protractor overlay carries the hovered face's plane, a hovered edge's camera-facing face's plane, the ground otherwise, and the locked axis when an arrow key is down.
-- [ ] Headless tool test: a box's top face rotated 10° about its front edge by typing stays a 6-face solid; Esc cancels with no change; a locked group is refused with the locked-tag toast.
+- [x] Headless tool test: a 2 × 10 stringer group rotated by typing `37` about the ground plane has a transform equal to `rotation(centre, Z, 37°)` applied to the original; retyping `30` changes it; one undo returns "Rotate". (`rotate.test.ts` "rotates a stringer group by a typed angle about the ground plane, retypes it and undoes as one step")
+- [x] Headless tool test: a sweep at 22° with the cursor on nothing commits 15° and the dims label reads `15°`; a sweep to an endpoint commits the exact angle. ("snaps a sweep over nothing to 15° and takes an endpoint exactly": dims and VCB read `15°`, the endpoint commits 22°)
+- [x] Headless tool test: the protractor overlay carries the hovered face's plane, a hovered edge's camera-facing face's plane, the ground otherwise, and the locked axis when an arrow key is down. ("puts the protractor on the hovered face, a hovered edge's camera-facing face, the ground, or the locked axis")
+- [x] Headless tool test: a box's top face rotated 10° about its front edge by typing stays a 6-face solid; Esc cancels with no change; a locked group is refused with the locked-tag toast. ("tilts a box's top about its front edge by a typed angle without folding": 6 faces, 12 edges, no flash; "cancels with Escape and refuses a locked group")
 
 ### For Feature 4
 
-- [ ] Headless tool test: a group rotate-copied 60° then `5x` gives six instances around the centre as one undo step; `/6` after a 180° copy gives six evenly spread; `6x` after a plain rotate flashes "Copy something first".
+- [x] Headless tool test: a group rotate-copied 60° then `5x` gives six instances around the centre as one undo step; `/6` after a 180° copy gives six evenly spread; `6x` after a plain rotate flashes "Copy something first". ("leaves the original and places a rotated copy, then 5x makes six posts around the centre as one step"; "spreads six copies evenly with /6 after a half-turn copy, and retypes the count"; "refuses an array after a plain rotation or once the model changed")
 
 ### For Feature 5
 
-- [ ] Headless tool test: the front wall of the shed offset inward by typing `4"` has one more face (ring plus inner) and the inner face measures 112" × 88"; the Push/Pull of the ring then works; retyping `6"` changes the inner face.
-- [ ] Headless tool test: a window rectangle on a wall offset outward `3"` gives a ring around it; a negative typed value flips the direction.
-- [ ] Headless tool test: two selected edges forming an L offset 2" add two edges; an L-shaped face offset too far flashes the kernel message and leaves the model unchanged.
+- [x] Headless tool test: the front wall of the shed offset inward by typing `4"` has one more face (ring plus inner) and the inner face measures 112" × 88"; the Push/Pull of the ring then works; retyping `6"` changes the inner face. (`offset.test.ts` "thickens the front wall inward by a typed distance, retypes it and undoes as one step": 112 × 88 then 108 × 84; "pushes the ring the offset made, giving the wall a reveal")
+- [x] Headless tool test: a window rectangle on a wall offset outward `3"` gives a ring around it; a negative typed value flips the direction. ("offsets a window outline outward for trim, and a minus flips the direction": a 42 × 30 ring)
+- [x] Headless tool test: two selected edges forming an L offset 2" add two edges; an L-shaped face offset too far flashes the kernel message and leaves the model unchanged. ("offsets two selected edges forming an L and adds no face"; "refuses an L-shaped face offset past its notch, with one flash, and leaves the model unchanged")
 
 ### For Feature 6
 
-- [ ] `random_operations_keep_invariants` generates `Op::Rotate` and `Op::Offset` and still finishes under a minute in a debug build; `render_test` prints both ops.
-- [ ] Docs updated per Impact; `docs/walkthrough-deck.md` exists with the stair and railing steps.
+- [x] `random_operations_keep_invariants` generates `Op::Rotate` and `Op::Offset` and still finishes under a minute in a debug build; `render_test` prints both ops. (10 Rotate and 17 Offset ops at the CI seed, `BUILDER_FUZZ_TRACE=1`; 25.2 s in a debug build; `render_op` has both arms; a 25-minute run at seed 7 found nothing)
+- [x] Docs updated per Impact; `docs/walkthrough-deck.md` exists with the stair and railing steps. (Gate 4 below: every Impact doc changed and verified; `docs/walkthrough-deck.md` steps 11 and 12, replayed by "Deck walkthrough" in `offset.test.ts`)
 
 ### For all
 
-- [ ] Browser check by Patrick: the deck walkthrough's stair and railing steps in the hosted build.
+- [ ] Browser check by Patrick: the deck walkthrough's stair and railing steps in the hosted build. (waiting on Patrick after the merge)
 
 ## Impact
 
