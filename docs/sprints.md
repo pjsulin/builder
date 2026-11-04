@@ -151,7 +151,9 @@ Open questions: default segment counts; how curves store in the file format (an 
 
 ## Milestone 3: Organized models
 
-**Test project:** a bookcase built from board components with real thicknesses, colored by material, each part named, with the board list readable from Entity Info and the Outliner.
+**Test projects:** a bookcase built from board components with real thicknesses, colored by material, each part named, with the board list readable from Entity Info and the Outliner. And a renovation (ADR `mw27k22l`): a basement opened from a survey `.builder`, one existing element marked for removal, one proposed fixture with clearances, exported as a plan file that builds with `survey build --plan` and shows the removal in the Demo collection.
+
+**Renovation thread (ADR `mw27k22l`):** the survey record is the source of truth and Builder is where it is viewed and proposals are drawn. The 2D layout page and Sweet Home 3D are stand-ins to retire once their jobs are in Builder: a clearance check for proposed groups (backlog `#mw27k22m`) and marking existing elements as demo from Builder (backlog `#mw27k22n`). Both are placed when this milestone is planned in detail: the demo marking is small and fits 3.2 or an ad-hoc before it; the clearance check is a phase of 3.2 or a Sprint 3.4 of its own. The weeks column above does not yet include it.
 
 ### Sprint 3.1: Components
 
@@ -182,11 +184,14 @@ Delivers:
 - **Entity Info** panel: for an edge its length; for a face its area and material; for a group or component its name, definition, instance count, size of bounding box, and volume when it's a closed solid; for a multi-selection, counts and totals. Name and tag editable here.
 - **Outliner**: tree of groups and components, with select-by-click (selects in the viewport and opens the containing group), rename, hide, and search by name.
 - **Hide**, **Unhide all**, and **Isolate** (hide everything except the selection).
+- Survey attributes in Entity Info, replacing the survey panel's attribute view: kind, phase, approx (orange), source, and the spec path once the survey exporter writes it (`#mw27k22n`). The Outliner groups by tag so Existing, Demo and Proposed read as sections.
+- **Mark for removal** on a locked Existing element (`#mw27k22n`), here or as an ad-hoc just before this sprint: an instance attribute, shown in Entity Info and drawn distinctly, that the plan export writes as a `remove:` line.
 
 Done when:
 - Clicking a shelf board shows its length, width and thickness, and its volume.
 - In a model with 100+ groups, finding and selecting a part by name takes seconds.
 - Hidden state saves in the file.
+- In the basement survey file, selecting a pipe shows its kind, phase, approx flag and source; marking it for removal and exporting a plan gives a file that builds with the pipe in Demo.
 
 Open questions: panel layout on narrow screens; volume rules for nearly closed solids.
 
@@ -203,6 +208,7 @@ Delivers:
 Done when:
 - The bookcase test project can be done start to finish: board components, painted, tagged, with sizes and names readable from Entity Info and the Outliner.
 - Metric settings round-trip: a model made in mm reopens in mm.
+- The tags panel keeps lock, and a survey file still opens in survey mode with Existing and Demo locked and Proposed active; the survey material table shows as named colours, not repainted.
 
 Open questions: texture support now or later (the roadmap says later); whether settings are per model or per user (likely both, with model overriding).
 
@@ -225,6 +231,8 @@ Done when:
 - An exported deck STL opens in a slicer as a watertight solid at the right size.
 - A GLB opens correctly in a web viewer with colors.
 - Importing an OBJ of a box gives six faces that can be pushed and pulled.
+- A survey `.builder` exported to glTF opens in Blender with one object per group and the tag recoverable (by collection or by name). This is the supported Blender path (ADR `mw27k22l`); no survey-specific Blender integration is added, and `survey/`'s `mesh.json` render path stays until it is confirmed unused.
+- An OBJ exported from Sweet Home 3D imports as a group, which is how its furniture catalogue reaches Builder.
 
 Open questions: import size limits and performance; how much of glTF to support (likely static meshes only).
 
@@ -240,8 +248,9 @@ Delivers:
 
 Done when:
 - A top view of the deck in parallel projection at 1/4" = 1' prints on letter paper with dimensions, and a measurement off the printout with a ruler matches the model.
+- A basement room from a survey file, in top view with the overhead pipes hidden by tag, reads like the 2D layout page's plan. With the clearance check (`#mw27k22m`) this is what lets the page retire.
 
-Open questions: raster PDF first versus true vector (vector needs hidden-line removal, a later item); dimension style options.
+Open questions: raster PDF first versus true vector (vector needs hidden-line removal, a later item); dimension style options; whether a section plane is needed for height filtering, since hiding by tag is the stand-in and the 2D page filters by height range.
 
 ### Sprint 4.3: Cut lists and scenes
 
