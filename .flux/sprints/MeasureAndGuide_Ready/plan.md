@@ -124,7 +124,7 @@ Sprint 2.3 of Milestone 2: guides as a kernel entity saved under an additive `gu
   - Modify: app/src/kernel/model.ts
   - Modify: app/src/tools/tool.ts
 - **Context:** [spec.md§Interfaces](spec.md#interfaces)
-- **Description:** `EntityKind` gains `"guide"`, `GuideRecord`, the seven wrappers, `exists` answers for guides; `Selection.ids("guide")` works unchanged; `Selection.prune` drops erased guides.
+- **Description:** `EntityKind` gains `"guide"`, `GuideRecord`, the seven wrappers, `exists` answers for guides; `Selection.ids("guide")` works unchanged; `Selection.prune` drops erased guides; the `Finding.kind` union gains `"bad_guide"` so `describeFinding` renders it.
 
 #### Task 3.3: Wrapper tests
 
@@ -161,8 +161,11 @@ Sprint 2.3 of Milestone 2: guides as a kernel entity saved under an additive `gu
   - Modify: app/src/tools/pick.ts
   - Modify: app/src/tools/erase.ts
   - Modify: app/src/tools/select.ts
+  - Modify: app/src/tools/move.ts
+  - Modify: app/src/tools/rotate.ts
+  - Modify: app/src/survey/mode.ts
 - **Context:** [spec.md§Interfaces](spec.md#interfaces)
-- **Description:** `pickEntity` returns a guide within the edge radius of a line or the point radius of a point, after geometry; `EraseTool.up` erases `ids("guide")` through `eraseGuides` in the same transaction; Select highlights a guide and Delete erases it with the selection.
+- **Description:** `pickEntity` returns a guide within the edge radius of a line or the point radius of a point, after geometry; `EraseTool.up` erases `ids("guide")` through `eraseGuides` in the same transaction; Select highlights a guide and Delete erases it with the selection. Call sites that switch on the entity kind learn the new one: Move and Rotate ignore a picked guide with an empty selection (`move.ts:97`, `rotate.ts:157`), and the survey panel's owner lookup (`survey/mode.ts:36`) reads a guide's owner from `Model.guides` rather than `edgeInfo`.
 
 #### Task 4.3: View › Guides and Edit › Delete Guides
 
@@ -173,7 +176,7 @@ Sprint 2.3 of Milestone 2: guides as a kernel entity saved under an additive `gu
   - Modify: app/src/app.ts
   - Modify: app/index.html
 - **Context:** [spec.md§Interfaces](spec.md#interfaces)
-- **Description:** `guidesBtn` toggles visibility in a `Guides` transaction and relabels; `deleteGuidesBtn` runs `eraseAllGuides` in one transaction and flashes the count; `drawOverlay` feeds `setGuides`; `eraseSelection` includes guides.
+- **Description:** `guidesBtn` toggles visibility in a `Guides` transaction and relabels; `deleteGuidesBtn` runs `eraseAllGuides` in one transaction and flashes the count; `drawOverlay` feeds `setGuides`; `eraseSelection` includes guides; `entityGeometry` (`app.ts:504`) returns a guide's clipped segment or point stub so `drawSelection` highlights a selected guide.
 
 #### Task 4.4: Scene and housekeeping tests
 
@@ -184,7 +187,7 @@ Sprint 2.3 of Milestone 2: guides as a kernel entity saved under an additive `gu
   - Modify: app/test/scene.test.ts
   - Modify: app/test/tools.test.ts
 - **Context:** [spec.md§Validation Criteria](spec.md#validation-criteria)
-- **Description:** A guide in a moved group flattens through the instance matrix; hidden gives an empty list; `pickEntity` finds a guide line and a point and prefers an edge over a guide at the same pixel; Erase removes a guide; delete-all is one undo step.
+- **Description:** A guide in a moved group flattens through the instance matrix; hidden gives an empty list; `pickEntity` finds a guide line and a point and prefers an edge over a guide at the same pixel; Select selects a guide and Delete erases it; Move with an empty selection ignores a picked guide; Erase removes a guide; delete-all is one undo step.
 
 ### Phase 5: Inference Kinds and Locks
 
@@ -220,7 +223,7 @@ Sprint 2.3 of Milestone 2: guides as a kernel entity saved under an additive `gu
   - Modify: app/src/app.ts
   - Modify: app/src/style.css
 - **Context:** [spec.md§Interfaces](spec.md#interfaces)
-- **Description:** `ArrowDown` calls `cycleEdgeLock` and falls back to `unlock` when nothing is referenced; `setTool` and Esc call `reset`; every tool's `down` calls `inference.clicked()` through the host; `MARKER_CLASS` and the stylesheet gain the magenta, from-point and guide marker styles; `drawGuide` draws the magenta line from the anchor.
+- **Description:** `ArrowDown` calls `cycleEdgeLock` and falls back to `unlock` when nothing is referenced; `setTool` and Esc call `reset`; the app's pointerdown handler calls `inference.clicked()` once before dispatching to the tool, so no tool changes; `MARKER_CLASS` and the stylesheet gain the magenta, from-point and guide marker styles; `drawGuide` draws the magenta line from the anchor.
 
 #### Task 5.4: Engine tests
 
@@ -389,6 +392,19 @@ Sprint 2.3 of Milestone 2: guides as a kernel entity saved under an additive `gu
   - Modify: docs/architecture.md
 - **Context:** [spec.md§Summary](spec.md#summary)
 - **Description:** Roadmap row 2.3 done with the date and row 2.5's guide snaps folded in; sprints § 2.3 "Resolved in the sprint" paragraph; architecture § 9 fuzz op list and § 10 status.
+
+## Plan Review
+
+**Reviewed:** 2026-11-04
+
+- [x] Requirements to Spec traced
+- [x] Spec to Plan traced
+- [x] Proposed ADRs checked against accepted (none proposed; spec cites `mvr2opid`, `mvr2op7t`, contradicts neither)
+- [x] Checklist passed (2 warnings accepted: guide selection in Select goes beyond the sprint doc's "Erase removes a guide" but is needed by the Delete key path; Task 7.2 moves two private Rotate helpers to a shared export)
+
+Fixed at review: Task 4.2 gained the three call sites of the new entity kind (`move.ts`, `rotate.ts`, `survey/mode.ts`); Task 4.3 covers `entityGeometry`; Task 3.2 the `Finding.kind` union; Task 5.3 calls `clicked()` from the app's pointer handler instead of every tool; Task 4.4 tests Select on guides; requirements Impact Backlog cites the two Milestone 3 items as out of scope.
+
+**Plan Status:** Ready for implementation
 
 ## Task Format
 

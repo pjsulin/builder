@@ -579,6 +579,7 @@ pub fn set_guides_visible(&mut self, visible: bool);
 
 ```ts
 export type EntityKind = "face" | "edge" | "instance" | "guide";
+export interface Finding { kind: /* existing */ | "bad_guide"; /* unchanged */ }
 export interface GuideRecord { id: number; kind: "line" | "point"; origin: Vec3; dir: Vec3 }
 class Model {
   addGuideLine(ctx: number, origin: Vec3, dir: Vec3): number;
@@ -600,6 +601,7 @@ class SceneIndex { guides(): WorldGuide[]; }          // flattened with the item
 class Viewport { setGuides(guides: WorldGuide[], visible: boolean): void; } // layer "guides", dashed; a point is a short stub with an x
 // pick.ts
 export function pickEntity(...): PickResult | null;   // now also returns { kind: "guide", id } within EDGE_RADIUS of a guide line or POINT_RADIUS of a guide point
+// Callers that switch on kind: erase.ts, select.ts (handle guides); move.ts:97, rotate.ts:157 (ignore a picked guide); survey/mode.ts:36 (owner of a guide from Model.guides)
 ```
 
 **Inference (`app/src/inference/engine.ts`)**
@@ -616,7 +618,7 @@ class InferenceEngine {
   referencedEdge(): { item: number; id: number; a: Vec3; b: Vec3 } | null;
   /** Called by the app on tool change and Esc: clears locks, reference edge and from-point memory. */
   reset(): void;
-  /** Called by tools on every click: ends the from-point memory. */
+  /** Called by the app's pointerdown handler before the tool sees the click: ends the from-point memory. */
   clicked(): void;
 }
 ```
@@ -652,7 +654,7 @@ export class ProtractorTool implements Tool {
 Tape Measure state: `{ from: Inference; mode: "line" | "point" | "measure"; edge?: {a,b}; preview?: GuideRecord }`; a first click on an endpoint or guide point sets `point`, on a midpoint, an edge or a face sets `line` (direction of the hovered edge; on a face, the axis nearest the drag), in measure-only mode always `measure`. Commit is one transaction `Guide`; `lastGuide` with the model revision guards retype like `lastCopy` does.
 Protractor state mirrors `Rotating` (centre, normal, start direction, angle, snap) minus the selection; commit adds a guide line through the centre along the swept direction.
 
-**App (`app/src/app.ts`, `app/index.html`)**: tools `measure` (key `t`) and `protractor` (button only) in `tools` and `keys`; `ArrowDown` calls `cycleEdgeLock()` and falls back to `unlock()` when it returns null and nothing is referenced; buttons `guidesBtn` (View › Guides, toggles `setGuidesVisible` in a transaction) and `deleteGuidesBtn` (Edit › Delete Guides); `setTool` calls `inference.reset()`; `drawOverlay` passes guides to `viewport.setGuides`.
+**App (`app/src/app.ts`, `app/index.html`)**: tools `measure` (key `t`) and `protractor` (button only) in `tools` and `keys`; `ArrowDown` calls `cycleEdgeLock()` and falls back to `unlock()` when it returns null and nothing is referenced; buttons `guidesBtn` (View › Guides, toggles `setGuidesVisible` in a transaction) and `deleteGuidesBtn` (Edit › Delete Guides); `setTool` calls `inference.reset()`, pointerdown calls `inference.clicked()`; `entityGeometry` highlights a selected guide; `drawOverlay` passes guides to `viewport.setGuides`.
 
 ### Data Models
 

@@ -118,7 +118,7 @@ Read each item before planning. Close Gates 4 and 5 read this section.
 
 ### Backlog
 
-- none closed; `#mvr7ne51` phone capture test out of scope
+- none closed; `#mvr7ne51` phone capture test out of scope; `#mw27k22m` clearance check and `#mw27k22n` demo marking are Milestone 3 survey-mode work, out of scope, untouched by guides
 
 ## Scope
 
