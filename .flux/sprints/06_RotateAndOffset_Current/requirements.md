@@ -1,9 +1,11 @@
 ---
-sprint: "RotateAndOffset"
 created: 2026-10-28
-start: null    # commit; set by `flux sprint move <Name> Current`, close diffs against it
-started: null  # date; set by the same move
+sprint: RotateAndOffset
+start: 4f22f3b
+started: '2026-11-04'
+step: '5'
 ---
+
 # Requirements: RotateAndOffset
 
 ## Background
