@@ -73,12 +73,12 @@ export class RotateTool implements Tool {
   hint(): string {
     if (!this.rotating) {
       return this.pendingCopy
-        ? "Copy is on: click the centre of rotation to rotate a copy. Tap Ctrl (Option on Mac) again to rotate the original instead."
-        : "Click the centre of rotation on the selection (or on what you hover). The protractor follows the face under the cursor; arrow keys lock an axis. Tap Ctrl (Option on Mac) to copy.";
+        ? "Copy is on: click the point the copy turns about (on the selection to turn in place, elsewhere to swing round it). Tap Ctrl (Option on Mac) again to rotate the original instead."
+        : "Click the point the selection turns about: on it to turn in place, elsewhere to swing round that point. Arrow keys lock the axis. Tap Ctrl (Option on Mac) to copy.";
     }
-    if (!this.rotating.start) return "Click a start direction on the protractor.";
-    if (this.rotating.copy) return "Click to place the rotated copy, or type an angle. Then type 6x or /6 for a radial array.";
-    return "Move to set the angle and click, or type it. Steps of 15° off geometry; a point or edge sets it exactly.";
+    if (!this.rotating.start) return "Click a direction from that point to be 0° on the protractor (along the selection is usual). Nothing moves yet.";
+    if (this.rotating.copy) return "Move or type the angle from 0° and click (minus turns the other way): the copy lands there. Then type 6x or /6 for a radial array.";
+    return "Move to set the angle from 0° and click, or type it (minus turns the other way). Steps of 15° off geometry; a point or edge sets it exactly.";
   }
 
   /** The copy key was tapped: switch the rotation in progress between rotate and
