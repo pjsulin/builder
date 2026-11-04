@@ -3,7 +3,7 @@
 use std::collections::{BTreeSet, HashMap};
 
 use crate::doc::*;
-use crate::math::{mat_apply, mat_mul, mat_translation, Mat4, V3};
+use crate::math::{mat_apply, mat_is_finite, mat_mul, mat_translation, Mat4, V3};
 use crate::Error;
 
 /// What an explode put back into the parent context.
@@ -160,28 +160,34 @@ impl Document {
         Ok(out)
     }
 
+    /// Copy an instance as a new group translated by `offset` in the parent's
+    /// coordinates: `copy_instance_transformed` under `mat_translation(offset)`.
+    pub fn copy_instance(&mut self, inst: InstId, offset: V3) -> Result<InstId, Error> {
+        self.copy_instance_transformed(inst, &mat_translation(offset))
+    }
+
     /// Copy an instance as a new group: a new definition with the same name, kind,
     /// attributes and geometry (vertices, edges, faces with materials, back
     /// materials and attributes), child instances copied recursively the same way,
     /// and a new instance record cloned from `inst` (name, material, tag,
-    /// attributes) whose transform is `inst`'s translated by `offset` in the
+    /// attributes) whose transform is `mat_mul(m, &inst.transform)`, `m` in the
     /// parent's coordinates. Returns the new instance. Copies get their own
     /// definition rather than sharing one because `world_transform` and the app's
     /// group editing assume one instance per group definition; shared definitions
     /// are what components will add. `Error::Locked` when `inst` is locked or the
     /// parent definition the copy is written into is locked (ADR mvr2opid).
-    pub fn copy_instance(&mut self, inst: InstId, offset: V3) -> Result<InstId, Error> {
+    pub fn copy_instance_transformed(&mut self, inst: InstId, m: &Mat4) -> Result<InstId, Error> {
         let src = self.instance(inst).cloned().ok_or(Error::Missing("instance"))?;
         self.check_instance_unlocked(inst)?;
         self.check_def_unlocked(src.parent)?;
-        if !offset.is_finite() {
-            return Err(Error::Degenerate("offset is not a number"));
+        if !mat_is_finite(m) {
+            return Err(Error::Degenerate("transform is not a number"));
         }
         let def = self.copy_definition(src.definition)?;
         let id = self.new_instance(def, src.parent);
         let mut x = src.clone();
         x.definition = def;
-        x.transform = mat_mul(&mat_translation(offset), &src.transform);
+        x.transform = mat_mul(m, &src.transform);
         self.set_instance(id, Some(x));
         Ok(id)
     }

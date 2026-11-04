@@ -416,17 +416,17 @@ describe("Move with the copy modifier", () => {
     expect(h.scene().max[2]).toBeCloseTo(96);
   });
 
-  it("switches to a copy when the modifier goes down mid-move", () => {
+  it("switches to a copy when the copy key is tapped mid-move", () => {
     const h = new TestHost();
     grouped(h);
     const mv = new MoveTool(h);
     h.click(mv, [0, 0, 0]);
     expect(mv.cursor).toBe("move");
-    mv.modifier(true);
+    mv.modifier();
     expect(mv.cursor).toBe("copy");
-    mv.modifier(false);
+    mv.modifier();
     expect(mv.cursor).toBe("move");
-    mv.modifier(true);
+    mv.modifier();
     h.hover(mv, [50, 0, 0]);
     mv.vcb("2'");
     expect(h.flashes).toEqual([]);
@@ -438,6 +438,32 @@ describe("Move with the copy modifier", () => {
     const insts = h.model.instances(ROOT);
     expect(insts.length).toBe(2);
     expect(insts.map((i) => i.transform[12]).sort((a, b) => a - b)).toEqual([0, 36]);
+  });
+
+  it("copies once when the copy key is tapped before the pick-up", () => {
+    const h = new TestHost();
+    const g = grouped(h);
+    const mv = new MoveTool(h);
+    mv.modifier();
+    expect(mv.cursor).toBe("copy");
+    expect(mv.hint()).toMatch(/Copy is on/);
+    mv.modifier();
+    expect(mv.cursor).toBe("move");
+    mv.modifier();
+    h.click(mv, [0, 0, 0]);
+    expect(mv.cursor).toBe("copy");
+    h.hover(mv, [50, 0, 0]);
+    mv.vcb("2'");
+    expect(h.model.instances(ROOT).length).toBe(2);
+    // The mode does not stick: the next pick-up moves.
+    expect(mv.cursor).toBe("move");
+    h.selection.set([{ kind: "instance", id: g }]);
+    h.click(mv, [0, 0, 0]);
+    expect(mv.cursor).toBe("move");
+    h.hover(mv, [50, 0, 0]);
+    mv.vcb("1'");
+    expect(h.model.instances(ROOT).length).toBe(2);
+    expect(origin(h, g)).toEqual([12, 0, 0]);
   });
 
   it("refuses to copy a locked group", () => {

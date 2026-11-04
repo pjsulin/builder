@@ -110,3 +110,25 @@ fn move_onto_geometry_after_intersections() {
         validate(&d);
     }
 }
+
+/// seed 0x5eed2026, op 100 (after the Offset op was added): moving the inner face
+/// of a ring only checked the ring's outer loop for bending, so the ring was left
+/// with its hole out of plane. `fold_for_move` now checks holes too and refuses.
+#[test]
+fn move_of_the_inner_face_of_an_offset_ring() {
+    let mut d = Document::new();
+    let ops = [
+        Op::Rect { x0: 80.0, y0: 63.0, x1: 47.0, y1: 12.0, z: 32.0 },
+        Op::Offset { point: V3::new(58.0, 46.0, 32.0), normal: V3::new(0.0, 0.0, 1.0), distance: -2.0 },
+        Op::MoveFace {
+            point: V3::new(58.666666666666664, 45.333333333333336, 32.0),
+            normal: V3::new(0.0, 0.0, 1.0),
+            offset: V3::new(0.0, 0.0, 1.0),
+        },
+    ];
+    for op in &ops {
+        apply(&mut d, op).ok();
+        validate(&d);
+    }
+    assert_eq!(d.faces.count(), 2, "the move was refused; ring and inner face remain");
+}

@@ -189,6 +189,16 @@ impl Document {
 
     /// Heal every plane that the given edges lie in.
     pub fn heal_around(&mut self, ctx: DefId, edges: &[EId]) -> Result<(), Error> {
+        self.heal_planes(ctx, edges, false)
+    }
+
+    /// `heal_around` for moved edges (`heal_moved`): a loop they close by
+    /// themselves that had no face stays open.
+    pub(crate) fn heal_around_moved(&mut self, ctx: DefId, edges: &[EId]) -> Result<(), Error> {
+        self.heal_planes(ctx, edges, true)
+    }
+
+    fn heal_planes(&mut self, ctx: DefId, edges: &[EId], moved: bool) -> Result<(), Error> {
         let planes = self.candidate_planes(ctx, edges);
         for plane in planes {
             let seeds: Vec<EId> = edges
@@ -196,7 +206,12 @@ impl Document {
                 .copied()
                 .filter(|&e| self.edge(e).is_some() && self.edge_in_plane(e, &plane))
                 .collect();
-            if !seeds.is_empty() {
+            if seeds.is_empty() {
+                continue;
+            }
+            if moved {
+                self.heal_moved(ctx, &plane, &seeds, Vec::new())?;
+            } else {
                 self.heal(ctx, &plane, &seeds, &[], Vec::new())?;
             }
         }

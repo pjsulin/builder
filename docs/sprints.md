@@ -110,7 +110,7 @@ Done when:
 - Offsetting a wall's face inward 4" and pushing the ring makes a wall thickness. Offsetting a window rectangle outward 3" and pulling makes trim.
 - Rotate and Offset have the same Measurements-box retyping as the other tools.
 
-Open questions: protractor plane choice when hovering edges; how Offset handles self-intersecting results on concave shapes.
+Resolved in the sprint (RotateAndOffset, 2026-11): the protractor lies on the face under the cursor, on a face of a hovered edge (the one facing the camera when two do), else on the ground, and the arrow keys override it with an axis; an offset whose result would cross itself is refused with `Error::SelfIntersecting` and a flash, nothing written (trimming it to its valid loops is deferred). Rotate and Move share one kernel transform path; rotate-copies of groups are independent groups until Components (3.1); every tool sprint adds its kernel operations to the randomized test's `Op` enum.
 
 ### Sprint 2.3: Measure and guide
 

@@ -279,6 +279,47 @@ pub fn mat_translation(t: V3) -> Mat4 {
     m
 }
 
+/// Rotation of `angle` radians about the axis through `center` along `axis`
+/// (right-hand rule), as a column-major affine `Mat4` like `mat_translation`.
+/// `None` for a (near) zero axis. Rodrigues' formula; `angle == 0.0` is `IDENTITY`.
+pub fn mat_rotation(center: V3, axis: V3, angle: f64) -> Option<Mat4> {
+    let k = axis.unit()?;
+    let (s, c) = angle.sin_cos();
+    let t = 1.0 - c;
+    // R = cos I + sin [k]× + (1 - cos) k kᵀ, written row by row.
+    let r = [
+        [c + t * k.x * k.x, t * k.x * k.y - s * k.z, t * k.x * k.z + s * k.y],
+        [t * k.y * k.x + s * k.z, c + t * k.y * k.y, t * k.y * k.z - s * k.x],
+        [t * k.z * k.x - s * k.y, t * k.z * k.y + s * k.x, c + t * k.z * k.z],
+    ];
+    let mut m = IDENTITY;
+    for (row, line) in r.iter().enumerate() {
+        for (col, &x) in line.iter().enumerate() {
+            m[col * 4 + row] = x;
+        }
+    }
+    // The centre stays fixed: translate by c - R c.
+    let rc = mat_apply(&m, center);
+    m[12] = center.x - rc.x;
+    m[13] = center.y - rc.y;
+    m[14] = center.z - rc.z;
+    Some(m)
+}
+
+/// A direction under an affine transform: `mat_apply(m, d) - mat_apply(m, ZERO)`.
+pub fn mat_apply_dir(m: &Mat4, d: V3) -> V3 {
+    V3::new(
+        m[0] * d.x + m[4] * d.y + m[8] * d.z,
+        m[1] * d.x + m[5] * d.y + m[9] * d.z,
+        m[2] * d.x + m[6] * d.y + m[10] * d.z,
+    )
+}
+
+/// True when every entry is finite.
+pub fn mat_is_finite(m: &Mat4) -> bool {
+    m.iter().all(|x| x.is_finite())
+}
+
 pub fn mat_mul(a: &Mat4, b: &Mat4) -> Mat4 {
     let mut r = [0.0; 16];
     for col in 0..4 {
@@ -368,6 +409,30 @@ mod tests {
         // The point is the one closest to the origin: no component along the line.
         assert!(p.dot(dir).abs() < 1e-9);
         assert!(p.dist(V3::new(120.0, 0.0, 96.0)) < 1e-9);
+    }
+
+    #[test]
+    fn rotation_about_z_maps_x_to_y_and_keeps_the_centre() {
+        let m = mat_rotation(V3::ZERO, V3::Z, std::f64::consts::FRAC_PI_2).unwrap();
+        let p = mat_apply(&m, V3::X);
+        assert!(p.dist(V3::Y) < 1e-12);
+        assert!(mat_apply_dir(&m, V3::X).dist(V3::Y) < 1e-12);
+        let c = V3::new(10.0, 5.0, 3.0);
+        let m = mat_rotation(c, V3::new(1.0, 1.0, 0.0), 1.0).unwrap();
+        assert!(mat_apply(&m, c).dist(c) < 1e-12);
+        // Rigid: lengths are kept and the inverse is the opposite rotation.
+        let q = mat_apply(&m, V3::new(12.0, 5.0, 3.0));
+        assert!((q.dist(c) - 2.0).abs() < 1e-12);
+        let back = mat_rotation(c, V3::new(1.0, 1.0, 0.0), -1.0).unwrap();
+        assert!(mat_apply(&back, q).dist(V3::new(12.0, 5.0, 3.0)) < 1e-12);
+        assert!(mat_is_finite(&m));
+    }
+
+    #[test]
+    fn zero_angle_is_the_identity_and_a_zero_axis_is_none() {
+        assert_eq!(mat_rotation(V3::new(4.0, -2.0, 7.0), V3::Y, 0.0), Some(IDENTITY));
+        assert_eq!(mat_rotation(V3::ZERO, V3::ZERO, 1.0), None);
+        assert!(!mat_is_finite(&mat_translation(V3::new(f64::NAN, 0.0, 0.0))));
     }
 
     #[test]

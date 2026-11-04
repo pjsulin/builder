@@ -101,6 +101,28 @@ export function translation(t: Vec3): Mat4 {
   return [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, t[0], t[1], t[2], 1];
 }
 
+/** Rotation of `angle` radians about the axis through `center` along `axis`
+ *  (right-hand rule), column-major like `translation`; the kernel's `mat_rotation`.
+ *  A zero axis gives the identity. */
+export function rotation(center: Vec3, axis: Vec3, angle: number): Mat4 {
+  const k = norm(axis);
+  const c = Math.cos(angle), s = Math.sin(angle), t = 1 - c;
+  // Rows of R = cos I + sin [k]× + (1 - cos) k kᵀ.
+  const r = [
+    [c + t * k[0] * k[0], t * k[0] * k[1] - s * k[2], t * k[0] * k[2] + s * k[1]],
+    [t * k[1] * k[0] + s * k[2], c + t * k[1] * k[1], t * k[1] * k[2] - s * k[0]],
+    [t * k[2] * k[0] - s * k[1], t * k[2] * k[1] + s * k[0], c + t * k[2] * k[2]],
+  ];
+  const m = [...IDENTITY];
+  for (let row = 0; row < 3; row++) for (let col = 0; col < 3; col++) m[col * 4 + row] = r[row][col];
+  // The centre stays fixed: translate by c - R c.
+  const rc = applyDir(m, center);
+  m[12] = center[0] - rc[0];
+  m[13] = center[1] - rc[1];
+  m[14] = center[2] - rc[2];
+  return m;
+}
+
 export function mul(a: Mat4, b: Mat4): Mat4 {
   const r = new Array<number>(16).fill(0);
   for (let col = 0; col < 4; col++)

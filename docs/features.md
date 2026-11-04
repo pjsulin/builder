@@ -54,7 +54,7 @@ Users don't praise SketchUp for its feature count. They praise a small number of
 | Circle and polygon (segmented, with segment count in the VCB) | Core | Stored as an edge "curve" so it selects as one item. |
 | Arc (two-point, three-point, pie) | Core | Same curve object. |
 | Freehand | Later | |
-| Offset (faces and edge chains) | Core | Key for wall thickness, trim and frames. |
+| Offset (faces and edge chains) | Core | Built now: click a face (or select a chain of edges first), move inward or outward, click or type the distance; a typed value follows the preview's direction and a minus reverses it. An inward offset splits the face into a ring and an inner face, holes offset with it, an outward one adds a ring around it, so a wall thickness is the ring pushed and window trim the outer ring pulled. An offset that would cross itself (a notched outline offset past its arms) is refused with a flash; trimming it to its valid loops is deferred. |
 | Text, 3D text | Later | |
 
 ### Modifying
@@ -62,8 +62,8 @@ Users don't praise SketchUp for its feature count. They praise a small number of
 | Feature | Tier | Notes |
 | --- | --- | --- |
 | Push/Pull on any planar face (stretch, extrude, cut through) | Core | Built now. Ctrl to always create new faces is Later. |
-| Move and copy (Ctrl), with arrays (`5x`, `/5` in the VCB) | Core | Built now: Move welds what it moves to what it lands on and folds a face that would bend; with Ctrl (Option on Mac) held it copies instead, and `5x` or `/5` typed after a copy makes a linear array as one undo step. Copies of groups are independent groups until components (3.1). |
-| Rotate with protractor, copy-rotate arrays | Core | |
+| Move and copy (Ctrl), with arrays (`5x`, `/5` in the VCB) | Core | Built now: Move welds what it moves to what it lands on and folds a face that would bend; with Ctrl (Option on Mac) tapped, or held while clicking, it copies instead, and `5x` or `/5` typed after a copy makes a linear array as one undo step. Copies of groups are independent groups until components (3.1). |
+| Rotate with protractor, copy-rotate arrays | Core | Built now: click a centre, a start direction, then sweep or type the angle (`37`, `-15`, `22.5`). The protractor lies on the face under the cursor, on a face of the hovered edge (the one facing the camera), else on the ground; the arrow keys lock it to an axis. 15° steps when the cursor is on nothing; an endpoint, midpoint or edge sets the angle exactly. Loose geometry welds and folds as under Move; groups rotate whole. With Ctrl (Option on Mac) tapped, or held while clicking the centre, it copies instead, and `6x` or `/6` typed after a rotate-copy makes a radial array as one undo step; rotate-copies of groups are independent groups until components (3.1). |
 | Scale (uniform and per axis, typed factors) | Core | |
 | Follow Me (sweep a face along a path) | Core | Gutters, trim, handrails. |
 | Erase (with hide and soften modifiers) | Core | Erase built now. Erasing the edge between coplanar faces merges them. |

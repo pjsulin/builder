@@ -16,7 +16,7 @@ export interface ToolPointer {
   shift: boolean;
   ctrl: boolean;
   alt: boolean;
-  /** The copy modifier is held (Option on Mac, Ctrl elsewhere). */
+  /** The copy key is held (Option on Mac, Ctrl elsewhere). */
   copy: boolean;
 }
 
@@ -35,6 +35,18 @@ export interface Overlay {
   dims?: { pos: Vec3; text: string }[];
   /** Selection rectangle in pixels; dashed when crossing. */
   marquee?: { x0: number; y0: number; x1: number; y1: number; crossing: boolean } | null;
+  /** The Rotate tool's protractor: a circle in the plane, tick marks every 15°,
+   *  and, once a start direction exists, the start ray and the swept arc. */
+  protractor?: {
+    center: Vec3;
+    /** Unit normal of the protractor's plane (the rotation axis). */
+    normal: Vec3;
+    radius: number;
+    /** Unit direction of the start ray, in the plane. */
+    start?: Vec3;
+    /** Swept angle in radians, counter-clockwise about `normal`. */
+    angle?: number;
+  } | null;
 }
 
 export interface ToolHost {
@@ -85,8 +97,10 @@ export interface Tool {
   key?(key: string, shift: boolean): boolean;
   /** A value typed into the Measurements box. */
   vcb(text: string): void;
-  /** The copy modifier went down or up while the tool is active (keyboard, no pointer). */
-  modifier?(copy: boolean): void;
+  /** The copy key was tapped (pressed and released with no click or other key in
+   *  between): toggle copy for the operation in progress, or for the next pick-up.
+   *  Holding the key while clicking sets `ToolPointer.copy` instead. */
+  modifier?(): void;
 }
 
 /** The current selection, in the active context. */

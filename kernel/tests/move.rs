@@ -198,3 +198,45 @@ fn a_folded_face_keeps_its_material_and_attributes() {
     }
     validate(&d);
 }
+
+#[test]
+fn a_moved_ring_keeps_its_hole_and_a_moved_outline_stays_faceless() {
+    let mut d = Document::new();
+    rect_xy(&mut d, ROOT, 0.0, 0.0, 36.0, 120.0, 0.0);
+    let f = only_face(&d, ROOT);
+    d.offset_face(f, -1.5).unwrap();
+    let inner = face_at(&d, ROOT, v(18.0, 60.0, 0.0), -V3::Z);
+    d.erase(&[inner], &[]).unwrap();
+    assert_eq!((faces(&d, ROOT).len(), edge_count(&d, ROOT)), (1, 8));
+    let verts: Vec<VId> = d.vertices_in(ROOT).map(|(id, _)| id).collect();
+    d.move_and_integrate(&verts, v(0.0, 0.0, 10.0)).unwrap();
+    assert_eq!(faces(&d, ROOT).len(), 1, "the ring's hole is not filled by the move");
+    assert_eq!(d.face(faces(&d, ROOT)[0]).unwrap().holes.len(), 1);
+    assert_eq!(edge_count(&d, ROOT), 8);
+    validate(&d);
+    // The same under a rotation.
+    let m = builder_kernel::math::mat_rotation(v(0.0, 0.0, 10.0), V3::Y, 1.0).unwrap();
+    d.transform_and_integrate(&verts, &m).unwrap();
+    assert_eq!(faces(&d, ROOT).len(), 1);
+    validate(&d);
+
+    let mut d = Document::new();
+    rect_xy(&mut d, ROOT, 0.0, 0.0, 10.0, 10.0, 0.0);
+    let f = only_face(&d, ROOT);
+    d.erase(&[f], &[]).unwrap();
+    let verts: Vec<VId> = d.vertices_in(ROOT).map(|(id, _)| id).collect();
+    d.move_and_integrate(&verts, v(0.0, 0.0, 10.0)).unwrap();
+    assert_eq!(faces(&d, ROOT).len(), 0, "an erased outline does not come back when moved");
+    // A loose edge moved onto the open side of a U closes a loop with edges that
+    // stayed, and that loop does get a face: it is not closed by moved edges alone.
+    let mut d = Document::new();
+    d.add_line(ROOT, v(0.0, 0.0, 0.0), v(10.0, 0.0, 0.0)).unwrap();
+    d.add_line(ROOT, v(10.0, 0.0, 0.0), v(10.0, 10.0, 0.0)).unwrap();
+    d.add_line(ROOT, v(0.0, 0.0, 0.0), v(0.0, 10.0, 0.0)).unwrap();
+    let e = d.add_line(ROOT, v(20.0, 10.0, 0.0), v(30.0, 10.0, 0.0)).unwrap()[0];
+    let verts = d.vertices_of(&[], &[e]);
+    d.move_and_integrate(&verts, v(-20.0, 0.0, 0.0)).unwrap();
+    assert_eq!(faces(&d, ROOT).len(), 1, "the moved edge closes a loop with edges that stayed");
+    assert_eq!(edge_count(&d, ROOT), 4);
+    validate(&d);
+}

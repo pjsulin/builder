@@ -7,10 +7,15 @@
 //! * [`Document::add_line`] draws an edge, welding, splitting and creating faces.
 //! * [`Document::push_pull`] extrudes or stretches any planar face.
 //! * [`Document::intersect_faces`] draws the edges where faces cross each other.
-//! * [`Document::move_vertices`] previews a move, [`Document::move_and_integrate`] commits
-//!   one (fold, weld, settle), [`Document::erase`] removes geometry.
-//! * [`Document::copy_geometry`], [`Document::copy_instance`] duplicate geometry or a group
-//!   at an offset.
+//! * [`Document::transform_vertices`] previews a rigid transform of loose geometry,
+//!   [`Document::transform_and_integrate`] commits one (fold, weld, settle);
+//!   [`Document::move_vertices`] and [`Document::move_and_integrate`] are their
+//!   translation forms. [`Document::erase`] removes geometry.
+//! * [`Document::copy_geometry_transformed`], [`Document::copy_instance_transformed`]
+//!   duplicate geometry or a group under a transform; [`Document::copy_geometry`],
+//!   [`Document::copy_instance`] at an offset.
+//! * [`Document::offset_face`], [`Document::offset_edges`] draw an outline offset in
+//!   its plane, refusing one that would cross itself.
 //! * [`Document::make_group`], [`Document::explode`] isolate geometry.
 //! * [`Document::set_attribute`], [`Document::set_tag_flags`] attach data and lock tags.
 //! * [`Document::begin`], [`Document::commit`], [`Document::abort`],
@@ -28,6 +33,7 @@ pub mod intersect;
 pub mod line;
 pub mod math;
 pub mod mesh;
+pub mod offset;
 pub mod pushpull;
 pub mod tol;
 pub mod topo;
@@ -56,6 +62,8 @@ pub enum Error {
     Locked,
     /// A bad attribute namespace, key or value, with its path.
     Attribute(String),
+    /// An offset outline would cross itself, reverse an edge or lose its area.
+    SelfIntersecting,
 }
 
 impl std::fmt::Display for Error {
@@ -69,6 +77,7 @@ impl std::fmt::Display for Error {
             Error::Format(why) => write!(f, "can't read file: {why}"),
             Error::Locked => write!(f, "that is on a locked tag"),
             Error::Attribute(why) => write!(f, "bad attribute: {why}"),
+            Error::SelfIntersecting => write!(f, "that offset would cross itself"),
         }
     }
 }
