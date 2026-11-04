@@ -3,6 +3,7 @@
 //! a delta-debugging shrinker and a renderer that prints a failing sequence as a
 //! regression test. Shared by `tests/fuzz.rs` and `tests/fuzz_regressions.rs`.
 
+use builder_kernel::math::mat_rotation;
 use builder_kernel::*;
 use std::panic::{catch_unwind, AssertUnwindSafe};
 
@@ -84,6 +85,21 @@ pub enum Op {
     Intersect,
     Undo,
     Redo,
+    /// Vertices of the face found as above, rotated by `angle` radians about the
+    /// axis through `point` along `axis` (`transform_and_integrate` with
+    /// `mat_rotation`).
+    Rotate {
+        point: V3,
+        normal: V3,
+        axis: V3,
+        angle: f64,
+    },
+    /// `offset_face` of the face found as above by `distance` (signed).
+    Offset {
+        point: V3,
+        normal: V3,
+        distance: f64,
+    },
 }
 
 impl Op {
@@ -98,6 +114,8 @@ impl Op {
             Op::Intersect => "Intersect Faces",
             Op::Undo => "Undo",
             Op::Redo => "Redo",
+            Op::Rotate { .. } => "Rotate",
+            Op::Offset { .. } => "Offset",
         }
     }
 }
@@ -161,6 +179,18 @@ pub fn apply(doc: &mut Document, op: &Op) -> Result<bool, Error> {
                 doc.intersect_faces(ROOT, &faces, &[], IntersectWith::Model).map(|_| true)
             }
         }
+        Op::Rotate { point, normal, axis, angle } => match face(doc, point, normal) {
+            Some(f) => {
+                let verts = doc.vertices_of(&[f], &[]);
+                let m = mat_rotation(point, axis, angle).ok_or(Error::Degenerate("zero axis"))?;
+                doc.transform_and_integrate(&verts, &m).map(|_| true)
+            }
+            None => Ok(false),
+        },
+        Op::Offset { point, normal, distance } => match face(doc, point, normal) {
+            Some(f) => doc.offset_face(f, distance).map(|_| true),
+            None => Ok(false),
+        },
         Op::Undo | Op::Redo => unreachable!(),
     })();
     match result {
@@ -211,9 +241,13 @@ pub fn generate(rng: &mut Rng, steps: usize, doc: &mut Document) -> Vec<Op> {
         }
         let edges = doc.edges_in(ROOT).count();
         let crowded = edges > 300;
-        // Weights: line, rect, push/pull, move, erase face, erase edge, group, intersect, undo, redo.
-        let weights: [i64; 10] =
-            if crowded { [0, 0, 0, 0, 20, 70, 0, 0, 10, 0] } else { [12, 20, 15, 8, 6, 8, 3, 5, 4, 3] };
+        // Weights: line, rect, push/pull, move, erase face, erase edge, group, intersect,
+        // undo, redo, rotate, offset.
+        let weights: [i64; 12] = if crowded {
+            [0, 0, 0, 0, 20, 70, 0, 0, 10, 0, 0, 0]
+        } else {
+            [12, 20, 15, 8, 6, 8, 3, 5, 4, 3, 4, 4]
+        };
         let mut pick = rng.range(0, weights.iter().sum::<i64>() - 1);
         let mut take = |w: i64| {
             let hit = pick < w;
@@ -300,8 +334,49 @@ pub fn generate(rng: &mut Rng, steps: usize, doc: &mut Document) -> Vec<Op> {
             }
         } else if take(weights[8]) {
             Op::Undo
-        } else {
+        } else if take(weights[9]) {
             Op::Redo
+        } else if take(weights[10]) {
+            match pick_face(rng, doc) {
+                Some((point, normal)) => {
+                    let axis = match rng.range(0, 3) {
+                        0 => V3::X,
+                        1 => V3::Y,
+                        2 => V3::Z,
+                        _ => normal,
+                    };
+                    let degrees = match rng.range(0, 10) {
+                        0 => 15.0,
+                        1 => -15.0,
+                        2 => 30.0,
+                        3 => -30.0,
+                        4 => 45.0,
+                        5 => -45.0,
+                        6 => 90.0,
+                        7 => -90.0,
+                        8 => 180.0,
+                        9 => -180.0,
+                        _ => rng.range(-179, 179) as f64 + rng.f64(),
+                    };
+                    Op::Rotate { point, normal, axis, angle: degrees.to_radians() }
+                }
+                None => {
+                    Op::Line { a: V3::new(grid(rng), grid(rng), 0.0), b: V3::new(grid(rng), grid(rng), 0.0) }
+                }
+            }
+        } else {
+            match pick_face(rng, doc) {
+                Some((point, normal)) => {
+                    let mut distance = rng.range(-12, 12) as f64;
+                    if distance == 0.0 {
+                        distance = -2.0;
+                    }
+                    Op::Offset { point, normal, distance }
+                }
+                None => {
+                    Op::Line { a: V3::new(grid(rng), grid(rng), 0.0), b: V3::new(grid(rng), grid(rng), 0.0) }
+                }
+            }
         };
         if trace {
             eprintln!("op {step}: {op:?}");
@@ -415,6 +490,15 @@ fn render_op(op: &Op) -> String {
         Op::Intersect => "Op::Intersect".to_string(),
         Op::Undo => "Op::Undo".to_string(),
         Op::Redo => "Op::Redo".to_string(),
+        Op::Rotate { point, normal, axis, angle } => format!(
+            "Op::Rotate {{ point: {}, normal: {}, axis: {}, angle: {angle:?} }}",
+            v3(point),
+            v3(normal),
+            v3(axis)
+        ),
+        Op::Offset { point, normal, distance } => {
+            format!("Op::Offset {{ point: {}, normal: {}, distance: {distance:?} }}", v3(point), v3(normal))
+        }
     }
 }
 

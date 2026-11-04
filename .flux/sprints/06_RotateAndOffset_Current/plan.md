@@ -111,13 +111,13 @@ Eight phases, one commit each. Phases 1–3 are kernel only: the transform path 
 
 ### Phase 3: Fuzz Operations
 
-**Status:** pending
+**Status:** completed
 **Dependencies:** [Phase 1, Phase 2]
 
 #### Task 3.1: Rotate and Offset ops in the harness
 
 - **Type:** implement
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [Phase 1, Phase 2]
 - **Files:**
   - Modify: kernel/tests/common/fuzz.rs
@@ -127,7 +127,7 @@ Eight phases, one commit each. Phases 1–3 are kernel only: the transform path 
 #### Task 3.2: Fuzz run time check
 
 - **Type:** test
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [3.1]
 - **Files:**
   - Modify: kernel/tests/fuzz.rs
@@ -137,7 +137,7 @@ Eight phases, one commit each. Phases 1–3 are kernel only: the transform path 
 #### Task 3.3: The fuzz rule in the architecture doc
 
 - **Type:** document
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [3.1]
 - **Files:**
   - Modify: docs/architecture.md

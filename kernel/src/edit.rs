@@ -188,12 +188,13 @@ impl Document {
         }
         for f in faces {
             let Some(face) = self.face(f).cloned() else { continue };
-            let pts: Vec<V3> = face
-                .outer
-                .iter()
-                .map(|&x| if set.contains(&x) { mat_apply(m, self.pos(x)) } else { self.pos(x) })
-                .collect();
-            if is_planar(&pts) {
+            let target = |x: VId| if set.contains(&x) { mat_apply(m, self.pos(x)) } else { self.pos(x) };
+            let pts: Vec<V3> = face.outer.iter().map(|&x| target(x)).collect();
+            // A hole that leaves the outer loop's plane bends the face as much as a
+            // bent outer loop does.
+            let hole_bent = Plane::from_loop(&pts)
+                .is_some_and(|p| face.holes.iter().flatten().any(|&x| !p.contains(target(x))));
+            if is_planar(&pts) && !hole_bent {
                 continue;
             }
             if !face.holes.is_empty() {
