@@ -29,4 +29,4 @@ The contract (`survey/docs/contract.md`) already says that geometry comes from t
 - Work that helps a renovation (demo marking, clearance checks, wider plan export) is planned as Builder survey-mode work and sits before or inside Milestone 3, not after Milestone 4.
 - `survey build` keeps writing every current output, including `mesh.json`, `.sh3d` and `.dae`, until each is confirmed unused. Removing one is its own ad-hoc with Patrick's confirmation in the record.
 - The capture entries stay the raw data. Anything that would place geometry from a photo or a scan without a stated number is outside this decision and would need a new ADR that revisits the contract.
-- `docs/roadmap.md` should describe survey mode as the renovation workflow rather than as work pulled forward from Milestone 3; that wording change is part of the next sprint that touches the roadmap.
+- `docs/roadmap.md` describes survey mode as the renovation workflow, and `docs/sprints.md` carries the thread into Sprints 3.2, 3.3, 4.1 and 4.2 and adds the basement renovation test project to Milestone 3. Both were updated with this decision.
