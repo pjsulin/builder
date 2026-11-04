@@ -32,6 +32,8 @@ struct Region {
     holes: Vec<Vec<VId>>,
     component: usize,
     uses_fresh: bool,
+    /// Every edge of the outer loop is fresh: a loop the fresh edges close by themselves.
+    only_fresh: bool,
     area: f64,
 }
 
@@ -86,7 +88,34 @@ impl Document {
         plane: &Plane,
         fresh: &[EId],
         extra: &[EId],
+        old: Vec<OldRegion>,
+    ) -> Result<Vec<FId>, Error> {
+        self.heal_impl(ctx, plane, fresh, extra, old, false)
+    }
+
+    /// `heal` for edges that were moved rather than drawn: a region bounded only
+    /// by moved edges that had no face before (the hole of a moved ring, an erased
+    /// outline moved whole) stays open instead of becoming a face, while moved
+    /// edges still split the faces they cross and close loops with edges they land
+    /// beside.
+    pub(crate) fn heal_moved(
+        &mut self,
+        ctx: DefId,
+        plane: &Plane,
+        fresh: &[EId],
+        old: Vec<OldRegion>,
+    ) -> Result<Vec<FId>, Error> {
+        self.heal_impl(ctx, plane, fresh, &[], old, true)
+    }
+
+    fn heal_impl(
+        &mut self,
+        ctx: DefId,
+        plane: &Plane,
+        fresh: &[EId],
+        extra: &[EId],
         mut old: Vec<OldRegion>,
+        moved: bool,
     ) -> Result<Vec<FId>, Error> {
         let (u, v) = plane.basis();
         let fresh_set: HashSet<EId> = fresh.iter().copied().collect();
@@ -168,7 +197,7 @@ impl Document {
                 continue;
             };
             let in_old = old.iter().find(|o| o.contains(pt)).cloned();
-            if in_old.is_none() && !r.uses_fresh {
+            if in_old.is_none() && (!r.uses_fresh || (moved && r.only_fresh)) {
                 continue;
             }
             let covered = self
@@ -363,7 +392,11 @@ impl Document {
                 }
                 if let Some((outer, area)) = outer {
                     let uses_fresh = kept.iter().any(|&h| fresh.contains(&edges[h / 2]));
-                    regions.push(Region { outer, holes, component, uses_fresh, area });
+                    let only_fresh = (0..outer.len()).all(|i| {
+                        self.edge_between(outer[i], outer[(i + 1) % outer.len()])
+                            .is_some_and(|e| fresh.contains(&e))
+                    });
+                    regions.push(Region { outer, holes, component, uses_fresh, only_fresh, area });
                 }
             } else {
                 for lp in loops {

@@ -368,7 +368,7 @@ Eight phases, one commit each. Phases 1–3 are kernel only: the transform path 
 - **Files:**
   - Modify: app/test/offset.test.ts
 - **Context:** [spec.md§Validation Criteria](spec.md#validation-criteria)
-- **Description:** A headless replay of the walkthrough's railing steps (rectangle on the deck edge, Offset `1 1/2"`, Push/Pull the ring `36"`, `/5` copies of a baluster group) asserting the face and instance counts the walkthrough states, so the document's numbers are checked by `npm test`.
+- **Description:** A headless replay of the walkthrough's railing steps (rectangle on the deck edge, Offset `1 1/2"`, Push/Pull the ring `36"`, `/5` copies of a baluster group) asserting the face and instance counts the walkthrough states, so the document's numbers are checked by `npm test`. (2026-11-04: the replay found that a committed move or rotation of a ring filled its hole, and of an erased outline brought its face back, because `heal` takes a closed loop of moved edges for a drawn one; `integrate_moved` now heals through `heal_moved`, where a region bounded only by moved edges that had no face stays open. Fixed in `kernel/src/heal.rs`, `line.rs` and `edit.rs` with a test in `kernel/tests/move.rs`, committed as `fix(sprint-06)` before this phase.)
 
 ## Task Format
 

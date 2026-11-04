@@ -226,10 +226,11 @@ impl Document {
 
     /// Weld and settle geometry that was placed by a move (or a copy): vertices that
     /// landed on another vertex merge into it, `edges` split and are split by edges
-    /// they cross or overlap, every plane they lie in is healed as `add_line` would,
-    /// and the faces around them settle as push/pull's do (cancelling against an
-    /// opposite face, merging with a same-facing coplanar neighbour). `def` owns
-    /// every edge.
+    /// they cross or overlap, every plane they lie in is healed as `add_line` would
+    /// (except that a loop the moved edges close by themselves, which had no face,
+    /// stays open: a ring keeps its hole, an erased outline stays erased), and the
+    /// faces around them settle as push/pull's do (cancelling against an opposite
+    /// face, merging with a same-facing coplanar neighbour). `def` owns every edge.
     pub(crate) fn integrate_moved(&mut self, def: DefId, edges: &[EId]) -> Result<(), Error> {
         let mut verts: BTreeSet<VId> = BTreeSet::new();
         for &e in edges {
@@ -259,7 +260,7 @@ impl Document {
             set.iter().copied().filter(|&e| d.edge(e).is_some()).collect::<Vec<EId>>()
         };
         self.integrate_edges(def, &live(self, &chain))?;
-        self.heal_around(def, &live(self, &chain))?;
+        self.heal_around_moved(def, &live(self, &chain))?;
         let mut touched: BTreeSet<FId> = BTreeSet::new();
         for e in live(self, &chain) {
             let ends = self.edge(e).map(|x| x.v).unwrap_or([VId(0); 2]);
