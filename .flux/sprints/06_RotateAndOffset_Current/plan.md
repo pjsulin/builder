@@ -65,13 +65,13 @@ Eight phases, one commit each. Phases 1–3 are kernel only: the transform path 
 
 ### Phase 2: Kernel Offset
 
-**Status:** pending
+**Status:** completed
 **Dependencies:** none
 
 #### Task 2.1: offset_loop and Error::SelfIntersecting
 
 - **Type:** implement
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** none
 - **Files:**
   - Create: kernel/src/offset.rs
@@ -82,7 +82,7 @@ Eight phases, one commit each. Phases 1–3 are kernel only: the transform path 
 #### Task 2.2: offset_face and offset_edges
 
 - **Type:** implement
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [2.1]
 - **Files:**
   - Modify: kernel/src/offset.rs
@@ -92,7 +92,7 @@ Eight phases, one commit each. Phases 1–3 are kernel only: the transform path 
 #### Task 2.3: Kernel offset tests
 
 - **Type:** test
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [2.2]
 - **Files:**
   - Create: kernel/tests/offset.rs
@@ -102,7 +102,7 @@ Eight phases, one commit each. Phases 1–3 are kernel only: the transform path 
 #### Task 2.4: Architecture doc for offset
 
 - **Type:** document
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [2.2]
 - **Files:**
   - Modify: docs/architecture.md

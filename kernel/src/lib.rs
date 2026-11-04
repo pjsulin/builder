@@ -14,6 +14,8 @@
 //! * [`Document::copy_geometry_transformed`], [`Document::copy_instance_transformed`]
 //!   duplicate geometry or a group under a transform; [`Document::copy_geometry`],
 //!   [`Document::copy_instance`] at an offset.
+//! * [`Document::offset_face`], [`Document::offset_edges`] draw an outline offset in
+//!   its plane, refusing one that would cross itself.
 //! * [`Document::make_group`], [`Document::explode`] isolate geometry.
 //! * [`Document::set_attribute`], [`Document::set_tag_flags`] attach data and lock tags.
 //! * [`Document::begin`], [`Document::commit`], [`Document::abort`],
@@ -31,6 +33,7 @@ pub mod intersect;
 pub mod line;
 pub mod math;
 pub mod mesh;
+pub mod offset;
 pub mod pushpull;
 pub mod tol;
 pub mod topo;
@@ -59,6 +62,8 @@ pub enum Error {
     Locked,
     /// A bad attribute namespace, key or value, with its path.
     Attribute(String),
+    /// An offset outline would cross itself, reverse an edge or lose its area.
+    SelfIntersecting,
 }
 
 impl std::fmt::Display for Error {
@@ -72,6 +77,7 @@ impl std::fmt::Display for Error {
             Error::Format(why) => write!(f, "can't read file: {why}"),
             Error::Locked => write!(f, "that is on a locked tag"),
             Error::Attribute(why) => write!(f, "bad attribute: {why}"),
+            Error::SelfIntersecting => write!(f, "that offset would cross itself"),
         }
     }
 }
