@@ -87,7 +87,7 @@ Eight phases, one commit each. Phases 1–3 are kernel only: the transform path 
 - **Files:**
   - Modify: kernel/src/offset.rs
 - **Context:** [spec.md§Interfaces](spec.md#interfaces), [spec.md§Data Models](spec.md#data-models)
-- **Description:** `Document::offset_face(f, distance)`: lock check on the owner, distance finite and over `tol::LENGTH`, loops to `P2` in `plane.basis()` (outer counter-clockwise, holes clockwise as stored), `offset_loop` on every loop before anything is written (any `None` is `SelfIntersecting`), back to 3D, each loop's segments through `insert_segment` (line.rs:30) and all drawn edges through one `heal_around` (line.rs:191); returns the edges. `Document::offset_edges(ctx, edges, distance)`: lock check on `ctx`, the edges ordered into one path by shared vertices (`Degenerate("edges are not one chain")` otherwise), the plane from `Plane::from_loop` of the path's points or, when that is `None`, from a face a chain edge bounds (`Degenerate("edges do not lie in one plane")` when neither), `offset_loop(pts, d, closed)` with d positive to the left of the chain, then drawn and healed the same way.
+- **Description:** `Document::offset_face(f, distance)`: lock check on the owner, distance finite and over `tol::LENGTH`, loops to `P2` in `plane.basis()` (outer counter-clockwise, holes clockwise as stored), `offset_loop` on every loop before anything is written (any `None` is `SelfIntersecting`), back to 3D, each loop's segments through `insert_segment` (line.rs:30) and all drawn edges through one `heal_around` (line.rs:191); returns the edges. `Document::offset_edges(ctx, edges, distance)`: lock check on `ctx`, the edges ordered into one path by shared vertices (`Degenerate("edges are not one chain")` otherwise), the plane from `Plane::from_loop` of the path's points or, when that is `None`, from a face a chain edge bounds (`Degenerate("edges do not lie in one plane")` when neither), `offset_loop(pts, d, closed)` with d positive to the right of the chain (the same side as for a loop), then drawn and healed the same way.
 
 #### Task 2.3: Kernel offset tests
 
@@ -247,7 +247,7 @@ Eight phases, one commit each. Phases 1–3 are kernel only: the transform path 
   - Modify: README.md
   - Modify: docs/architecture.md
 - **Context:** [spec.md§Interfaces](spec.md#interfaces)
-- **Description:** features.md Rotate row (:66) "Built now" with the protractor-plane and snapping rules; README Tools list (:13) and Keys table (:69) gain Rotate (Q) with the 37° stringer example; architecture.md § 6 overlay sentence names the protractor data and § 10 status (:295) lists Rotate.
+- **Description:** features.md Rotate row (:66) "Built now" with the protractor-plane and snapping rules; README Tools list (:13) and Keys table (:69) gain Rotate (Q) with the 37° stringer example; architecture.md § 6 overlay sentence names the protractor data and § 10 status (:295) lists Rotate; the two stale § 10 bullets (:297 "Moved vertices do not weld", :299 "A move that would bend a face is rejected"), done by MovesThatStick, are dropped (backlog #mvscxby4).
 
 ### Phase 6: Rotate-Copy and Radial Arrays
 
@@ -298,7 +298,7 @@ Eight phases, one commit each. Phases 1–3 are kernel only: the transform path 
 - **Files:**
   - Create: app/src/tools/offset.ts
 - **Context:** [spec.md§Interfaces](spec.md#interfaces), [spec.md§Examples](spec.md#examples)
-- **Description:** The tool of spec.md § Offset tool: face pick as `PushPullTool.pickFace` (pushpull.ts:50) or the selected edge chain, `ref` from the boundary edge nearest the first click (face) or the chain's first edge, the plane from the hit or the chain's points (Newell through `planeFrom`; a collinear chain takes a bounding face's plane), `apply(d)` previewing with the real `offsetFace(face, -d)` / `offsetEdges(ctx, edges, d)` in a "Offset" transaction as Push/Pull does (pushpull.ts:79), one flash per distinct kernel message, `commit()` committing the preview and recording `last`, `vcb` with `parseLength` (sign follows the preview; retype after a commit as `PushPullTool.vcb`, :128), hints, Escape, `deactivate`.
+- **Description:** The tool of spec.md § Offset tool: face pick as `PushPullTool.pickFace` (pushpull.ts:50) or the selected edge chain, `ref` from the boundary edge nearest the first click (face) or the chain's first edge, the plane from the hit or the chain's points (Newell through `planeFrom`; a collinear chain takes a bounding face's plane), `apply(d)` previewing with the real `offsetFace(face, -d)` / `offsetEdges(ctx, edges, -d)` (the tool's sign is inward / left, the kernel's outward / right) in a "Offset" transaction as Push/Pull does (pushpull.ts:79), one flash per distinct kernel message, `commit()` committing the preview and recording `last`, `vcb` with `parseLength` (sign follows the preview; retype after a commit as `PushPullTool.vcb`, :128), hints, Escape, `deactivate`.
 
 #### Task 7.2: App wiring
 
@@ -382,3 +382,14 @@ Document tasks make doc updates visible to close Gate 4.
 ## Completion
 
 Closed by `/close`.
+
+## Plan Review
+
+**Reviewed:** 2026-11-04
+
+- [x] Requirements to Spec traced
+- [x] Spec to Plan traced
+- [x] Proposed ADRs checked against accepted
+- [x] Checklist passed (2 warnings accepted: Tasks 5.3 and 7.2 change `app.ts` and `index.html` wiring with no test, as keydown and the toolbar are DOM-bound and untested today; 1 blocking issue fixed: the chain offset sign in `offset_edges` said left while `offset_loop` offsets to the right, now right in both, with the tool passing `-d` for chains as for faces)
+
+**Plan Status:** Ready for implementation

@@ -557,7 +557,7 @@ One kernel transform path (`transform_vertices`, `transform_and_integrate`, `cop
 
 - **Snapping.** 15° when the cursor's inference kind is `ground`, `plane` or `onFace`; an `endpoint`, `midpoint`, `onEdge`, `origin` or `axis` inference sets the angle exactly. Shift keeps its lock role (`InferenceEngine.lockCurrent`) and has no snap role.
 - **Angle sign.** Counter-clockwise about the protractor normal is positive (right-hand rule). The normal from a face is the face's front normal flipped to face the camera (`dot(normal, -ray.dir) > 0`), the ground's is +Z, an axis lock's is the axis, so a positive angle reads counter-clockwise on screen in the usual views. A typed angle uses that sign; the sweep's sign comes from the cursor.
-- **Offset sign.** Kernel: `distance > 0` moves every loop away from the face's interior (outward; holes grow into the hole), `< 0` toward it; for a chain `> 0` is to the left of the chain's direction (`normal × dir`). Tool: a typed positive value follows the preview's direction, negative flips it; before any movement positive is inward for a face and left for a chain.
+- **Offset sign.** Kernel: `distance > 0` moves every loop away from the face's interior (outward; holes grow into the hole), `< 0` toward it; for a chain `> 0` is to the right of the chain's direction (`dir × normal`), the same side `offset_loop` uses for every input. Tool: a typed positive value follows the preview's direction, negative flips it; before any movement positive is inward for a face and left for a chain.
 - **Fold plane.** `fold_for_move` keeps judging diagonals in the face's current plane; under a rotation the loop before the transform is the simple polygon with a plane, the loop after may have none.
 - **Face normals under a transform.** A face every vertex of which is transformed gets its plane normal transformed first (`mat_apply(m, p0 + n) - mat_apply(m, p0)`, the `explode` rule) so `refresh_face` does not report `Collapsed` for a rotation past 90°; a face only some of whose vertices move keeps its normal and is folded on commit or refused as under Move.
 - **Rotate-copy is a transformed copy.** The kickoff's "a copy followed by the transform" is one kernel call: `copy_geometry_transformed` recreates the geometry at `mat_apply(m, pos)` and integrates it there. Copying at the origin and then rotating would weld the copy into the original first.
@@ -670,9 +670,9 @@ impl Document {
     pub fn offset_face(&mut self, f: FId, distance: f64) -> Result<Vec<EId>, Error>;
 
     /// Offset a chain of edges of `ctx`: the edges must form one connected path
-    /// (open, or closed) and lie in one plane; `distance > 0` is to the left of
-    /// the chain's direction (`plane.normal × dir`, the chain taken from the edge
-    /// listed first). The plane is the chain's own (`Plane::from_loop` of its
+    /// (open, or closed) and lie in one plane; `distance > 0` is to the right of
+    /// the chain's direction (`dir × plane.normal`, the chain taken from the edge
+    /// listed first), as `offset_loop` offsets an open chain. The plane is the chain's own (`Plane::from_loop` of its
     /// points) or, for a single edge or a collinear chain, the plane of a face a
     /// chain edge bounds; `Error::Degenerate("edges do not lie in one plane")` or
     /// `("edges are not one chain")` otherwise. Drawn and healed like
@@ -746,7 +746,7 @@ export class Model {
   copyInstanceTransformed(inst: number, m: Mat4): number;
   /** Offset a face's outline; positive is outward. Returns the edges drawn. */
   offsetFace(face: number, distance: number): number[];
-  /** Offset an edge chain of `ctx`; positive is to the chain's left. Returns the edges drawn. */
+  /** Offset an edge chain of `ctx`; positive is to the chain's right. Returns the edges drawn. */
   offsetEdges(ctx: number, edges: number[], distance: number): number[];
 }
 ```
@@ -890,7 +890,7 @@ Contracts:
 
 - Idle `move`: with edges selected (`selection.ids("edge")` non-empty, no faces) show the chain as `hoverEntity`-style highlight of those edges (through `segments` of their endpoints); else pick a face as `PushPullTool.pickFace` does and show `hover`.
 - `down` while idle: for a face hit, `target = {face}`, plane from the hit, `ref` from the nearest boundary edge (`model.faceEdges`, `model.edgeInfo`, world through the item's matrix; inward = `cross(normal, dir)` flipped to point at the face's interior point); for a chain, `target = {edges}` with the plane from the edges' endpoints (Newell, `planeFrom`) or, when collinear, the plane of `model.edgeFaces` of the first edge (flash "Select edges that lie in one plane" when none); `startDist = dot(sub(click, ref.origin), ref.inward)`; `model.begin("Offset")`; `good = 0`. A locked context is refused with the toast before anything is begun.
-- `move` with a target: infer with `{ plane }`; `d = dot(sub(r.point, ref.origin), ref.inward) - startDist`; `apply(d)`: abort, begin "Offset", `offsetFace(face, -d)` or `offsetEdges(ctx, edges, d)` (kernel sign: outward / left positive), `refresh({ preview: true })`; a kernel error keeps `good` and flashes its message once per distinct message (`flashed`); `setVcb(format(|d|))`; overlay `dims` at the cursor with the distance.
+- `move` with a target: infer with `{ plane }`; `d = dot(sub(r.point, ref.origin), ref.inward) - startDist`; `apply(d)`: abort, begin "Offset", `offsetFace(face, -d)` or `offsetEdges(ctx, edges, -d)` (kernel sign: outward / right positive; the tool's is inward / left), `refresh({ preview: true })`; a kernel error keeps `good` and flashes its message once per distinct message (`flashed`); `setVcb(format(|d|))`; overlay `dims` at the cursor with the distance.
 - `down` with a target, or `up` after a drag: `commit()`: `|good| < 1e-3` aborts; else `model.commit()` and `last = { target, distance: good }`.
 - `vcb`: `parseLength`; with a target, `want = (sign(good) || 1) * d` (inward for a face, left for a chain, before any movement), `apply(want)`; if the kernel refused, flash and stay; else commit. After a commit, undo and rerun with `(sign(last.distance) || 1) * d` in one "Offset" transaction as `PushPullTool.run` does. Else flash "Offset a face or a chain of edges first".
 
@@ -933,8 +933,9 @@ model.transformVertices(verts, rotation(host.toLocal(center), host.toLocalDir(no
 model.setTransform(inst.id, mul(rotation(host.toLocal(center), host.toLocalDir(normal), angle), inst.transform));
 // app: radial array of the last rotate-copy
 for (let k = 1; k <= n; k++) ms.push(rotation(center, normal, kind === "times" ? angle * k : (angle * k) / n));
-// app: the Offset tool's preview (tool sign inward-positive, kernel outward-positive)
+// app: the Offset tool's preview (tool sign inward / left positive, kernel outward / right positive)
 model.offsetFace(face, -d);
+model.offsetEdges(ctx, edges, -d);
 ```
 
 ## Validation Criteria

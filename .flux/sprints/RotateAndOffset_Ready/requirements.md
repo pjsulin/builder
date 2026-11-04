@@ -129,7 +129,7 @@ Read each item before planning. Close Gates 4 and 5 read this section.
 ### Backlog
 
 - #mvr7ne51 Phone capture test by Patrick: out of scope (survey)
-- #mvscxby4 Doc drift in docs/architecture.md: partly (this sprint rewrites the § 2 move paragraph, § 10 status and § 11 row it touches; the rest stays open)
+- #mvscxby4 Doc drift in docs/architecture.md: closes (Task 5.5 drops the two stale § 10 bullets the item names while it edits that section)
 
 ## Scope
 
