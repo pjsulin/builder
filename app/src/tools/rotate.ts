@@ -1,7 +1,8 @@
 import { AXES, type Inference } from "../inference/engine";
 import { add, applyDir, cross, dot, len, madd, mul, norm, planeFrom, rotation, scale, sub, type Mat4, type Ray, type Vec3 } from "../math";
-import { formatAngle, parseAngle } from "../units";
+import { formatAngle, parseAngle, parseArray, type ArraySpec } from "../units";
 import { pickEntity } from "./pick";
+import type { Entity } from "../kernel/model";
 import { errorMessage, type Tool, type ToolHost, type ToolPointer } from "./tool";
 
 interface Selected {
@@ -20,7 +21,24 @@ interface Rotating {
   angle: number;
   verts: number[];
   instances: { id: number; transform: Mat4 }[];
+  /** Commit as a copy instead of a rotation. Toggled by the copy modifier until commit. */
+  copy: boolean;
+  /** The faces and edges the copy duplicates (instances come from `instances`). */
   selection: Selected;
+}
+
+interface LastCopy {
+  /** What was copied, in the context it was copied in. */
+  selection: Selected;
+  /** The committed rotation, in world coordinates. */
+  center: Vec3;
+  normal: Vec3;
+  angle: number;
+  /** Copies made by the last array replay, or 1 after a plain copy. */
+  count: number;
+  /** `model.revision` right after the Copy commit (or array replay); a later
+   *  change to the model means the last Copy is no longer the top undo step. */
+  revision: number;
 }
 
 /** 15°, the snap step when the cursor is on nothing in particular. */
@@ -32,24 +50,40 @@ const STEP = Math.PI / 12;
  * face under the cursor, on a face of the hovered edge (the one facing the
  * camera), else on the ground; arrow keys lock it to an axis. 15° snapping when
  * the cursor is on nothing; an endpoint, midpoint or edge sets the angle exactly.
+ * With the copy modifier held (Option on Mac, Ctrl elsewhere) the original stays
+ * and a rotated copy is placed; `6x` or `/6` typed afterwards makes a radial array.
  */
 export class RotateTool implements Tool {
   readonly id = "rotate";
-  readonly cursor = "crosshair";
   private rotating: Rotating | null = null;
   private current: Inference | null = null;
   /** The protractor normal under the cursor while idle. */
   private hoverNormal: Vec3 = [0, 0, 1];
-  private last: { center: Vec3; normal: Vec3; start: Vec3; selection: Selected } | null = null;
+  private last: { center: Vec3; normal: Vec3; start: Vec3; copy: boolean; selection: Selected } | null = null;
+  private lastCopy: LastCopy | null = null;
+  /** The copy modifier as last reported while nothing was rotating. */
+  private pendingCopy = false;
 
   constructor(private host: ToolHost) {}
 
+  get cursor(): string {
+    return this.rotating?.copy ? "copy" : "crosshair";
+  }
+
   hint(): string {
     if (!this.rotating) {
-      return "Click the centre of rotation on the selection (or on what you hover). The protractor follows the face under the cursor; arrow keys lock an axis.";
+      return "Click the centre of rotation on the selection (or on what you hover). The protractor follows the face under the cursor; arrow keys lock an axis. Hold Ctrl (Option on Mac) to copy.";
     }
     if (!this.rotating.start) return "Click a start direction on the protractor.";
+    if (this.rotating.copy) return "Click to place the rotated copy, or type an angle. Then type 6x or /6 for a radial array.";
     return "Move to set the angle and click, or type it. Steps of 15° off geometry; a point or edge sets it exactly.";
+  }
+
+  /** The copy modifier went down or up: switch the rotation in progress, or
+   *  remember it for the next pick-up. */
+  modifier(copy: boolean): void {
+    if (this.rotating) this.rotating.copy = copy;
+    else this.pendingCopy = copy;
   }
   vcbLabel(): string {
     return "Angle";
@@ -64,6 +98,8 @@ export class RotateTool implements Tool {
       this.rotating = null;
       this.host.refresh();
     }
+    this.lastCopy = null;
+    this.pendingCopy = false;
     this.host.inference.unlock();
     this.host.show({});
   }
@@ -164,7 +200,9 @@ export class RotateTool implements Tool {
     return rotation(this.host.toLocal(center), this.host.toLocalDir(normal), angle);
   }
 
-  /** Re-run the preview at `angle`, keeping the last good angle on a kernel error. */
+  /** Re-run the preview at `angle`, keeping the last good angle on a kernel error.
+   *  A copy keeps the requested angle anyway: its preview displaces the originals,
+   *  which can fail (a face turned onto its neighbour) where the copy itself welds. */
   private apply(angle: number): void {
     const m = this.rotating!;
     const { model } = this.host;
@@ -181,7 +219,8 @@ export class RotateTool implements Tool {
     } catch {
       model.abort();
       model.begin("Rotate");
-      run(m.angle);
+      if (m.copy) m.angle = angle;
+      else run(m.angle);
     }
     this.host.refresh({ preview: true });
   }
@@ -209,19 +248,21 @@ export class RotateTool implements Tool {
     const locked = selection.ids("instance").some((id) => model.instanceProps(id)?.locked) ||
       ((selection.ids("face").length || selection.ids("edge").length) && model.isLockedDef(this.host.ctx));
     if (locked) return this.host.flash("that is on a locked tag");
-    this.start(this.current.point, this.hoverNormal, { faces: selection.ids("face"), edges: selection.ids("edge"), instances: selection.ids("instance") });
+    const sel = { faces: selection.ids("face"), edges: selection.ids("edge"), instances: selection.ids("instance") };
+    this.start(this.current.point, this.hoverNormal, sel, p.copy || this.pendingCopy);
   }
 
   /** Pick up the selection about `center`; null when there is nothing to rotate. */
-  private start(center: Vec3, normal: Vec3, selection: Selected): Rotating | null {
+  private start(center: Vec3, normal: Vec3, selection: Selected, copy = false): Rotating | null {
     const { model, ctx } = this.host;
+    this.lastCopy = null;
     const verts = model.verticesOf(selection.faces, selection.edges);
     const all = model.instances(ctx);
     const insts = selection.instances
       .map((id) => ({ id, transform: all.find((i) => i.id === id)?.transform ?? [] }))
       .filter((i) => i.transform.length);
     if (!verts.length && !insts.length) return null;
-    this.rotating = { center, normal, start: null, angle: 0, verts, instances: insts, selection };
+    this.rotating = { center, normal, start: null, angle: 0, verts, instances: insts, copy, selection };
     this.host.hintChanged();
     return this.rotating;
   }
@@ -240,19 +281,25 @@ export class RotateTool implements Tool {
   }
 
   vcb(text: string): void {
+    const spec = parseArray(text);
+    if (spec) return this.array(spec);
     const deg = parseAngle(text);
     if (!Number.isFinite(deg)) return this.host.flash("Type an angle like 37 or -15");
     const angle = (deg * Math.PI) / 180;
     if (this.rotating) {
       if (!this.rotating.start) return this.host.flash("Pick a start direction first");
       this.apply(angle);
+      if (Math.abs(this.rotating.angle - angle) > 1e-9) return this.host.flash("Can't rotate that far");
       this.commit();
       return;
     }
     if (this.last) {
-      const { center, normal, start, selection } = this.last;
+      const { center, normal, start, copy, selection } = this.last;
+      // A copy is retyped only while it is still the last step; a plain rotation
+      // keeps its older, unguarded retype.
+      if (copy && !this.copyIsLastStep()) return;
       this.host.model.undo();
-      const m = this.start(center, normal, selection);
+      const m = this.start(center, normal, selection, copy);
       if (!m) return;
       m.start = start;
       this.host.model.begin("Rotate");
@@ -263,12 +310,78 @@ export class RotateTool implements Tool {
     this.host.flash("Rotate something first");
   }
 
+  /** Replace the last rotate-copy by a radial array of it: `times` N puts N
+   *  copies at the copy's angle apart, `divide` N spreads N copies evenly over
+   *  the copy's angle. The last Copy transaction is undone and the array made as
+   *  one, so retyping changes the count and one undo removes the whole array. */
+  private array(spec: ArraySpec): void {
+    if (!this.copyIsLastStep()) return;
+    const lc = this.lastCopy!;
+    const { model } = this.host;
+    const ms: Mat4[] = [];
+    for (let k = 1; k <= spec.n; k++) {
+      ms.push(this.localRotation(lc.center, lc.normal, spec.kind === "times" ? lc.angle * k : (lc.angle * k) / spec.n));
+    }
+    model.undo();
+    if (this.makeCopies(lc.selection, ms)) {
+      this.lastCopy = { ...lc, count: spec.n, revision: model.revision };
+    } else {
+      // The array failed part way; the single copy comes back as it was.
+      model.redo();
+      this.lastCopy = { ...lc, revision: model.revision };
+    }
+    this.host.refresh();
+    this.host.hintChanged();
+  }
+
+  /** True when the last Copy transaction is still the top of the undo stack;
+   *  otherwise forget it and say so. */
+  private copyIsLastStep(): boolean {
+    if (this.lastCopy && this.host.model.revision === this.lastCopy.revision) return true;
+    this.lastCopy = null;
+    this.host.flash("Copy something first");
+    return false;
+  }
+
+  /** Make copies of `sel` under every matrix (context coordinates) in one Copy
+   *  transaction and select them. Returns what was made, or null on an error
+   *  (flashed, transaction aborted). */
+  private makeCopies(sel: Selected, ms: Mat4[]): Entity[] | null {
+    const { model, ctx } = this.host;
+    try {
+      const made: Entity[] = [];
+      model.transact("Copy", () => {
+        for (const m of ms) {
+          if (sel.faces.length || sel.edges.length) {
+            const g = model.copyGeometryTransformed(ctx, sel.faces, sel.edges, m);
+            made.push(...g.faces.map((id) => ({ kind: "face" as const, id })), ...g.edges.map((id) => ({ kind: "edge" as const, id })));
+          }
+          for (const i of sel.instances) made.push({ kind: "instance", id: model.copyInstanceTransformed(i, m) });
+        }
+      });
+      this.host.selection.set(made);
+      return made;
+    } catch (e) {
+      model.abort();
+      this.host.flash(errorMessage(e));
+      return null;
+    }
+  }
+
   private commit(): void {
     const m = this.rotating!;
     this.rotating = null;
     const { model } = this.host;
     if (Math.abs(m.angle) < 1e-6) {
       model.abort();
+    } else if (m.copy) {
+      // The preview rotated the originals; put them back and place the copy.
+      model.abort();
+      if (this.makeCopies(m.selection, [this.localRotation(m.center, m.normal, m.angle)])) {
+        this.lastCopy = { selection: m.selection, center: m.center, normal: m.normal, angle: m.angle, count: 1, revision: model.revision };
+      }
+      // The modifier may have changed since pick-up; retyping repeats what was committed.
+      this.last = { center: m.center, normal: m.normal, start: m.start!, copy: true, selection: m.selection };
     } else {
       // The preview only displaced vertices; the committed rotation also folds
       // bent faces and welds what landed on other geometry.
@@ -283,7 +396,7 @@ export class RotateTool implements Tool {
         model.abort();
         this.host.flash(errorMessage(e));
       }
-      this.last = { center: m.center, normal: m.normal, start: m.start!, selection: m.selection };
+      this.last = { center: m.center, normal: m.normal, start: m.start!, copy: false, selection: m.selection };
     }
     this.host.inference.unlock();
     this.host.refresh();

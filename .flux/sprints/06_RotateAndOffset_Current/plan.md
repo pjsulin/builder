@@ -251,13 +251,13 @@ Eight phases, one commit each. Phases 1–3 are kernel only: the transform path 
 
 ### Phase 6: Rotate-Copy and Radial Arrays
 
-**Status:** pending
+**Status:** completed
 **Dependencies:** [Phase 5]
 
 #### Task 6.1: Copy modifier and array replay in RotateTool
 
 - **Type:** implement
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [Phase 5]
 - **Files:**
   - Modify: app/src/tools/rotate.ts
@@ -267,7 +267,7 @@ Eight phases, one commit each. Phases 1–3 are kernel only: the transform path 
 #### Task 6.2: Rotate-copy tests
 
 - **Type:** test
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [6.1]
 - **Files:**
   - Modify: app/test/rotate.test.ts
@@ -277,7 +277,7 @@ Eight phases, one commit each. Phases 1–3 are kernel only: the transform path 
 #### Task 6.3: Rotate-copy docs
 
 - **Type:** document
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [6.1]
 - **Files:**
   - Modify: README.md

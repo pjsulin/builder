@@ -180,3 +180,149 @@ describe("Rotate", () => {
     expect(h.flashes[1]).toMatch(/locked/i);
   });
 });
+
+describe("Rotate-copy and radial arrays", () => {
+  /** A 4 × 4 post 36" tall standing at (60, 0), grouped and selected. */
+  function post(h: TestHost): number {
+    const rect = new RectangleTool(h);
+    h.click(rect, [60, 0, 0]);
+    h.hover(rect, [70, 5, 0]);
+    rect.vcb("3 1/2\", 3 1/2\"");
+    h.refresh();
+    const pp = new PushPullTool(h);
+    h.click(pp, [61.75, 1.75, 0]);
+    h.hover(pp, [61.75, 1.75, 10]);
+    pp.vcb("36\"");
+    h.refresh();
+    const faces = [...new Set(h.scene().triFace)];
+    const g = h.model.transact("Make Group", () => h.model.makeGroup(ROOT, faces, [...h.scene().segEdge], []));
+    h.refresh();
+    h.selection.set([{ kind: "instance", id: g }]);
+    return g;
+  }
+  /** Angles of every instance about the origin, from where the post's corner went, sorted. */
+  const angles = (h: TestHost) =>
+    h.model
+      .instances(ROOT)
+      .map((i) => Math.round((Math.atan2(i.transform[13] + 60 * i.transform[1], i.transform[12] + 60 * i.transform[0]) * 180) / Math.PI))
+      .map((a) => (a < 0 ? a + 360 : a))
+      .sort((a, b) => a - b);
+  /** Rotate-copy the selection about the origin, from red, by the typed angle. */
+  function copyAbout(h: TestHost, rot: RotateTool, angle: string) {
+    h.copyClick(rot, [0, 0, 0]);
+    h.click(rot, [50, 0, 0]);
+    rot.vcb(angle);
+    h.refresh();
+  }
+
+  it("leaves the original and places a rotated copy, then 5x makes six posts around the centre as one step", () => {
+    const h = new TestHost();
+    const g = post(h);
+    const rot = new RotateTool(h);
+    h.copyClick(rot, [0, 0, 0]);
+    expect(rot.cursor).toBe("copy");
+    h.click(rot, [50, 0, 0]);
+    expect(rot.hint()).toContain("6x");
+    rot.vcb("60");
+    h.refresh();
+    expect(h.flashes).toEqual([]);
+    const insts = h.model.instances(ROOT);
+    expect(insts.length).toBe(2);
+    expectMatrix(transformOf(h, g), [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]);
+    const copy = insts.find((i) => i.id !== g)!;
+    expectMatrix(copy.transform, rotation([0, 0, 0], [0, 0, 1], 60 * DEG));
+    expect(h.selection.ids("instance")).toEqual([copy.id]);
+    rot.vcb("5x");
+    expect(h.flashes).toEqual([]);
+    expect(angles(h)).toEqual([0, 60, 120, 180, 240, 300]);
+    expect(h.selection.ids("instance").length).toBe(5);
+    expect(h.model.undo()).toBe("Copy");
+    expect(h.model.instances(ROOT).length).toBe(1);
+    expect(h.model.undo()).toBe("Make Group");
+  });
+
+  it("spreads six copies evenly with /6 after a half-turn copy, and retypes the count", () => {
+    const h = new TestHost();
+    post(h);
+    const rot = new RotateTool(h);
+    copyAbout(h, rot, "180");
+    expect(angles(h)).toEqual([0, 180]);
+    rot.vcb("/6");
+    expect(h.flashes).toEqual([]);
+    expect(angles(h)).toEqual([0, 30, 60, 90, 120, 150, 180]);
+    rot.vcb("/3");
+    expect(angles(h)).toEqual([0, 60, 120, 180]);
+    expect(h.model.undo()).toBe("Copy");
+    expect(h.model.instances(ROOT).length).toBe(1);
+  });
+
+  it("refuses an array after a plain rotation or once the model changed", () => {
+    const h = new TestHost();
+    post(h);
+    const rot = new RotateTool(h);
+    pickUp(h, rot);
+    rot.vcb("45");
+    expect(h.model.instances(ROOT).length).toBe(1);
+    rot.vcb("6x");
+    expect(h.flashes).toEqual(["Copy something first"]);
+    expect(h.model.instances(ROOT).length).toBe(1);
+    h.selection.set([{ kind: "instance", id: h.model.instances(ROOT)[0].id }]);
+    copyAbout(h, rot, "90");
+    expect(h.model.instances(ROOT).length).toBe(2);
+    expect(h.model.undo()).toBe("Copy");
+    rot.vcb("3x");
+    expect(h.flashes).toEqual(["Copy something first", "Copy something first"]);
+    expect(h.model.instances(ROOT).length).toBe(1);
+  });
+
+  it("switches to a copy when the modifier goes down mid-rotate, and retypes the copy's angle", () => {
+    const h = new TestHost();
+    const g = post(h);
+    const rot = new RotateTool(h);
+    h.click(rot, [0, 0, 0]);
+    expect(rot.cursor).toBe("crosshair");
+    rot.modifier(true);
+    expect(rot.cursor).toBe("copy");
+    rot.modifier(false);
+    expect(rot.cursor).toBe("crosshair");
+    rot.modifier(true);
+    h.click(rot, [50, 0, 0]);
+    rot.vcb("90");
+    h.refresh();
+    expect(h.flashes).toEqual([]);
+    expect(h.model.instances(ROOT).length).toBe(2);
+    expect(rot.cursor).toBe("crosshair");
+    expectMatrix(transformOf(h, g), [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]);
+    // Retyping the angle moves the copy, not the original.
+    rot.vcb("120");
+    expect(h.flashes).toEqual([]);
+    expect(h.model.instances(ROOT).length).toBe(2);
+    expect(angles(h)).toEqual([0, 120]);
+  });
+
+  it("welds a loose face rotate-copied about a shared edge", () => {
+    const h = new TestHost();
+    box(h);
+    const sel = new SelectTool(h);
+    h.click(sel, [60, 48, 96]);
+    expect(h.selection.items).toEqual([{ kind: "face", id: expect.any(Number) }]);
+    const rot = new RotateTool(h);
+    // Red lock: the top face turns about its front top edge, down the front wall.
+    h.inference.toggleAxisLock(0);
+    const ptr = h.at([60, 0, 96], { copy: true });
+    rot.move(ptr);
+    rot.down(ptr);
+    rot.up(ptr, false);
+    expect(rot.cursor).toBe("copy");
+    h.click(rot, [60, 48, 96]);
+    rot.vcb("-90");
+    h.refresh();
+    expect(h.flashes).toEqual([]);
+    // The copy lands on the front wall, facing the other way: the two cancel and
+    // leave an opening, so the box has five faces.
+    expect(h.model.stats().faces).toBe(5);
+    expect(h.model.undo()).toBe("Copy");
+    h.refresh();
+    expect(h.model.stats().faces).toBe(6);
+  });
+});
