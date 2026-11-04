@@ -10,8 +10,9 @@ Early, but the core loop works on real geometry:
 - **Push/Pull on any flat face**, including tilted roofs. Faces stretch or extrude, and pushing a door outline through a wall leaves an opening.
 - **Inference**: endpoints, midpoints, edges, faces and the red, green and blue axes. Arrow keys lock an axis, and Shift locks the current inference.
 - **Measurements box**: just type `10'`, `8' 6"`, `30 1/2"`, `2.4m`, or `10', 8'` for rectangles. Retype right after an operation to change it.
-- Tools: Select (click, Shift-toggle, window and crossing boxes), Line, Rectangle, Push/Pull, Move (hold Ctrl, Option on a Mac, to copy instead), Rotate, Eraser, Orbit and Pan.
+- Tools: Select (click, Shift-toggle, window and crossing boxes), Line, Rectangle, Push/Pull, Move (hold Ctrl, Option on a Mac, to copy instead), Rotate, Offset, Eraser, Orbit and Pan.
 - **Rotate** with an on-screen protractor: select a stair stringer (or hover it), press Q, click the corner it turns about, click a start direction, then type `37` for a 37° pitch. The protractor lies on the face under the cursor, or on the ground; an arrow key locks it to the red, green or blue axis. Sweeping snaps to 15° steps unless the cursor is on a point or an edge. Retype the angle right after to change it.
+- **Offset** an outline: press F, click a wall face near one of its edges, move the cursor into the wall and type `4"`; the wall splits into a 4" ring and an inner face, and Push/Pull on the ring makes the wall thickness. Click a window rectangle, move outward and type `3"` for a ring to pull into trim. Select a chain of edges first to offset them without closing. A typed value follows the direction you moved, a minus reverses it, and an offset that would cross itself is refused.
 - **Copy and arrays**: hold Ctrl (Option on a Mac) while moving or rotating to copy instead; the cursor reads *copy*. Then type a count into the Measurements box: after copying a joist 16" along red, `9x` makes ten joists at 16" centres, and after a 12' copy `/9` spreads ten end to end. The same works round a centre: rotate-copy a post 60° about the middle of a table and type `5x` for six posts around it, or rotate-copy it 180° and type `/6` to spread six evenly. Retype the count to change it; one Undo removes the whole array.
 - **Groups**: make, double-click to edit inside, explode. Grouped geometry stops sticking to everything else.
 - Undo/redo for every change, and save/open in the open `.builder` format.
@@ -67,7 +68,7 @@ Use `make start PORT=8080` or `HOST=0.0.0.0` to change the address. Run `make` w
 
 | Key | Action |
 | --- | --- |
-| Space, L, R, P, M, Q, E, O, H | Select, Line, Rectangle, Push/Pull, Move, Rotate, Eraser, Orbit, Pan |
+| Space, L, R, P, M, Q, F, E, O, H | Select, Line, Rectangle, Push/Pull, Move, Rotate, Offset, Eraser, Orbit, Pan |
 | Middle or right drag; Shift + middle drag; scroll | Orbit; pan; zoom to cursor |
 | Right / Left / Up arrow | Lock to the red / green / blue axis. Down clears the lock. |
 | Shift (while drawing) | Lock the current inference |

@@ -54,7 +54,7 @@ Users don't praise SketchUp for its feature count. They praise a small number of
 | Circle and polygon (segmented, with segment count in the VCB) | Core | Stored as an edge "curve" so it selects as one item. |
 | Arc (two-point, three-point, pie) | Core | Same curve object. |
 | Freehand | Later | |
-| Offset (faces and edge chains) | Core | Key for wall thickness, trim and frames. |
+| Offset (faces and edge chains) | Core | Built now: click a face (or select a chain of edges first), move inward or outward, click or type the distance; a typed value follows the preview's direction and a minus reverses it. An inward offset splits the face into a ring and an inner face, holes offset with it, an outward one adds a ring around it, so a wall thickness is the ring pushed and window trim the outer ring pulled. An offset that would cross itself (a notched outline offset past its arms) is refused with a flash; trimming it to its valid loops is deferred. |
 | Text, 3D text | Later | |
 
 ### Modifying

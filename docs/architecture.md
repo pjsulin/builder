@@ -293,12 +293,13 @@ Extensions are a big part of why people stay on SketchUp, so the plugin API is d
 
 ## 10. Status and known limits
 
-Built and tested: the kernel (lines, welding, splitting, auto faces, holes, face splitting and merging, push/pull in both modes on any planar face, openings, move and rotate through one transform path that welds and folds, copy, erase, groups, undo/redo, file format), the inference engine with locks, the Measurements box with retyping, and the Line, Rectangle, Push/Pull, Select, Move, Rotate, Erase, Orbit and Pan tools, group editing, and save/open.
+Built and tested: the kernel (lines, welding, splitting, auto faces, holes, face splitting and merging, push/pull in both modes on any planar face, openings, move and rotate through one transform path that welds and folds, copy, offset of faces and edge chains, erase, groups, undo/redo, file format), the inference engine with locks, the Measurements box with retyping, and the Line, Rectangle, Push/Pull, Select, Move, Rotate, Offset, Erase, Orbit and Pan tools, group editing, and save/open.
 
 Known limits, roughly in the order we plan to address them:
 
 - Push/pull settling handles faces that land exactly on other faces. Partial overlaps with geometry the extrusion passes through are not intersected.
 - A face with holes that a move or rotation would bend is refused rather than folded.
+- An offset whose result would cross itself (a concave outline offset inward past the width of its arms) is refused rather than trimmed to its valid loops.
 - Components (many instances), tags (with lock), materials and attributes exist in the kernel and file format; the UI for them is the survey panel's minimal tag strip and attribute view, pending Milestone 3's panels.
 - Vertex and edge lookups are linear scans with bounding-box rejection. A spatial grid will replace them when models grow past the stress test.
 

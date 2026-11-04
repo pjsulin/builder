@@ -9,6 +9,7 @@ import { EraseTool } from "./tools/erase";
 import { LineTool } from "./tools/line";
 import { MoveTool } from "./tools/move";
 import { NavTool } from "./tools/nav";
+import { OffsetTool } from "./tools/offset";
 import { PushPullTool } from "./tools/pushpull";
 import { RectangleTool } from "./tools/rectangle";
 import { RotateTool } from "./tools/rotate";
@@ -83,6 +84,7 @@ export class App implements ToolHost {
       pushpull: new PushPullTool(this),
       move: new MoveTool(this),
       rotate: new RotateTool(this),
+      offset: new OffsetTool(this),
       erase: new EraseTool(this),
       orbit: new NavTool(this, "orbit", nav),
       pan: new NavTool(this, "pan", nav),
@@ -850,7 +852,7 @@ export class App implements ToolHost {
       return;
     }
     const keys: Record<string, string> = {
-      " ": "select", l: "line", r: "rectangle", p: "pushpull", m: "move", q: "rotate", e: "erase", o: "orbit", h: "pan",
+      " ": "select", l: "line", r: "rectangle", p: "pushpull", m: "move", q: "rotate", f: "offset", e: "erase", o: "orbit", h: "pan",
     };
     if (k === " ") ev.preventDefault();
     if (k === "Z" && ev.shiftKey) return this.zoomExtents();

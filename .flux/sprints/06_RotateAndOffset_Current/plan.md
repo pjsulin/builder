@@ -287,13 +287,13 @@ Eight phases, one commit each. Phases 1–3 are kernel only: the transform path 
 
 ### Phase 7: Offset Tool
 
-**Status:** pending
+**Status:** completed
 **Dependencies:** [Phase 4]
 
 #### Task 7.1: OffsetTool
 
 - **Type:** implement
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [Phase 4]
 - **Files:**
   - Create: app/src/tools/offset.ts
@@ -303,7 +303,7 @@ Eight phases, one commit each. Phases 1–3 are kernel only: the transform path 
 #### Task 7.2: App wiring
 
 - **Type:** implement
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [7.1]
 - **Files:**
   - Modify: app/src/app.ts
@@ -314,7 +314,7 @@ Eight phases, one commit each. Phases 1–3 are kernel only: the transform path 
 #### Task 7.3: Offset tool tests
 
 - **Type:** test
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [7.1]
 - **Files:**
   - Create: app/test/offset.test.ts
@@ -324,7 +324,7 @@ Eight phases, one commit each. Phases 1–3 are kernel only: the transform path 
 #### Task 7.4: Offset docs
 
 - **Type:** document
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [7.1]
 - **Files:**
   - Modify: docs/features.md
