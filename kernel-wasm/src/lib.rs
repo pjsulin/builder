@@ -17,6 +17,14 @@ fn ids<T>(v: &[u32], f: impl Fn(u32) -> T) -> Vec<T> {
     v.iter().map(|&x| f(x)).collect()
 }
 
+fn matrix(m: Vec<f64>) -> Result<Mat4, JsError> {
+    m.try_into().map_err(|_| JsError::new("a transform needs 16 numbers"))
+}
+
+fn id_list(v: &[u32]) -> String {
+    v.iter().map(|x| x.to_string()).collect::<Vec<_>>().join(",")
+}
+
 /// Triangles and edges of one definition, in its own coordinates.
 #[wasm_bindgen]
 pub struct Buffers {
@@ -147,6 +155,18 @@ impl Kernel {
         self.doc.move_and_integrate(&ids(&verts, VId), V3::new(dx, dy, dz)).map_err(js)
     }
 
+    /// Preview transform of vertices by a column-major 4×4 (16 numbers).
+    #[wasm_bindgen(js_name = transformVertices)]
+    pub fn transform_vertices(&mut self, verts: Vec<u32>, m: Vec<f64>) -> Result<(), JsError> {
+        self.doc.transform_vertices(&ids(&verts, VId), &matrix(m)?).map_err(js)
+    }
+
+    /// Committed transform: fold, transform, weld and settle.
+    #[wasm_bindgen(js_name = transformAndIntegrate)]
+    pub fn transform_and_integrate(&mut self, verts: Vec<u32>, m: Vec<f64>) -> Result<(), JsError> {
+        self.doc.transform_and_integrate(&ids(&verts, VId), &matrix(m)?).map_err(js)
+    }
+
     pub fn erase(&mut self, faces: Vec<u32>, edges: Vec<u32>, instances: Vec<u32>) -> Result<(), JsError> {
         for i in instances {
             if self.doc.instance(InstId(i)).is_some() {
@@ -215,6 +235,49 @@ impl Kernel {
         Ok(self.doc.copy_instance(InstId(inst), V3::new(dx, dy, dz)).map_err(js)?.0)
     }
 
+    /// Copy loose geometry of `ctx` under a column-major 4×4 transform. Returns JSON
+    /// `{ faces, edges }` of the copy as it is after welding, like `copyGeometry`.
+    #[wasm_bindgen(js_name = copyGeometryTransformed)]
+    pub fn copy_geometry_transformed(
+        &mut self,
+        ctx: u32,
+        faces: Vec<u32>,
+        edges: Vec<u32>,
+        m: Vec<f64>,
+    ) -> Result<String, JsError> {
+        let out = self
+            .doc
+            .copy_geometry_transformed(DefId(ctx), &ids(&faces, FId), &ids(&edges, EId), &matrix(m)?)
+            .map_err(js)?;
+        Ok(format!(
+            r#"{{"faces":[{}],"edges":[{}]}}"#,
+            id_list(&out.faces.iter().map(|x| x.0).collect::<Vec<_>>()),
+            id_list(&out.edges.iter().map(|x| x.0).collect::<Vec<_>>()),
+        ))
+    }
+
+    /// Copy an instance as a new group under a column-major 4×4 transform in its
+    /// parent's coordinates. Returns the new instance id.
+    #[wasm_bindgen(js_name = copyInstanceTransformed)]
+    pub fn copy_instance_transformed(&mut self, inst: u32, m: Vec<f64>) -> Result<u32, JsError> {
+        Ok(self.doc.copy_instance_transformed(InstId(inst), &matrix(m)?).map_err(js)?.0)
+    }
+
+    /// Offset a face's outline in its plane; positive is outward. Returns the edges drawn.
+    #[wasm_bindgen(js_name = offsetFace)]
+    pub fn offset_face(&mut self, face: u32, distance: f64) -> Result<Vec<u32>, JsError> {
+        let e = self.doc.offset_face(FId(face), distance).map_err(js)?;
+        Ok(e.iter().map(|e| e.0).collect())
+    }
+
+    /// Offset a chain of edges of `ctx`; positive is to the chain's right. Returns
+    /// the edges drawn.
+    #[wasm_bindgen(js_name = offsetEdges)]
+    pub fn offset_edges(&mut self, ctx: u32, edges: Vec<u32>, distance: f64) -> Result<Vec<u32>, JsError> {
+        let e = self.doc.offset_edges(DefId(ctx), &ids(&edges, EId), distance).map_err(js)?;
+        Ok(e.iter().map(|e| e.0).collect())
+    }
+
     /// Intersect `faces` (and the faces inside `instances`) in `ctx` with the model
     /// (`with_model`) or with each other. Returns the edges drawn.
     #[wasm_bindgen(js_name = intersectFaces)]
@@ -242,8 +305,7 @@ impl Kernel {
     /// Set an instance's column-major 4×4 transform.
     #[wasm_bindgen(js_name = setTransform)]
     pub fn set_transform(&mut self, inst: u32, m: Vec<f64>) -> Result<(), JsError> {
-        let m: Mat4 = m.try_into().map_err(|_| JsError::new("a transform needs 16 numbers"))?;
-        self.doc.set_transform(InstId(inst), m).map_err(js)
+        self.doc.set_transform(InstId(inst), matrix(m)?).map_err(js)
     }
 
     // ---- attributes, tags, materials ----

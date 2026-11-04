@@ -146,13 +146,13 @@ Eight phases, one commit each. Phases 1–3 are kernel only: the transform path 
 
 ### Phase 4: Wasm, Model and App Math
 
-**Status:** pending
+**Status:** completed
 **Dependencies:** [Phase 1, Phase 2]
 
 #### Task 4.1: Wasm exports
 
 - **Type:** implement
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [Phase 1, Phase 2]
 - **Files:**
   - Modify: kernel-wasm/src/lib.rs
@@ -162,7 +162,7 @@ Eight phases, one commit each. Phases 1–3 are kernel only: the transform path 
 #### Task 4.2: Model wrappers
 
 - **Type:** implement
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [4.1]
 - **Files:**
   - Modify: app/src/kernel/model.ts
@@ -172,7 +172,7 @@ Eight phases, one commit each. Phases 1–3 are kernel only: the transform path 
 #### Task 4.3: rotation, parseAngle and formatAngle
 
 - **Type:** implement
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** none
 - **Files:**
   - Modify: app/src/math.ts
@@ -183,7 +183,7 @@ Eight phases, one commit each. Phases 1–3 are kernel only: the transform path 
 #### Task 4.4: Math and units tests
 
 - **Type:** test
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [4.3]
 - **Files:**
   - Modify: app/test/math.test.ts

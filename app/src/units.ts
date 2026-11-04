@@ -109,6 +109,32 @@ export function parseArray(text: string): ArraySpec | null {
   return { kind: (m[1] ?? m[4]) === "/" ? "divide" : "times", n };
 }
 
+/**
+ * Parse an angle typed into the Measurements box, in degrees: `37`, `37°`,
+ * `37deg`, `-15`, `22.5`, `1/2`. Whitespace and case are ignored. NaN otherwise
+ * (and for every array spelling, so callers try `parseArray` first).
+ */
+export function parseAngle(text: string): number {
+  let s = text.replace(/\s+/g, "").toLowerCase();
+  if (!s) return NaN;
+  let neg = false;
+  if (s.startsWith("-")) {
+    neg = true;
+    s = s.slice(1);
+  }
+  s = s.replace(/(°|deg|degrees?)$/, "");
+  if (!s) return NaN;
+  const v = number(s);
+  if (!Number.isFinite(v)) return NaN;
+  return neg ? -v : v;
+}
+
+/** Degrees to one decimal with the sign, e.g. `37°`, `-22.5°`. */
+export function formatAngle(degrees: number): string {
+  const v = Math.round(degrees * 10) / 10;
+  return `${v === 0 ? 0 : v}°`;
+}
+
 /** Parse a comma-separated list of lengths, e.g. "10', 8'" for a rectangle. */
 export function parseLengths(text: string, units: UnitSystem = "imperial"): number[] {
   return text.split(/[,;]/).map((p) => parseLength(p, units));

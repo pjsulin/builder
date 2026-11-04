@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatImperial, formatMetric, parseArray, parseLength, parseLengths } from "../src/units";
+import { formatAngle, formatImperial, formatMetric, parseAngle, parseArray, parseLength, parseLengths } from "../src/units";
 
 describe("parseLength", () => {
   it.each([
@@ -83,5 +83,37 @@ describe("parseArray", () => {
     expect(parseLength("5x")).toBeNaN();
     expect(parseLength("/5")).toBeNaN();
     expect(parseLength("*5")).toBeNaN();
+  });
+});
+
+describe("parseAngle", () => {
+  it.each([
+    ["37", 37],
+    ["37°", 37],
+    ["37deg", 37],
+    ["37 degrees", 37],
+    ["-15", -15],
+    ["22.5", 22.5],
+    ["1/2", 0.5],
+    ["22 1/2", 22.5],
+    [" 90 ° ", 90],
+  ])("reads %s", (text, degrees) => {
+    expect(parseAngle(text)).toBeCloseTo(degrees, 9);
+  });
+
+  it.each(["5x", "/6", "", "abc", "37'", "1.2.3", "-"])("rejects %j", (text) => {
+    expect(parseAngle(text)).toBeNaN();
+  });
+});
+
+describe("formatAngle", () => {
+  it.each([
+    [37, "37°"],
+    [-22.5, "-22.5°"],
+    [15.04, "15°"],
+    [0, "0°"],
+    [-0.01, "0°"],
+  ])("formats %d", (degrees, text) => {
+    expect(formatAngle(degrees)).toBe(text);
   });
 });

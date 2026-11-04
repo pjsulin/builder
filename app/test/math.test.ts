@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { apply, invert, lineRayParam, mul, planeBasis, rayTriangle, translation, type Mat4 } from "../src/math";
+import { apply, applyDir, invert, lineRayParam, mul, planeBasis, rayTriangle, rotation, translation, type Mat4 } from "../src/math";
 import { CameraModel } from "../src/view/camera";
 
 describe("matrices", () => {
@@ -8,6 +8,21 @@ describe("matrices", () => {
     const m: Mat4 = mul(translation([5, -3, 2]), [c, s, 0, 0, -s, c, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]);
     const p = apply(invert(m), apply(m, [1, 2, 3]));
     p.forEach((x, i) => expect(x).toBeCloseTo([1, 2, 3][i], 9));
+  });
+
+  it("rotates about an axis through a centre, matching the kernel's convention", () => {
+    const quarter = rotation([0, 0, 0], [0, 0, 1], Math.PI / 2);
+    apply(quarter, [1, 0, 0]).forEach((x, i) => expect(x).toBeCloseTo([0, 1, 0][i], 12));
+    applyDir(quarter, [0, 1, 0]).forEach((x, i) => expect(x).toBeCloseTo([-1, 0, 0][i], 12));
+    // The same matrix as a rotation through the origin moved to the centre.
+    const c: [number, number, number] = [10, 5, 3];
+    const m = rotation(c, [1, 1, 0], 0.7);
+    apply(m, c).forEach((x, i) => expect(x).toBeCloseTo(c[i], 12));
+    const viaTranslation = mul(translation(c), mul(rotation([0, 0, 0], [1, 1, 0], 0.7), translation([-10, -5, -3])));
+    m.forEach((x, i) => expect(x).toBeCloseTo(viaTranslation[i], 12));
+    // Its inverse is the opposite rotation.
+    invert(m).forEach((x, i) => expect(x).toBeCloseTo(rotation(c, [1, 1, 0], -0.7)[i], 12));
+    rotation(c, [0, 1, 0], 0).forEach((x, i) => expect(x).toBeCloseTo([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1][i], 12));
   });
 });
 

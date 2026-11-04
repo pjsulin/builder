@@ -177,6 +177,14 @@ export class Model {
   moveAndIntegrate(verts: number[], d: Vec3): void {
     this.changed(this.k.moveAndIntegrate(u32(verts), d[0], d[1], d[2]));
   }
+  /** Preview transform of vertices (context coordinates). */
+  transformVertices(verts: number[], m: Mat4): void {
+    this.changed(this.k.transformVertices(u32(verts), Float64Array.from(m)));
+  }
+  /** Committed transform: folds, transforms, welds and settles. */
+  transformAndIntegrate(verts: number[], m: Mat4): void {
+    this.changed(this.k.transformAndIntegrate(u32(verts), Float64Array.from(m)));
+  }
   erase(faces: number[], edges: number[], instances: number[]): void {
     this.changed(this.k.erase(u32(faces), u32(edges), u32(instances)));
   }
@@ -197,6 +205,22 @@ export class Model {
   /** Copy an instance as a new group placed `d` away (parent coordinates). */
   copyInstance(inst: number, d: Vec3): number {
     return this.changed(this.k.copyInstance(inst, d[0], d[1], d[2]));
+  }
+  /** Copy loose geometry of `ctx` under `m` (context coordinates); welds where it lands. */
+  copyGeometryTransformed(ctx: number, faces: number[], edges: number[], m: Mat4): { faces: number[]; edges: number[] } {
+    return this.changed(JSON.parse(this.k.copyGeometryTransformed(ctx, u32(faces), u32(edges), Float64Array.from(m))));
+  }
+  /** Copy an instance as a new group under `m` (parent coordinates). */
+  copyInstanceTransformed(inst: number, m: Mat4): number {
+    return this.changed(this.k.copyInstanceTransformed(inst, Float64Array.from(m)));
+  }
+  /** Offset a face's outline; positive is outward. Returns the edges drawn. */
+  offsetFace(face: number, distance: number): number[] {
+    return this.changed(Array.from(this.k.offsetFace(face, distance)));
+  }
+  /** Offset an edge chain of `ctx`; positive is to the chain's right. Returns the edges drawn. */
+  offsetEdges(ctx: number, edges: number[], distance: number): number[] {
+    return this.changed(Array.from(this.k.offsetEdges(ctx, u32(edges), distance)));
   }
 
   /** Intersect Faces: draw the edges where `faces` (and the faces inside `instances`)
