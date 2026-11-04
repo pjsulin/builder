@@ -308,7 +308,7 @@ Known limits, roughly in the order we plan to address them:
 | Step | What changes | What stays |
 | --- | --- | --- |
 | Components, tags, materials UI | UI panels; kernel already models them | Kernel |
-| Rotate, scale, offset, follow-me, arcs, circles | New kernel ops and tools; curves become an edge attribute grouping segments | Tool framework, inference |
+| Scale, follow-me, arcs, circles | New kernel ops and tools; curves become an edge attribute grouping segments | Tool framework, inference |
 | Solid tools | Manifold behind a closed-group check | Planar mesh as the editable truth |
 | Drawings | Hidden-line pass in the kernel, a sheet editor in the UI | Document model, file format v1 → v2 |
 | Desktop | Tauri shell, native kernel build | All of the UI |

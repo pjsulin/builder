@@ -104,6 +104,7 @@ prototype/     the original single-file prototype
 - [docs/architecture.md](docs/architecture.md): the kernel, document model, file format, rendering, tools and inference, plugins and license, plus current limits.
 - [docs/file-format.md](docs/file-format.md): the `.builder` format specification.
 - [docs/walkthrough-shed.md](docs/walkthrough-shed.md): the Milestone 1 test project step by step in the browser, with the counts to expect.
+- [docs/walkthrough-deck.md](docs/walkthrough-deck.md): the Milestone 2 deck so far (frame, posts, joists, a 37° stringer, a railing by Offset and Copy), the same way.
 - [docs/roadmap.md](docs/roadmap.md): the prioritized plan to a workable application, split into sprints in [docs/sprints.md](docs/sprints.md).
 - [HANDOFF.md](HANDOFF.md): where the project came from.
 

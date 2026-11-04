@@ -335,13 +335,13 @@ Eight phases, one commit each. Phases 1–3 are kernel only: the transform path 
 
 ### Phase 8: Deck Walkthrough and Roadmap
 
-**Status:** pending
+**Status:** completed
 **Dependencies:** [Phase 6, Phase 7]
 
 #### Task 8.1: Deck walkthrough
 
 - **Type:** document
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [Phase 6, Phase 7]
 - **Files:**
   - Create: docs/walkthrough-deck.md
@@ -351,7 +351,7 @@ Eight phases, one commit each. Phases 1–3 are kernel only: the transform path 
 #### Task 8.2: Roadmap, sprints and status docs
 
 - **Type:** document
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [8.1]
 - **Files:**
   - Modify: docs/roadmap.md
@@ -363,7 +363,7 @@ Eight phases, one commit each. Phases 1–3 are kernel only: the transform path 
 #### Task 8.3: Walkthrough check
 
 - **Type:** test
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [8.1]
 - **Files:**
   - Modify: app/test/offset.test.ts
