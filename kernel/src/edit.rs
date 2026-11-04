@@ -4,7 +4,9 @@ use std::collections::{BTreeSet, HashMap, HashSet};
 
 use crate::doc::*;
 use crate::heal::OldRegion;
-use crate::math::{point_segment, to_2d, Plane, P2, V3};
+use crate::math::{
+    mat_apply, mat_apply_dir, mat_is_finite, mat_translation, point_segment, to_2d, Mat4, Plane, P2, V3,
+};
 use crate::tol;
 use crate::Error;
 
@@ -18,11 +20,8 @@ pub struct Copied {
 }
 
 impl Document {
-    /// Duplicate faces and edges of `ctx` translated by `offset`, keeping materials,
-    /// back materials and face attributes, then integrate the new edges with what
-    /// they land on as a committed move does (`integrate_moved`). Faces bring their
-    /// edges. Inputs not owned by `ctx` are ignored; nothing to copy is
-    /// `Error::Empty`. `Error::Locked` when `ctx` is locked (ADR mvr2opid).
+    /// Duplicate faces and edges of `ctx` translated by `offset`:
+    /// `copy_geometry_transformed` under `mat_translation(offset)`.
     pub fn copy_geometry(
         &mut self,
         ctx: DefId,
@@ -30,9 +29,26 @@ impl Document {
         edges: &[EId],
         offset: V3,
     ) -> Result<Copied, Error> {
+        self.copy_geometry_transformed(ctx, faces, edges, &mat_translation(offset))
+    }
+
+    /// Duplicate faces and edges of `ctx` placed under `m` (a copy's vertex sits at
+    /// `mat_apply(m, pos)`, its face normal goes through `mat_apply_dir`), keeping
+    /// materials, back materials and face attributes, then integrate the new edges
+    /// with what they land on as a committed move does (`integrate_moved`). Faces
+    /// bring their edges. Inputs not owned by `ctx` are ignored; nothing to copy is
+    /// `Error::Empty`; a non-finite matrix is `Error::Degenerate`. `Error::Locked`
+    /// when `ctx` is locked (ADR mvr2opid).
+    pub fn copy_geometry_transformed(
+        &mut self,
+        ctx: DefId,
+        faces: &[FId],
+        edges: &[EId],
+        m: &Mat4,
+    ) -> Result<Copied, Error> {
         self.check_def_unlocked(ctx)?;
-        if !offset.is_finite() {
-            return Err(Error::Degenerate("offset is not a number"));
+        if !mat_is_finite(m) {
+            return Err(Error::Degenerate("transform is not a number"));
         }
         let faces: Vec<FId> =
             faces.iter().copied().filter(|&f| self.face(f).is_some_and(|x| x.owner == ctx)).collect();
@@ -49,7 +65,7 @@ impl Document {
         let mut vmap: HashMap<VId, VId> = HashMap::new();
         let mut map_v = |doc: &mut Document, v: VId| -> VId {
             *vmap.entry(v).or_insert_with(|| {
-                let p = doc.pos(v) + offset;
+                let p = mat_apply(m, doc.pos(v));
                 doc.vertex_at(ctx, p)
             })
         };
@@ -66,7 +82,8 @@ impl Document {
             let outer: Vec<VId> = face.outer.iter().map(|&v| map_v(self, v)).collect();
             let holes: Vec<Vec<VId>> =
                 face.holes.iter().map(|h| h.iter().map(|&v| map_v(self, v)).collect()).collect();
-            let nf = self.add_face(ctx, outer, holes, Some(face.plane.normal))?;
+            let normal = mat_apply_dir(m, face.plane.normal);
+            let nf = self.add_face(ctx, outer, holes, Some(normal))?;
             self.with_face(nf, |x| {
                 x.material = face.material;
                 x.back_material = face.back_material;
@@ -81,11 +98,24 @@ impl Document {
         Ok(out)
     }
 
-    /// Preview move: move vertices by `offset`. A face the move would bend is left
-    /// as it was (its plane and triangulation stale) so the drag still shows; the
-    /// committed `move_and_integrate` folds it. A face that would collapse or turn
-    /// inside out fails the move and the caller should abort.
+    /// Preview move: move vertices by `offset`. `transform_vertices` under
+    /// `mat_translation(offset)`.
     pub fn move_vertices(&mut self, verts: &[VId], offset: V3) -> Result<(), Error> {
+        self.transform_vertices(verts, &mat_translation(offset))
+    }
+
+    /// Preview transform: set each vertex of `verts` to `mat_apply(m, pos)`. A face
+    /// every vertex of which is in `verts` carries its normal through `m` (as
+    /// `explode` does), so a rotation past 90° is not taken for a face turned inside
+    /// out; a face the transform would bend is left as it was (its plane and
+    /// triangulation stale) so the drag still shows, and the committed
+    /// `transform_and_integrate` folds it. A face that would collapse or turn inside
+    /// out fails the transform and the caller should abort. `Error::Locked` for a
+    /// locked owner (ADR mvr2opid); `Error::Degenerate` for a non-finite matrix.
+    pub fn transform_vertices(&mut self, verts: &[VId], m: &Mat4) -> Result<(), Error> {
+        if !mat_is_finite(m) {
+            return Err(Error::Degenerate("transform is not a number"));
+        }
         let set: BTreeSet<VId> = verts.iter().copied().collect();
         for &v in &set {
             self.check_def_unlocked(self.vertex(v).ok_or(Error::Missing("vertex"))?.owner)?;
@@ -93,13 +123,19 @@ impl Document {
         let mut touched: BTreeSet<FId> = BTreeSet::new();
         for &v in &set {
             let mut vx = self.vertex(v).cloned().ok_or(Error::Missing("vertex"))?;
-            vx.pos = vx.pos + offset;
+            vx.pos = mat_apply(m, vx.pos);
             for &e in &vx.edges {
                 touched.extend(self.edge(e).map(|e| e.faces.clone()).unwrap_or_default());
             }
             self.set_vertex(v, Some(vx));
         }
         for f in touched {
+            let Some(face) = self.face(f).cloned() else { continue };
+            if face.loops().flatten().all(|v| set.contains(v)) {
+                let n = face.plane.normal;
+                let moved = mat_apply_dir(m, n).unit().unwrap_or(n);
+                self.with_face(f, |x| x.plane.normal = moved);
+            }
             match self.refresh_face(f) {
                 Err(Error::NotPlanar) => {}
                 r => r?,
@@ -108,11 +144,16 @@ impl Document {
         Ok(())
     }
 
-    /// Committed move: fold faces the move would bend into planar pieces, move the
-    /// vertices, then weld and settle what they landed on in their own definition,
-    /// as if the geometry had been drawn there. Preview uses `move_vertices` alone.
-    /// Every vertex must belong to one definition.
+    /// Committed move: `transform_and_integrate` under `mat_translation(offset)`.
     pub fn move_and_integrate(&mut self, verts: &[VId], offset: V3) -> Result<(), Error> {
+        self.transform_and_integrate(verts, &mat_translation(offset))
+    }
+
+    /// Committed transform: fold faces the transform would bend into planar pieces,
+    /// transform the vertices, then weld and settle what they landed on in their own
+    /// definition, as if the geometry had been drawn there. Preview uses
+    /// `transform_vertices` alone. Every vertex must belong to one definition.
+    pub fn transform_and_integrate(&mut self, verts: &[VId], m: &Mat4) -> Result<(), Error> {
         let set: BTreeSet<VId> = verts.iter().copied().collect();
         let mut owner: Option<DefId> = None;
         for &v in &set {
@@ -126,17 +167,18 @@ impl Document {
             return Ok(());
         };
         self.check_def_unlocked(def)?;
-        self.fold_for_move(verts, offset)?;
-        self.move_vertices(verts, offset)?;
+        self.fold_for_move(verts, m)?;
+        self.transform_vertices(verts, m)?;
         let edges = self.edges_of_vertices(verts);
         self.integrate_moved(def, &edges)
     }
 
     /// Before a move: every face using one of `verts` whose outer loop would not be
-    /// planar at `pos + offset` is replaced by planar pieces along new diagonal
-    /// edges, each keeping the face's normal side, materials and attributes. A face
-    /// with holes that would bend is refused with `Error::NotPlanar`.
-    pub(crate) fn fold_for_move(&mut self, verts: &[VId], offset: V3) -> Result<(), Error> {
+    /// planar at `mat_apply(m, pos)` is replaced by planar pieces along new diagonal
+    /// edges, each keeping the face's normal side, materials and attributes.
+    /// Diagonals are judged in the face's plane as it is now. A face with holes that
+    /// would bend is refused with `Error::NotPlanar`.
+    pub(crate) fn fold_for_move(&mut self, verts: &[VId], m: &Mat4) -> Result<(), Error> {
         let set: BTreeSet<VId> = verts.iter().copied().collect();
         let mut faces: BTreeSet<FId> = BTreeSet::new();
         for &v in &set {
@@ -149,7 +191,7 @@ impl Document {
             let pts: Vec<V3> = face
                 .outer
                 .iter()
-                .map(|&x| if set.contains(&x) { self.pos(x) + offset } else { self.pos(x) })
+                .map(|&x| if set.contains(&x) { mat_apply(m, self.pos(x)) } else { self.pos(x) })
                 .collect();
             if is_planar(&pts) {
                 continue;

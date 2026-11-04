@@ -8,13 +8,13 @@ Eight phases, one commit each. Phases 1–3 are kernel only: the transform path 
 
 ### Phase 1: Kernel Transform Path
 
-**Status:** pending
+**Status:** completed
 **Dependencies:** none
 
 #### Task 1.1: Rotation matrix in math.rs
 
 - **Type:** implement
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** none
 - **Files:**
   - Modify: kernel/src/math.rs
@@ -24,7 +24,7 @@ Eight phases, one commit each. Phases 1–3 are kernel only: the transform path 
 #### Task 1.2: transform_vertices and transform_and_integrate
 
 - **Type:** implement
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [1.1]
 - **Files:**
   - Modify: kernel/src/edit.rs
@@ -35,7 +35,7 @@ Eight phases, one commit each. Phases 1–3 are kernel only: the transform path 
 #### Task 1.3: Transformed copies
 
 - **Type:** implement
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [1.1]
 - **Files:**
   - Modify: kernel/src/edit.rs
@@ -46,7 +46,7 @@ Eight phases, one commit each. Phases 1–3 are kernel only: the transform path 
 #### Task 1.4: Kernel rotate tests
 
 - **Type:** test
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [1.2, 1.3]
 - **Files:**
   - Create: kernel/tests/rotate.rs
@@ -56,7 +56,7 @@ Eight phases, one commit each. Phases 1–3 are kernel only: the transform path 
 #### Task 1.5: Architecture doc for the transform path
 
 - **Type:** document
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [1.2, 1.3]
 - **Files:**
   - Modify: docs/architecture.md
