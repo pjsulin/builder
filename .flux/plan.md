@@ -43,3 +43,4 @@
 ### Step 7: Sprint 2.4 Curves, Scale and Flip: circle, polygon, arc as edge curves, soft edges, scale, flip, rotated rectangle
 
 - **Status:** not started
+- **Record:** sprint CurvesScaleAndFlip
