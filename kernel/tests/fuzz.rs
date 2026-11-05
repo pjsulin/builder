@@ -29,7 +29,8 @@ fn fuzz(seed: u64, steps: usize) {
 
 /// CI: a fixed seed and step count, under a minute in a debug build (about 25 s
 /// here with the Rotate and Offset ops of sprint 2.2, 22 s before them; 2,000
-/// steps took 29.5 s, too close to the 30 s headroom rule).
+/// steps took 29.5 s, too close to the 30 s headroom rule; the Guide and
+/// EraseGuide ops of sprint 2.3 change the sequence, not the cost).
 #[test]
 fn random_operations_keep_invariants() {
     let t = Instant::now();

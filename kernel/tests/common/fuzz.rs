@@ -100,6 +100,15 @@ pub enum Op {
         normal: V3,
         distance: f64,
     },
+    /// A guide line parallel to the first edge of the face found as above, in the
+    /// face's plane, `distance` (signed) from it.
+    Guide {
+        point: V3,
+        normal: V3,
+        distance: f64,
+    },
+    /// Erase the live guide of ROOT with the lowest id, if any.
+    EraseGuide,
 }
 
 impl Op {
@@ -116,6 +125,8 @@ impl Op {
             Op::Redo => "Redo",
             Op::Rotate { .. } => "Rotate",
             Op::Offset { .. } => "Offset",
+            Op::Guide { .. } => "Guide",
+            Op::EraseGuide => "Erase",
         }
     }
 }
@@ -191,6 +202,22 @@ pub fn apply(doc: &mut Document, op: &Op) -> Result<bool, Error> {
             Some(f) => doc.offset_face(f, distance).map(|_| true),
             None => Ok(false),
         },
+        Op::Guide { point, normal, distance } => match face(doc, point, normal) {
+            Some(f) => {
+                let face = doc.face(f).ok_or(Error::Missing("face"))?.clone();
+                let e = doc.face_edges(&face)[0];
+                let edge = doc.edge(e).ok_or(Error::Missing("edge"))?;
+                let (a, b) = (doc.pos(edge.v[0]), doc.pos(edge.v[1]));
+                let dir = (b - a).unit().ok_or(Error::Degenerate("edge"))?;
+                let perp = face.plane.normal.cross(dir).unit().ok_or(Error::Degenerate("edge"))?;
+                doc.add_guide_line(ROOT, a + perp * distance, dir).map(|_| true)
+            }
+            None => Ok(false),
+        },
+        Op::EraseGuide => match doc.guides_in(ROOT).map(|(id, _)| id).min() {
+            Some(g) => doc.erase_guides(&[g]).map(|_| true),
+            None => Ok(false),
+        },
         Op::Undo | Op::Redo => unreachable!(),
     })();
     match result {
@@ -242,11 +269,11 @@ pub fn generate(rng: &mut Rng, steps: usize, doc: &mut Document) -> Vec<Op> {
         let edges = doc.edges_in(ROOT).count();
         let crowded = edges > 300;
         // Weights: line, rect, push/pull, move, erase face, erase edge, group, intersect,
-        // undo, redo, rotate, offset.
-        let weights: [i64; 12] = if crowded {
-            [0, 0, 0, 0, 20, 70, 0, 0, 10, 0, 0, 0]
+        // undo, redo, rotate, offset, guide, erase guide.
+        let weights: [i64; 14] = if crowded {
+            [0, 0, 0, 0, 20, 70, 0, 0, 10, 0, 0, 0, 0, 2]
         } else {
-            [12, 20, 15, 8, 6, 8, 3, 5, 4, 3, 4, 4]
+            [12, 20, 15, 8, 6, 8, 3, 5, 4, 3, 4, 4, 3, 2]
         };
         let mut pick = rng.range(0, weights.iter().sum::<i64>() - 1);
         let mut take = |w: i64| {
@@ -364,7 +391,7 @@ pub fn generate(rng: &mut Rng, steps: usize, doc: &mut Document) -> Vec<Op> {
                     Op::Line { a: V3::new(grid(rng), grid(rng), 0.0), b: V3::new(grid(rng), grid(rng), 0.0) }
                 }
             }
-        } else {
+        } else if take(weights[11]) {
             match pick_face(rng, doc) {
                 Some((point, normal)) => {
                     let mut distance = rng.range(-12, 12) as f64;
@@ -377,6 +404,13 @@ pub fn generate(rng: &mut Rng, steps: usize, doc: &mut Document) -> Vec<Op> {
                     Op::Line { a: V3::new(grid(rng), grid(rng), 0.0), b: V3::new(grid(rng), grid(rng), 0.0) }
                 }
             }
+        } else if take(weights[12]) {
+            match pick_face(rng, doc) {
+                Some((point, normal)) => Op::Guide { point, normal, distance: rng.range(-48, 48) as f64 },
+                None => Op::EraseGuide,
+            }
+        } else {
+            Op::EraseGuide
         };
         if trace {
             eprintln!("op {step}: {op:?}");
@@ -499,6 +533,10 @@ fn render_op(op: &Op) -> String {
         Op::Offset { point, normal, distance } => {
             format!("Op::Offset {{ point: {}, normal: {}, distance: {distance:?} }}", v3(point), v3(normal))
         }
+        Op::Guide { point, normal, distance } => {
+            format!("Op::Guide {{ point: {}, normal: {}, distance: {distance:?} }}", v3(point), v3(normal))
+        }
+        Op::EraseGuide => "Op::EraseGuide".to_string(),
     }
 }
 

@@ -356,13 +356,13 @@ Sprint 2.3 of Milestone 2: guides as a kernel entity saved under an additive `gu
 
 ### Phase 8: Fuzz, Walkthrough and Roadmap
 
-**Status:** pending
+**Status:** completed
 **Dependencies:** [Phase 6, Phase 7]
 
 #### Task 8.1: Guide ops in the randomized test
 
 - **Type:** test
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [Phase 1]
 - **Files:**
   - Modify: kernel/tests/common/fuzz.rs
@@ -373,7 +373,7 @@ Sprint 2.3 of Milestone 2: guides as a kernel entity saved under an additive `gu
 #### Task 8.2: Deck walkthrough layout step
 
 - **Type:** document
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [Phase 6, Phase 7]
 - **Files:**
   - Modify: docs/walkthrough-deck.md
@@ -384,7 +384,7 @@ Sprint 2.3 of Milestone 2: guides as a kernel entity saved under an additive `gu
 #### Task 8.3: Roadmap, sprints, architecture status
 
 - **Type:** document
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [8.1, 8.2]
 - **Files:**
   - Modify: docs/roadmap.md
