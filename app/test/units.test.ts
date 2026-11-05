@@ -97,11 +97,16 @@ describe("parseAngle", () => {
     ["1/2", 0.5],
     ["22 1/2", 22.5],
     [" 90 ° ", 90],
+    ["3:12", (Math.atan(3 / 12) * 180) / Math.PI],
+    ["12:12", 45],
+    ["-3:12", -(Math.atan(3 / 12) * 180) / Math.PI],
+    ["4 : 12", (Math.atan(4 / 12) * 180) / Math.PI],
+    ["2.5:10", (Math.atan(0.25) * 180) / Math.PI],
   ])("reads %s", (text, degrees) => {
     expect(parseAngle(text)).toBeCloseTo(degrees, 9);
   });
 
-  it.each(["5x", "/6", "", "abc", "37'", "1.2.3", "-"])("rejects %j", (text) => {
+  it.each(["5x", "/6", "", "abc", "37'", "1.2.3", "-", "3:0", "3:", ":12", "a:12", "1:2:3"])("rejects %j", (text) => {
     expect(parseAngle(text)).toBeNaN();
   });
 });

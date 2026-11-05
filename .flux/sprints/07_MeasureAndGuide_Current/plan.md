@@ -296,13 +296,13 @@ Sprint 2.3 of Milestone 2: guides as a kernel entity saved under an additive `gu
 
 ### Phase 7: Protractor Tool
 
-**Status:** pending
+**Status:** completed
 **Dependencies:** [Phase 5]
 
 #### Task 7.1: Slope syntax in parseAngle
 
 - **Type:** implement
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** none
 - **Files:**
   - Modify: app/src/units.ts
@@ -313,7 +313,7 @@ Sprint 2.3 of Milestone 2: guides as a kernel entity saved under an additive `gu
 #### Task 7.2: ProtractorTool
 
 - **Type:** implement
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [Phase 5, 7.1]
 - **Files:**
   - Create: app/src/tools/protractor.ts
@@ -324,7 +324,7 @@ Sprint 2.3 of Milestone 2: guides as a kernel entity saved under an additive `gu
 #### Task 7.3: Register the tool
 
 - **Type:** implement
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [7.2]
 - **Files:**
   - Modify: app/src/app.ts
@@ -335,7 +335,7 @@ Sprint 2.3 of Milestone 2: guides as a kernel entity saved under an additive `gu
 #### Task 7.4: Protractor tests
 
 - **Type:** test
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [7.3]
 - **Files:**
   - Create: app/test/protractor.test.ts
@@ -346,7 +346,7 @@ Sprint 2.3 of Milestone 2: guides as a kernel entity saved under an additive `gu
 #### Task 7.5: README and features for Protractor
 
 - **Type:** document
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [7.3]
 - **Files:**
   - Modify: README.md

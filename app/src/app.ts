@@ -11,6 +11,7 @@ import { MoveTool } from "./tools/move";
 import { NavTool } from "./tools/nav";
 import { OffsetTool } from "./tools/offset";
 import { TapeMeasureTool } from "./tools/measure";
+import { ProtractorTool } from "./tools/protractor";
 import { PushPullTool } from "./tools/pushpull";
 import { RectangleTool } from "./tools/rectangle";
 import { RotateTool } from "./tools/rotate";
@@ -109,6 +110,7 @@ export class App implements ToolHost {
       rotate: new RotateTool(this),
       offset: new OffsetTool(this),
       measure: new TapeMeasureTool(this),
+      protractor: new ProtractorTool(this),
       erase: new EraseTool(this),
       orbit: new NavTool(this, "orbit", nav),
       pan: new NavTool(this, "pan", nav),

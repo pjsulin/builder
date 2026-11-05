@@ -111,12 +111,21 @@ export function parseArray(text: string): ArraySpec | null {
 
 /**
  * Parse an angle typed into the Measurements box, in degrees: `37`, `37°`,
- * `37deg`, `-15`, `22.5`, `1/2`. Whitespace and case are ignored. NaN otherwise
- * (and for every array spelling, so callers try `parseArray` first).
+ * `37deg`, `-15`, `22.5`, `1/2`, or a slope `rise:run` such as `3:12`
+ * (atan(rise / run); a negative rise slopes down; a zero run is NaN).
+ * Whitespace and case are ignored. NaN otherwise (and for every array
+ * spelling, so callers try `parseArray` first).
  */
 export function parseAngle(text: string): number {
   let s = text.replace(/\s+/g, "").toLowerCase();
   if (!s) return NaN;
+  const slope = s.match(/^(-?)([^:]+):([^:]+)$/);
+  if (slope) {
+    const rise = number(slope[2]);
+    const run = number(slope[3]);
+    if (!Number.isFinite(rise) || !Number.isFinite(run) || run <= 0) return NaN;
+    return (slope[1] ? -1 : 1) * (Math.atan2(rise, run) * 180) / Math.PI;
+  }
   let neg = false;
   if (s.startsWith("-")) {
     neg = true;
