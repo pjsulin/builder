@@ -26,6 +26,23 @@ struct File {
     materials: Vec<Material>,
     #[serde(default)]
     tags: Vec<Tag>,
+    /// Construction guides, in their definition's coordinates. Absent when none.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    guides: Vec<FileGuide>,
+    /// Written only when false; absent means visible.
+    #[serde(default = "default_true", skip_serializing_if = "Clone::clone")]
+    guides_visible: bool,
+}
+
+fn default_true() -> bool {
+    true
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "lowercase")]
+enum FileGuide {
+    Line { definition: u32, origin: [f64; 3], dir: [f64; 3] },
+    Point { definition: u32, pos: [f64; 3] },
 }
 
 #[derive(Serialize, Deserialize)]
@@ -134,6 +151,23 @@ impl Document {
                 attributes: write_attributes(&i.attributes),
             })
             .collect();
+        let mut guide_ids: Vec<GuideId> = self.guides.iter().map(|(i, _)| GuideId(i as u32)).collect();
+        guide_ids.sort();
+        let guides = guide_ids
+            .iter()
+            .map(|&g| self.guide(g).expect("listed guide exists"))
+            .filter(|g| def_index.contains_key(&g.owner))
+            .map(|g| {
+                let definition = def_index[&g.owner];
+                match g.shape {
+                    GuideShape::Line { origin, dir } => {
+                        let dir = dir.unit().unwrap_or(dir);
+                        FileGuide::Line { definition, origin: origin.into(), dir: dir.into() }
+                    }
+                    GuideShape::Point { pos } => FileGuide::Point { definition, pos: pos.into() },
+                }
+            })
+            .collect();
         let file = File {
             format: FORMAT.into(),
             version: VERSION,
@@ -143,6 +177,8 @@ impl Document {
             instances,
             materials: mat_ids.iter().map(|&m| self.material(m).cloned().expect("listed")).collect(),
             tags: tag_ids.iter().map(|&t| self.tag(t).cloned().expect("listed")).collect(),
+            guides,
+            guides_visible: self.guides_visible(),
         };
         serde_json::to_string(&file).expect("document serializes")
     }
@@ -272,6 +308,39 @@ impl Document {
             inst.tag = fi.tag.filter(|&t| (t as usize) < file.tags.len()).map(TagId);
             inst.attributes = attributes;
             doc.set_instance(id, Some(inst));
+        }
+        for (gi, fg) in file.guides.iter().enumerate() {
+            let path = format!("guides[{gi}]");
+            let (definition, point) = match fg {
+                FileGuide::Line { definition, origin, .. } => (*definition, V3::from(*origin)),
+                FileGuide::Point { definition, pos } => (*definition, V3::from(*pos)),
+            };
+            if definition >= ndef {
+                return Err(Error::Format(format!(
+                    "{path}.definition: definition {definition} does not exist"
+                )));
+            }
+            let point = point * scale;
+            if !point.is_finite() {
+                return Err(Error::Format(format!("{path}: position is not a finite number")));
+            }
+            let def = DefId(definition);
+            let id = doc.next_guide();
+            let shape = match fg {
+                FileGuide::Line { dir, .. } => {
+                    let dir = V3::from(*dir);
+                    let dir = dir
+                        .unit()
+                        .filter(|d| d.is_finite())
+                        .ok_or_else(|| Error::Format(format!("{path}.dir: guide direction has no length")))?;
+                    GuideShape::Line { origin: point, dir }
+                }
+                FileGuide::Point { .. } => GuideShape::Point { pos: point },
+            };
+            doc.set_guide(id, Some(Guide { owner: def, shape }));
+        }
+        if !file.guides_visible {
+            doc.set_guides_visible(false);
         }
         doc.clear_history();
         Ok(doc)

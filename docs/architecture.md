@@ -210,10 +210,13 @@ The hosted build works offline through a hand-written service worker, `app/sw.js
   "faces":    [{ "outer": [0, 1, 2, 3], "holes": [], "owner": 0, "material": null }],
   "instances": [],
   "materials": [],
-  "tags": []
+  "tags": [],
+  "guides": [{ "kind": "line", "definition": 0, "origin": [48, 0, 0], "dir": [0, 1, 0] }],
+  "guides_visible": false
 }
 ```
 
+- `guides` and `guides_visible` are additive version 1 keys: guide lines and points by owning definition, written sorted by id, and one visibility flag written only when false. Readers from before them ignore both.
 - On write, ids are compacted (tombstones dropped) and vertices are written in full `f64` precision. On read, the kernel rebuilds adjacency and planes, and validates everything. A bad file fails with a message instead of producing broken topology.
 - Version 1 is plain JSON because it is easy to inspect, diff and write tools for. Version 2 will be a zip container (like glTF's GLB or 3MF) holding the same JSON plus binary vertex buffers and texture images, once files get big. Readers must refuse versions newer than they understand.
 - **Interchange.** Export glTF/GLB, OBJ and STL from the triangulated buffers the renderer already uses (Core). Import OBJ, STL and glTF as triangles, merging coplanar triangles with `heal` (Core). DXF is next (Later), then IFC through IfcOpenShell (Full app). `.skp` import needs Trimble's closed SDK and its license terms, so it is optional and would ship as a separate plugin if at all.

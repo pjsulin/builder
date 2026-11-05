@@ -65,13 +65,13 @@ Sprint 2.3 of Milestone 2: guides as a kernel entity saved under an additive `gu
 
 ### Phase 2: File Format
 
-**Status:** pending
+**Status:** completed
 **Dependencies:** [Phase 1]
 
 #### Task 2.1: Read and write `guides` and `guides_visible`
 
 - **Type:** implement
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [Phase 1]
 - **Files:**
   - Modify: kernel/src/format.rs
@@ -81,7 +81,7 @@ Sprint 2.3 of Milestone 2: guides as a kernel entity saved under an additive `gu
 #### Task 2.2: Format round-trip tests
 
 - **Type:** test
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [2.1]
 - **Files:**
   - Modify: kernel/tests/format.rs
@@ -92,7 +92,7 @@ Sprint 2.3 of Milestone 2: guides as a kernel entity saved under an additive `gu
 #### Task 2.3: File format doc
 
 - **Type:** document
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [2.1]
 - **Files:**
   - Modify: docs/file-format.md
