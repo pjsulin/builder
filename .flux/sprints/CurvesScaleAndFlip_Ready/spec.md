@@ -837,6 +837,10 @@ impl Document {
     /// Give `edges` (a chain, in order) `builder.curve = next_curve_id(ctx)`.
     pub(crate) fn mark_curve(&mut self, ctx: DefId, edges: &[EId]) -> Result<u64, Error>;
     pub(crate) fn set_soft(&mut self, e: EId, soft: bool) -> Result<(), Error>;
+    /// Give the curves among `edges` fresh ids in `ctx`, keeping each curve's segments
+    /// together: called by `copy_geometry_transformed` (a copy beside its source) and
+    /// `explode` (edges returning to a parent that may already use their ids).
+    pub(crate) fn remap_curve_ids(&mut self, ctx: DefId, edges: &[EId]) -> Result<(), Error>;
 }
 
 // edit.rs: `transform_vertices` calls `explode_curves_touching(verts)` first and, for a
@@ -874,7 +878,10 @@ pub struct EdgeBuffers { pub positions: Vec<f32>, pub edge_ids: Vec<u32>, pub so
 struct FileEdgeAttributes { edge: u32, attributes: FileAttributes }
 struct FileDefinition { /* as before */ edge_attributes: Vec<FileEdgeAttributes> }  // skip when empty
 
-// check.rs: FindingKind::BrokenCurve (a curve id whose segments are not one chain), position at a segment midpoint.
+// check.rs: FindingKind::BrokenCurve, name "broken_curve" (a curve id whose segments are not one
+// chain, or shared by two definitions), position at a segment midpoint.
+// group.rs: `make_group` and `copy_instance_transformed` copy edge attributes onto the edges they
+// create (ids stay unique in the new definition); `explode` copies them and calls `remap_curve_ids`.
 ```
 
 Fuzz (`kernel/tests/common/fuzz.rs`):
@@ -912,6 +919,7 @@ App (`app/src`):
 ```ts
 // kernel/model.ts
 export type AttrKind = "definition" | "instance" | "face" | "edge";
+export interface Finding { kind: /* existing */ | "broken_curve"; /* rest unchanged */ }
 export interface DefBuffers { /* as before */ edgeSoft: Uint8Array }
 class Model {
   addCurve(ctx: number, pts: Vec3[], closed: boolean): number[];

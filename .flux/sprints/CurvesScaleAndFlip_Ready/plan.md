@@ -93,8 +93,9 @@ Eight phases, one commit each: edge attributes in the kernel and the file; curve
   - Modify: kernel/src/edit.rs
   - Modify: kernel/src/pushpull.rs
   - Modify: kernel/src/offset.rs
+  - Modify: kernel/src/group.rs
 - **Context:** [spec.md§Interfaces](spec.md#interfaces)
-- **Description:** `transform_vertices` explodes curves it bends; `fold_for_move` softens its diagonals; `extrude` gives the cap's edges a new curve id per base curve and softens side edges standing on a vertex shared by two segments of one curve; `offset_edges` and `offset_face` mark their output a new curve per input curve.
+- **Description:** `remap_curve_ids`, called by `copy_geometry_transformed` and `explode` so a copied or exploded curve never shares an id with one already in its context; `transform_vertices` explodes curves it bends; `fold_for_move` softens its diagonals; `extrude` gives the cap's edges a new curve id per base curve and softens side edges standing on a vertex shared by two segments of one curve; `offset_edges` and `offset_face` mark their output a new curve per input curve.
 
 #### Task 2.3: validate and check for curves
 
@@ -104,8 +105,9 @@ Eight phases, one commit each: edge attributes in the kernel and the file; curve
 - **Files:**
   - Modify: kernel/tests/common/mod.rs
   - Modify: kernel/src/check.rs
+  - Modify: app/src/kernel/model.ts
 - **Context:** [spec.md§Data Models](spec.md#data-models)
-- **Description:** `validate` asserts each curve id's segments are one chain in one definition and `soft` is only ever `true`; `check` gains `FindingKind::BrokenCurve`.
+- **Description:** `validate` asserts each curve id's segments are one chain in one definition and `soft` is only ever `true`; `check` gains `FindingKind::BrokenCurve` (`broken_curve`), and the app's `Finding.kind` union gains it.
 
 #### Task 2.4: Curve kernel tests
 
@@ -118,7 +120,7 @@ Eight phases, one commit each: edge attributes in the kernel and the file; curve
   - Modify: kernel/tests/format.rs
   - Create: kernel/tests/fixtures/curves.builder
 - **Context:** [requirements.md§Success Criteria](requirements.md#success-criteria)
-- **Description:** The Feature 2 criteria: 24-segment circle and its face, `curve_of` from any segment, `curve_center`, split by a crossing line, erase, offset, push/pull cap and 24 soft sides against a box's none, explode on a partial move and survival on a whole move, `validate` on a planted broken curve, `check` reporting it, a cylinder fixture round-tripping byte-identically.
+- **Description:** The Feature 2 criteria: 24-segment circle and its face, `curve_of` from any segment, `curve_center`, split by a crossing line, erase, offset, push/pull cap and 24 soft sides against a box's none, explode on a partial move and survival on a whole move, a copy beside its source and an exploded group keeping distinct curve ids, `validate` on a planted broken curve, `check` reporting it, a cylinder fixture round-tripping byte-identically.
 
 ### Phase 3: Soft Edges and Back Faces in the View
 
@@ -389,7 +391,7 @@ Eight phases, one commit each: edge attributes in the kernel and the file; curve
   - Modify: docs/features.md
   - Modify: README.md
 - **Context:** [requirements.md§Impact](requirements.md#impact)
-- **Description:** § 2, 3, 4, 5, 6, 9, 10 of the architecture; the file format's `builder` keys as shipped; features rows 53, 54, 55, 67, 71, 72 to built; README tools, keys C, A, S and buttons.
+- **Description:** § 2, 3, 4, 5, 6, 9, 10 of the architecture; the file format's `builder` keys as shipped; features rows 53, 54, 55, 67, 71, 72 to built; README tools, keys C, A, S and buttons, and the `validate` example's list of finding kinds (broken curves).
 
 #### Task 8.3: Roadmap and sprints
 
@@ -401,6 +403,19 @@ Eight phases, one commit each: edge attributes in the kernel and the file; curve
   - Modify: docs/sprints.md
 - **Context:** [requirements.md§Impact](requirements.md#impact)
 - **Description:** Rows 2.4, 2.6, 2.7 done with the date and the test project line; § 2.4 "Resolved in the sprint" paragraph.
+
+## Plan Review
+
+**Reviewed:** 2026-11-05
+
+- [x] Requirements to Spec traced (8 features, 20 criteria; all covered)
+- [x] Spec to Plan traced (every interface, data model and validation item has a task; no task without a spec basis)
+- [x] Proposed ADRs checked against accepted (`mwdq3k7a` extends `mvr2op7t`, contradicts nothing; `mvr2opid` honoured by every new operation)
+- [x] Checklist passed (3 warnings accepted: viewport grip and plane drawing has no headless test, as the protractor overlay had none; the resize prompt's whole-context `transform_and_integrate` may be slow on a large model and is measured in the sprint; Phase 6 has five tasks, tightly coupled)
+
+Fixed in review: `remap_curve_ids` for copies and exploded groups (spec, Task 2.2, Task 2.4); the app's `Finding.kind` union and the README `validate` line for `broken_curve` (Task 2.3, Task 8.2).
+
+**Plan Status:** Ready for implementation
 
 ## Task Format
 
