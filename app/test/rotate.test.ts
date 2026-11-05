@@ -126,7 +126,9 @@ describe("Rotate", () => {
     h.hover(rot, [60, 0, 48]);
     expect(h.overlay.protractor!.normal).toEqual([1, 0, 0]);
     h.inference.unlock();
-    h.hover(rot, [60, 0, 48]);
+    // Off the midpoint's blue line, so the from-point cue does not claim the spot.
+    h.hover(rot, [70, 0, 40]);
+    expect(h.inference.last?.kind).toBe("onFace");
     expect(h.overlay.protractor!.normal[1]).toBeCloseTo(-1, 6);
   });
 

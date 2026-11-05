@@ -3,7 +3,7 @@
 
 import { AXES, InferenceEngine, type Inference } from "./inference/engine";
 import { Model, ROOT, type Entity, type Finding } from "./kernel/model";
-import { add, applyDir, apply, cross, dist, invert, IDENTITY, madd, planeBasis, scale, type Mat4, type Vec3 } from "./math";
+import { add, applyDir, apply, cross, dist, invert, IDENTITY, madd, norm, planeBasis, scale, sub, type Mat4, type Vec3 } from "./math";
 import { buildSample, buildStressTest } from "./samples";
 import { EraseTool } from "./tools/erase";
 import { LineTool } from "./tools/line";
@@ -39,6 +39,9 @@ function copyKey(ev: KeyboardEvent | MouseEvent): boolean {
 }
 const COPY_KEY = MAC ? "Alt" : "Control";
 
+/** SketchUp's colour for the parallel and perpendicular cues. */
+const MAGENTA = "#c43cb0";
+
 const MARKER_CLASS: Record<string, string> = {
   endpoint: "end",
   origin: "end",
@@ -49,6 +52,12 @@ const MARKER_CLASS: Record<string, string> = {
   line: "face",
   plane: "face",
   ground: "face",
+  parallel: "para",
+  perpendicular: "para",
+  fromPoint: "from",
+  intersection: "end",
+  guidePoint: "guide",
+  onGuide: "guide",
 };
 
 export class App implements ToolHost {
@@ -204,7 +213,7 @@ export class App implements ToolHost {
     const next = this.tools[id];
     if (!next) return;
     this.tool?.deactivate();
-    this.inference.unlock();
+    this.inference.reset();
     this.tool = next;
     next.activate?.();
     document.querySelectorAll<HTMLButtonElement>(".tool").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.tool === id)));
@@ -602,7 +611,12 @@ export class App implements ToolHost {
     // A dotted line from a matched point to where it was projected.
     if (r?.ref) this.view.setGuide("refGuide", r.ref.point, r.point, this.previewColor);
     else this.view.clearLayer("refGuide");
-    if (r && r.from && (r.kind === "axis" || r.kind === "line")) {
+    if (r && r.from && (r.kind === "parallel" || r.kind === "perpendicular")) {
+      // The magenta line from the anchor along the referenced edge's direction.
+      const dir = norm(sub(r.point, r.from));
+      const far = this.camera.dist * 4;
+      this.view.setGuide("guide", add(r.from, scale(dir, -far)), add(r.from, scale(dir, far)), MAGENTA);
+    } else if (r && r.from && (r.kind === "axis" || r.kind === "line" || r.kind === "fromPoint")) {
       const color = r.axis !== undefined ? this.axisColors[r.axis] : this.previewColor;
       const dir = r.axis !== undefined ? AXES[r.axis] : null;
       if (dir) {
@@ -695,6 +709,8 @@ export class App implements ToolHost {
       if (document.activeElement === $("vcb")) $("vcb").blur();
       const p = this.pointer(ev);
       this.copyTap = false;
+      // A click ends the from-point memory before the tool sees it.
+      this.inference.clicked();
       if (ev.button === 1 || ev.button === 2) {
         drag = { mode: ev.shiftKey ? "pan" : "orbit", x: p.x, y: p.y, moved: false };
         canvas.style.cursor = "grabbing";
@@ -886,7 +902,9 @@ export class App implements ToolHost {
     }
     if (k === "ArrowDown") {
       ev.preventDefault();
-      this.inference.unlock();
+      // Parallel, perpendicular, off against the referenced edge; with nothing
+      // referenced, Down clears whatever lock is on.
+      if (this.inference.cycleEdgeLock() === null && !this.inference.referencedEdge()) this.inference.unlock();
       this.positionLabels();
       return;
     }
@@ -894,6 +912,7 @@ export class App implements ToolHost {
       if (this.inference.lockCurrent()) this.positionLabels();
       return;
     }
+    if (k === "Escape") this.inference.reset();
     if (this.tool.key?.(k, ev.shiftKey)) {
       this.hintChanged();
       return;

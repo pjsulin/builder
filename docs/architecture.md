@@ -257,12 +257,13 @@ Tools never touch Three.js or the DOM. They get a `ToolHost` (`app/src/tools/too
 
 **One inference engine** serves every tool. Given the cursor, the camera, an optional anchor point (the start of the current line) and an optional plane, it returns the best candidate by priority:
 
-1. Point inferences: endpoint, midpoint, origin (later also intersection, center and guide point). Screen-space radius of 12 px. Points hidden behind faces are skipped.
-2. Linear inferences from the anchor: along the red, green and blue axes. Next come parallel and perpendicular to a referenced edge, and "from point" alignment with the last hovered point.
-3. On edge, on face.
-4. The tool's working plane, or the ground.
+1. Point inferences: endpoint (green), midpoint (cyan), origin, guide point (`Guide Point`, grey), then intersection (`Intersection`, where two edges, two guide lines or an edge and a guide cross, ranked below the others; a centre inference comes with curves). Screen-space radius of 12 px. Points hidden behind faces are skipped.
+2. Linear inferences from the anchor: along the red, green and blue axes (`On Red Axis`), then parallel and perpendicular to the referenced edge (`Parallel to Edge`, `Perpendicular to Edge`, magenta; the perpendicular lies in the working plane, else in the plane of the edge and the anchor).
+3. On edge (`On Edge`, red), on guide (`On Guide`, grey).
+4. "From point" alignment (`From Point`, dotted in the axis colour from the remembered point) when the cursor lines up on an axis with the last point hovered.
+5. The tool's working plane, on face, or the ground.
 
-Each result carries a kind, a color and a label (`Endpoint`, `On Blue Axis`, `On Face`), which the overlay shows like SketchUp's markers. **Locks:** Right/Left/Up arrows lock to the red/green/blue axis. Down clears the lock (in SketchUp it locks parallel/perpendicular, which comes with that inference). Shift locks the current axis, edge direction or face plane while held. With a lock, hovering any point projects it onto the locked line, which is how you match a height. The engine is pure TypeScript with no Three.js dependency, over a small "scene query" interface, so it is unit-tested without a browser.
+Each result carries a kind, a color and a label, which the overlay shows like SketchUp's markers. **Memories:** the engine keeps the *referenced edge*, the last edge hovered with an On Edge result, which feeds parallel and perpendicular; and the *from-point memory*, the last point snapped to, which the app ends with `clicked()` on every pointerdown. Both are cleared by `reset()` on a tool change and Esc. **Locks:** Right/Left/Up arrows lock to the red/green/blue axis. Down cycles parallel, perpendicular, off against the referenced edge (`cycleEdgeLock`), and clears whatever lock is on when no edge is referenced. Shift locks the current axis, edge or guide direction, parallel or perpendicular cue, or face plane while held. With a lock, hovering any point projects it onto the locked line, which is how you match a height. The engine is pure TypeScript with no Three.js dependency, over a small "scene query" interface, so it is unit-tested without a browser.
 
 **One Measurements box** is shared by all tools. It handles typing without focusing (any digit starts typing), parses `8'6"`, `8' 6"`, `30 1/2"`, `2.4m`, `600mm` and `w, d` pairs, and sends the value to the active tool. After an operation finishes, the tool keeps a "last op" handle, so retyping amends it. That is implemented as undo of the last transaction plus redo with the typed value, which keeps the kernel simple.
 

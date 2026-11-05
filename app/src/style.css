@@ -7,6 +7,7 @@
   --face: #f1f2f3; --back: #9fb0c4; --edge: #1a1e24; --sel: #2f6fd6; --hover: #2c5e8c;
   --ax-x: #c4463c; --ax-y: #3a8746; --ax-z: #3c5fb5;
   --snap-end: #2f9a46; --snap-mid: #1b98ab; --snap-edge: #c4463c; --snap-face: #3c5fb5;
+  --snap-para: #c43cb0; --snap-guide: #8a8f99;
   --f-ui: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
   --f-brand: "IBM Plex Sans Condensed", "Arial Narrow", system-ui, sans-serif;
   --f-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
@@ -19,6 +20,7 @@
     --face: #cdd2d8; --back: #6f8299; --edge: #0d1014; --sel: #6e9bd0; --hover: #7eaee3;
     --ax-x: #e0685e; --ax-y: #5db36b; --ax-z: #7392e3;
     --snap-end: #4cc265; --snap-mid: #3cc0d2; --snap-edge: #e0685e; --snap-face: #7392e3;
+    --snap-para: #e067cf; --snap-guide: #a6abb5;
     color-scheme: dark;
   }
 }
@@ -90,6 +92,9 @@ dialog h2 { margin: 0 0 10px; font: 600 11px var(--f-ui); letter-spacing: .08em;
 .marker.ax0 { border-color: var(--ax-x); }
 .marker.ax1 { border-color: var(--ax-y); }
 .marker.ax2 { border-color: var(--ax-z); }
+.marker.para { border-color: var(--snap-para); border-radius: 2px; }
+.marker.from { border-style: dotted; }
+.marker.guide { border-color: var(--snap-guide); border-radius: 2px; }
 .badge { position: absolute; left: 12px; top: 10px; font-size: 12px; color: var(--fg); background: color-mix(in srgb, var(--panel) 85%, transparent); border: 1px solid var(--line); border-radius: 5px; padding: 3px 8px; }
 .badge.lock { left: auto; right: 12px; color: var(--accent); border-color: var(--accent); }
 .marquee { position: absolute; border: 1px solid var(--sel); background: color-mix(in srgb, var(--sel) 10%, transparent); }

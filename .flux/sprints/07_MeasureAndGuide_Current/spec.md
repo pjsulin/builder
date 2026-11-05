@@ -623,7 +623,7 @@ class InferenceEngine {
 }
 ```
 
-Ranking in `compute`: point snaps (endpoint, midpoint, origin, guidePoint) → intersection → line constraints and locks (axis, parallel, perpendicular) → axis and from-point cues → onEdge, onGuide → plane, onFace, ground. Labels: `Guide Point`, `Intersection`, `Parallel to Edge`, `Perpendicular to Edge`, `From Point`, `On Guide`. Marker colours: magenta for parallel and perpendicular, the existing dotted axis colour for fromPoint, grey for guides.
+Ranking in `compute`: point snaps (endpoint, midpoint, origin, guidePoint) → intersection → line constraints and locks (axis, parallel, perpendicular) → axis, parallel and perpendicular cues → onEdge, onGuide → from-point cue → plane, onFace, ground. (Amended 2026-11-05 at execution: from-point sits below On Edge and On Guide; see plan.md Task 5.2.) Labels: `Guide Point`, `Intersection`, `Parallel to Edge`, `Perpendicular to Edge`, `From Point`, `On Guide`. Marker colours: magenta for parallel and perpendicular, the existing dotted axis colour for fromPoint, grey for guides.
 
 **Units (`app/src/units.ts`)**
 

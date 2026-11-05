@@ -1,9 +1,9 @@
 // Picking whole entities (faces, edges, groups, guides) for Select, Move and Erase.
 
 import type { Entity } from "../kernel/model";
-import { dist, lineRayParam, madd, sub, type Vec3 } from "../math";
+import { dist, lineRayParam, madd, sub } from "../math";
 import type { CameraModel } from "../view/camera";
-import type { SceneIndex, WorldGuide } from "../view/scene";
+import { guideScreenDistance, type SceneIndex, type WorldGuide } from "../view/scene";
 
 const EDGE_PX = 5;
 const POINT_PX = 8;
@@ -52,35 +52,13 @@ export function pickEntity(scene: SceneIndex, cam: CameraModel, x: number, y: nu
 
 /** The nearest guide within radius of the cursor and not behind `visibleDepth`. */
 function pickGuide(scene: SceneIndex, cam: CameraModel, x: number, y: number, visibleDepth: number): WorldGuide | null {
-  const ray = cam.ray(x, y);
+  const eye = cam.ray(x, y).origin;
   let best: { g: WorldGuide; d: number } | null = null;
   for (const g of scene.guides()) {
-    let d: number;
-    let at: Vec3;
-    if (g.kind === "point") {
-      const s = cam.project(g.origin);
-      if (!s) continue;
-      d = Math.hypot(x - s.x, y - s.y);
-      if (d > POINT_PX) continue;
-      at = g.origin;
-    } else {
-      // The screen line through the projection of the guide's closest approach to
-      // the pick ray and a point a little further along; the guide is unbounded.
-      const k = lineRayParam(g.origin, g.dir, ray);
-      if (k === null) continue;
-      at = madd(g.origin, g.dir, k);
-      const a = cam.project(at);
-      const b = cam.project(madd(at, g.dir, cam.dist * 0.01));
-      if (!a || !b) continue;
-      const dx = b.x - a.x;
-      const dy = b.y - a.y;
-      const l2 = dx * dx + dy * dy;
-      const t = l2 > 0 ? ((x - a.x) * dx + (y - a.y) * dy) / l2 : 0;
-      d = Math.hypot(x - (a.x + dx * t), y - (a.y + dy * t));
-      if (d > EDGE_PX) continue;
-    }
-    if (dist(ray.origin, at) > visibleDepth) continue;
-    if (!best || d < best.d) best = { g, d };
+    const r = guideScreenDistance(cam, g, x, y);
+    if (!r || r.d > (g.kind === "point" ? POINT_PX : EDGE_PX)) continue;
+    if (dist(eye, r.at) > visibleDepth) continue;
+    if (!best || r.d < best.d) best = { g, d: r.d };
   }
   return best?.g ?? null;
 }

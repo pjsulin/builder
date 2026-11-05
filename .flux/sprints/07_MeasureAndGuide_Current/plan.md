@@ -191,13 +191,13 @@ Sprint 2.3 of Milestone 2: guides as a kernel entity saved under an additive `gu
 
 ### Phase 5: Inference Kinds and Locks
 
-**Status:** pending
+**Status:** completed
 **Dependencies:** [Phase 4]
 
 #### Task 5.1: Reference edge, from-point memory and the edge-lock cycle
 
 - **Type:** implement
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [Phase 4]
 - **Files:**
   - Modify: app/src/inference/engine.ts
@@ -207,17 +207,17 @@ Sprint 2.3 of Milestone 2: guides as a kernel entity saved under an additive `gu
 #### Task 5.2: From-point, intersection and guide snaps
 
 - **Type:** implement
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [5.1]
 - **Files:**
   - Modify: app/src/inference/engine.ts
 - **Context:** [spec.md§Interfaces](spec.md#interfaces)
-- **Description:** `fromPoint` cue when the cursor aligns on an axis with the remembered point (dotted, from that point); `intersection` of edge–edge, edge–guide and guide–guide pairs in screen radius, as a point snap below endpoint and midpoint; `guidePoint` with the point snaps; `onGuide` with on-edge; all honouring `visible` and the working plane like the existing snaps.
+- **Description:** `fromPoint` cue when the cursor aligns on an axis with the remembered point (dotted, from that point); `intersection` of edge–edge, edge–guide and guide–guide pairs in screen radius, as a point snap below endpoint and midpoint; `guidePoint` with the point snaps; `onGuide` with on-edge; all honouring `visible` and the working plane like the existing snaps. (2026-11-05: the from-point cue ranks below On Edge and On Guide, not with the axis cues as spec.md § Interfaces lists: a cursor on an edge is a firmer intent than an alignment, and the Rectangle-on-a-wall test relies on On Edge winning there. spec.md's ranking line is amended to match.)
 
 #### Task 5.3: Down arrow and reset in the app
 
 - **Type:** implement
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [5.1]
 - **Files:**
   - Modify: app/src/app.ts
@@ -228,7 +228,7 @@ Sprint 2.3 of Milestone 2: guides as a kernel entity saved under an additive `gu
 #### Task 5.4: Engine tests
 
 - **Type:** test
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [5.2, 5.3]
 - **Files:**
   - Modify: app/test/inference.test.ts
@@ -238,7 +238,7 @@ Sprint 2.3 of Milestone 2: guides as a kernel entity saved under an additive `gu
 #### Task 5.5: Architecture § 6 inference
 
 - **Type:** document
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [5.2]
 - **Files:**
   - Modify: docs/architecture.md

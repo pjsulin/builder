@@ -5,7 +5,7 @@
 import type { DefBuffers, GuideRecord, MaterialInfo, Model } from "../kernel/model";
 import type { CameraModel } from "./camera";
 import { ROOT } from "../kernel/model";
-import { apply, applyDir, IDENTITY, mul, norm, type Mat4, type Ray, type Vec3 } from "../math";
+import { apply, applyDir, IDENTITY, lineRayParam, madd, mul, norm, type Mat4, type Ray, type Vec3 } from "../math";
 
 export interface DrawItem {
   def: number;
@@ -313,4 +313,28 @@ function transformInto(out: Float32Array, offset: number, src: Float32Array, m: 
     out[offset + i + 1] = m[1] * x + m[5] * y + m[9] * z + m[13];
     out[offset + i + 2] = m[2] * x + m[6] * y + m[10] * z + m[14];
   }
+}
+
+/**
+ * How far the cursor is from a guide on screen, and the guide point under it: a
+ * point's own position, or the guide line's closest approach to the pick ray.
+ * The line is unbounded, so its screen distance is to the whole projected line.
+ */
+export function guideScreenDistance(cam: CameraModel, g: WorldGuide, x: number, y: number): { d: number; at: Vec3 } | null {
+  if (g.kind === "point") {
+    const s = cam.project(g.origin);
+    return s ? { d: Math.hypot(x - s.x, y - s.y), at: g.origin } : null;
+  }
+  const ray = cam.ray(x, y);
+  const k = lineRayParam(g.origin, g.dir, ray);
+  if (k === null) return null;
+  const at = madd(g.origin, g.dir, k);
+  const a = cam.project(at);
+  const b = cam.project(madd(at, g.dir, cam.dist * 0.01));
+  if (!a || !b) return null;
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  const l2 = dx * dx + dy * dy;
+  const t = l2 > 0 ? ((x - a.x) * dx + (y - a.y) * dy) / l2 : 0;
+  return { d: Math.hypot(x - (a.x + dx * t), y - (a.y + dy * t)), at };
 }
