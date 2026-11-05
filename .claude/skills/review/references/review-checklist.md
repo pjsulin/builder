@@ -70,9 +70,9 @@ Run against an open ad-hoc's Plan instead of the sections above.
 - [ ] All Status fields are `pending`, except tasks already committed in an ad-hoc recorded after its work
 - [ ] Every Files path is exact and exists or is created by an earlier task; none is gitignored (`git check-ignore -v`)
 - [ ] Every task names at least one file; no task only restates a criterion
-- [ ] Every call site of a changed symbol (`ast-grep run`) is in some task's Files
+- [ ] Every call site of a changed symbol (`uv run ast-grep run`) is in some task's Files
 - [ ] A test task for code changes; a document task for every doc under Impact Docs
 - [ ] Dependencies reference earlier task IDs; no cycles
 - [ ] Criteria are `- [ ]` checkboxes, each served by a task
-- [ ] Impact Backlog cites every related pending item in `flux backlog list`
+- [ ] Impact Backlog cites every related pending item in `uv run flux backlog list`
 - [ ] No need for a new or superseding ADR, several approaches, or multi-session work (else convert)

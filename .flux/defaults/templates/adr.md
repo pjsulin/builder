@@ -14,7 +14,7 @@ created: {date}
 
 ## Decision
 
-[The decision, stated in one sentence first. `flux adr list` prints that sentence.]
+[The decision, stated in one sentence first. `uv run flux adr list` prints that sentence.]
 
 ## Consequences
 

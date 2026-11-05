@@ -1,7 +1,7 @@
 ---
 sprint: {name}
 created: {date}
-start: null    # commit; set by `flux sprint move <Name> Current`, close diffs against it
+start: null    # commit; set by `uv run flux sprint move <Name> Current`, close diffs against it
 started: null  # date; set by the same move
 ---
 # Requirements: {name}

@@ -1,4 +1,4 @@
-commit: e41a3ad
+commit: f5ae8e3
 budget: 1000
 
 app/src/math.ts:
@@ -30,20 +30,6 @@ app/src/store/autosaver.ts:
 │  setTimer?: (fn: () => void, ms: number) => unknown;
 │  clearTimer?: (handle: unknown) => void;
 │  /** Default console.error. Store failures land here, never in the tool that committed. */
-⋮
-
-app/src/tools/tool.ts:
-# The tool framework. Each tool is a small state machine driven by pointer, key and
-⋮
-│export interface ToolPointer {
-│  /** Pixels from the viewport's top left. */
-│  x: number;
-│  y: number;
-│  shift: boolean;
-│  ctrl: boolean;
-│  alt: boolean;
-│  /** The copy modifier is held (Option on Mac, Ctrl elsewhere). */
-│  copy: boolean;
 ⋮
 
 app/src/units.ts:
@@ -85,16 +71,10 @@ kernel/src/math.rs:
 │    pub fn is_finite(self) -> bool {
 │        self.x.is_finite() && self.y.is_finite() && self.z.is_finite()
 ⋮
-
-survey/src/builder_survey/generate/fixtures/registry.py:
-# Fixture type registry.
-⋮
-│TYPES = {}
-│
-⋮
-│def fixture_type(name, own_z=False):
-│    def register(builder):
-│        if name in TYPES:
-│            sys.exit(f"fixture type {name!r} is registered twice")
-│        TYPES[name] = (builder, own_z)
+│pub fn mat_apply(m: &Mat4, p: V3) -> V3 {
+│    V3::new(
+│        m[0] * p.x + m[4] * p.y + m[8] * p.z + m[12],
+│        m[1] * p.x + m[5] * p.y + m[9] * p.z + m[13],
+│        m[2] * p.x + m[6] * p.y + m[10] * p.z + m[14],
+│    )
 ⋮

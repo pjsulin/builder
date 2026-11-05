@@ -1,0 +1,15 @@
+[project]
+name = "builder-dev"
+version = "0.0.0"
+description = "builder workspace. This root project exists only for dev tooling (flux); the app is the Rust/npm workspace."
+requires-python = ">=3.11"
+dependencies = []
+
+[dependency-groups]
+dev = ["flux"]
+
+[tool.uv]
+package = false
+
+[tool.uv.sources]
+flux = { git = "ssh://git@github.com/pjsulin/flux.git", tag = "v0.8.0" }

@@ -17,7 +17,7 @@ status: open
 
 ## Criteria
 
-[Acceptance checkboxes. For a measurable change write `Baseline: N. Target: M.` in the box (for failing tests, N is the `known:` count from `flux test`); close appends `After (<sha>): K.` Tick a box with its evidence when the work meets it; close checks every tick and ticks the rest or moves them to the backlog.]
+[Acceptance checkboxes. For a measurable change write `Baseline: N. Target: M.` in the box (for failing tests, N is the `known:` count from `uv run flux test`); close appends `After (<sha>): K.` Tick a box with its evidence when the work meets it; close checks every tick and ticks the rest or moves them to the backlog.]
 
 - [ ] 
 

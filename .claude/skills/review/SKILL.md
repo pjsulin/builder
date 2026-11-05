@@ -10,7 +10,7 @@ Validate a planned sprint: requirements trace to spec, spec traces to plan, prop
 ## When to Use
 
 - After `/plan` has written spec.md and plan.md (sprint status Created)
-- Before `flux sprint move <Name> Current`
+- Before `uv run flux sprint move <Name> Current`
 - When a sprint feels off but you cannot say why
 - On an open ad-hoc after `/plan-adhoc` wrote its Plan, before `/execute`
 
@@ -20,11 +20,11 @@ Validate a planned sprint: requirements trace to spec, spec traces to plan, prop
 
 1. Sprint docs: `requirements.md`, `spec.md`, `plan.md`, `kickoff.md` if present
 2. Proposed ADRs: the sprint directory's `decisions/*.md`
-3. Accepted ADRs: `flux adr list`, then read each accepted one that touches the sprint's area
+3. Accepted ADRs: `uv run flux adr list`, then read each accepted one that touches the sprint's area
 4. `references/review-checklist.md` in this skill
-5. The backlog: `flux backlog list`
+5. The backlog: `uv run flux backlog list`
 
-**Ad-hoc:** the ad-hoc file (`flux adhoc list` shows the one `open`), accepted ADRs, the checklist's Ad-hoc section, the backlog.
+**Ad-hoc:** the ad-hoc file (`uv run flux adhoc list` shows the one `open`), accepted ADRs, the checklist's Ad-hoc section, the backlog.
 
 ### Step 2: Requirements to Spec traceability
 
@@ -32,11 +32,11 @@ For each feature and success criterion in requirements.md:
 - Is there a spec item (interface, data model, validation criterion) that delivers it?
 - Are there spec items with no requirement origin? (scope creep or missing requirement)
 
-Impact Backlog: every pending item in `flux backlog list` that touches the work's files or features is cited under Impact Backlog with closes, partly or out of scope; `flux backlog show` the candidates. An uncited related item is a warning.
+Impact Backlog: every pending item in `uv run flux backlog list` that touches the work's files or features is cited under Impact Backlog with closes, partly or out of scope; `uv run flux backlog show` the candidates. An uncited related item is a warning.
 
 Report requirements with no spec coverage, spec items with no requirement, and uncited backlog items.
 
-**Ad-hoc:** every Criteria entry is a `- [ ]` checkbox; every criterion is served by some Plan task; Impact Backlog checked against `flux backlog list` as above.
+**Ad-hoc:** every Criteria entry is a `- [ ]` checkbox; every criterion is served by some Plan task; Impact Backlog checked against `uv run flux backlog list` as above.
 
 ### Step 3: Spec to Plan traceability
 
@@ -49,7 +49,7 @@ Every Create and Modify path in plan.md must be committable: run `git check-igno
 
 Report spec items with no task, tasks with no spec basis, path mismatches, ignored paths.
 
-**Ad-hoc:** every task's Files are exact paths that exist (`git ls-files <path>`) or are created by an earlier task, and none is gitignored (`git check-ignore -v`, blocking as above). Every task names a file, so none restates a criterion. Check the Files against the code: `ast-grep run` call sites of each changed symbol are in some task's Files.
+**Ad-hoc:** every task's Files are exact paths that exist (`git ls-files <path>`) or are created by an earlier task, and none is gitignored (`git check-ignore -v`, blocking as above). Every task names a file, so none restates a criterion. Check the Files against the code: `uv run ast-grep run` call sites of each changed symbol are in some task's Files.
 
 ### Step 4: ADR check
 
@@ -130,11 +130,11 @@ After blocking issues are resolved, append to plan.md:
 **Plan Status:** Ready for implementation
 ```
 
-Then `flux sprint move <Name> Ready`, so `flux sprint list` shows the sprint as planned and reviewed.
+Then `uv run flux sprint move <Name> Ready`, so `uv run flux sprint list` shows the sprint as planned and reviewed.
 
 **Ad-hoc:** no Plan Review section and no move; add a dated Log line `<date>: reviewed, N blocking and M warnings fixed`.
 
-Report. Next step: for a sprint `flux sprint move <Name> Current`, then `/execute`; for an ad-hoc `/execute`.
+Report. Next step: for a sprint `uv run flux sprint move <Name> Current`, then `/execute`; for an ad-hoc `/execute`.
 
 ## Key Principles
 

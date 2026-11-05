@@ -10,3 +10,5 @@ test:
   command: cargo test --workspace && npm test && uv run --project survey pytest survey/tests
   junit: []
   timeout: 900
+flux:
+  command: uv run flux

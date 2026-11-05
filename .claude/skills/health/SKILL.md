@@ -13,7 +13,7 @@ The skill is interactive where the user knows more than the repository says: whi
 
 ## When to Use
 
-- Before the first record in a repository, right after `flux init`
+- Before the first record in a repository, right after `uv run flux init`
 - When flux warns that `test.command` is unset
 - When work keeps hitting problems that seem unrelated
 - Again after fixes, to see what was resolved
@@ -24,7 +24,7 @@ In `paths.health` (default `.flux/health/`):
 - `report.md`: the readable report
 - `findings.yaml`: the findings as data, read by the next run
 - `targets.yaml`: every entry point found, where it is defined, whether CI runs it, and what happened when it ran
-- `baseline.yaml`: the known failing tests, written by `flux test --record`
+- `baseline.yaml`: the known failing tests, written by `uv run flux test --record`
 
 ## Workflow
 
@@ -115,9 +115,9 @@ Propose `test.command` and `test.junit` from the test targets that ran:
 - each runner writes JUnit XML to its own file under `.flux/results/`, and `test.junit` lists one pattern per runner
 - a runner that cannot write JUnit leaves `test.junit` empty for the whole command, and the exit-code rule applies
 
-Show the proposal and ask the user. On acceptance, write it to `.flux/config.yaml`, run `flux test --record`, and fill each baseline entry's `backlog` field when a backlog item covers it.
+Show the proposal and ask the user. On acceptance, write it to `.flux/config.yaml`, run `uv run flux test --record`, and fill each baseline entry's `backlog` field when a backlog item covers it.
 
-`flux test` runs in the user's checkout, because close runs it there. If it warns that the run changed tracked files, restore them (`git checkout -- <path>`) before committing, and record the tracked test output as a `tidiness/tracked-generated` finding.
+`uv run flux test` runs in the user's checkout, because close runs it there. If it warns that the run changed tracked files, restore them (`git checkout -- <path>`) before committing, and record the tracked test output as a `tidiness/tracked-generated` finding.
 
 ### Step 7: Write the report
 
@@ -159,7 +159,7 @@ targets:
 
 ### Step 8: Findings to the backlog
 
-Group the untracked findings by area. For each, propose one backlog item: `flux backlog new "<area>: <problem>" --description "<fix, one line>" --details "<id>\n<evidence>\n<fix>"`. Findings with one cause (38 tracked files matching one ignore rule) are one item. Ask the user to accept or skip each proposal. With no answer, create nothing: the findings stay untracked in the report, and the Step 9 summary lists them so the user can accept them later. Create the accepted ones, and write their numbers into `findings.yaml` and `report.md`, then amend the report commit or make a second one.
+Group the untracked findings by area. For each, propose one backlog item: `uv run flux backlog new "<area>: <problem>" --description "<fix, one line>" --details "<id>\n<evidence>\n<fix>"`. Findings with one cause (38 tracked files matching one ignore rule) are one item. Ask the user to accept or skip each proposal. With no answer, create nothing: the findings stay untracked in the report, and the Step 9 summary lists them so the user can accept them later. Create the accepted ones, and write their numbers into `findings.yaml` and `report.md`, then amend the report commit or make a second one.
 
 ### Step 9: Clean up
 

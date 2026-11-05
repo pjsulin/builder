@@ -4,7 +4,7 @@ Signatures, schemas and contracts, never function bodies.
 
 ## Baseline
 
-Output of `flux repomap` for the modules this sprint touches, pasted at plan time. Close Gate 2 diffs the finished code against this and the Interfaces section below.
+Output of `uv run flux repomap` for the modules this sprint touches, pasted at plan time. Close Gate 2 diffs the finished code against this and the Interfaces section below.
 
 ```
 [paste flux repomap output here]

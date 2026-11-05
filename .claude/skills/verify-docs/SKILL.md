@@ -22,7 +22,7 @@ Validate that documentation accurately reflects the codebase. Used standalone an
 
 3. **Verify each claim** against the codebase:
    - Referenced files exist: `ls` or `git ls-files`
-   - Described functions, classes and CLI commands exist: `flux repomap <file>` for the file, `ast-grep run -p '<pattern>'` for the definition
+   - Described functions, classes and CLI commands exist: `uv run flux repomap <file>` for the file, `uv run ast-grep run -p '<pattern>'` for the definition
    - Code examples are syntactically valid and call real signatures
    - Configuration options are real keys in the defaults file
    - Command examples produce the described output when cheap to run

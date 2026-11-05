@@ -13,12 +13,12 @@ Scan the current conversation for decisions, scope, and technical direction, the
 - When the user says "let's do this" or "create a sprint for this"
 - To transition from freeform discussion to structured sprint planning
 
-A sprint is for work that needs a new or superseding ADR or an architectural decision, has several approaches that need research or a design doc, or spans sessions or hand-offs (roughly more than a day). If none applies, say so and propose `flux adhoc new "<title>"` with What, Why and Criteria instead; proceed with a sprint only if the user still wants one.
+A sprint is for work that needs a new or superseding ADR or an architectural decision, has several approaches that need research or a design doc, or spans sessions or hand-offs (roughly more than a day). If none applies, say so and propose `uv run flux adhoc new "<title>"` with What, Why and Criteria instead; proceed with a sprint only if the user still wants one.
 
 ## Prerequisites
 
 - Conversation contains enough context to identify: what the work is, why it's needed, and the general approach
-- `.flux/` directory exists (`flux init` has been run)
+- `.flux/` directory exists (`uv run flux init` has been run)
 
 ## Workflow
 
@@ -33,7 +33,7 @@ Read back through the conversation and extract:
 - **References:** Files, docs, artifacts, URLs, or code paths mentioned in conversation.
 - **Constraints:** Dependencies on other systems, time constraints, compatibility requirements, performance targets.
 - **Background:** What prompted this work: the problem being solved or opportunity being pursued.
-- **Backlog:** Run `flux backlog list` and `flux backlog show #ID` for every item related to the work. Each related item goes under requirements.md Impact Backlog marked closes, partly or out of scope; name the ones to pull in when presenting the summary.
+- **Backlog:** Run `uv run flux backlog list` and `uv run flux backlog show #ID` for every item related to the work. Each related item goes under requirements.md Impact Backlog marked closes, partly or out of scope; name the ones to pull in when presenting the summary.
 
 Present a summary to the user before proceeding. Ask for corrections or additions.
 
@@ -48,9 +48,9 @@ Confirm the name with the user.
 
 ### Step 3: Create sprint
 
-Run `flux sprint new <Name>`. If an open question blocks planning (facts still to research, or answers owed by someone else), run `flux sprint new <Name> --research` instead: the kickoff's Open Questions are the research to do, and the sprint moves to Created with `flux sprint move <Name> Created` once they are answered.
+Run `uv run flux sprint new <Name>`. If an open question blocks planning (facts still to research, or answers owed by someone else), run `uv run flux sprint new <Name> --research` instead: the kickoff's Open Questions are the research to do, and the sprint moves to Created with `uv run flux sprint move <Name> Created` once they are answered.
 
-For work already committed, the sprint is recorded after the fact: at the move to Current, run `flux sprint move <Name> Current --start <first commit's parent>`, and list its commits under `commits:` in requirements.md frontmatter when their subjects lack the `(sprint-NN):` scope.
+For work already committed, the sprint is recorded after the fact: at the move to Current, run `uv run flux sprint move <Name> Current --start <first commit's parent>`, and list its commits under `commits:` in requirements.md frontmatter when their subjects lack the `(sprint-NN):` scope.
 
 This creates `.flux/sprints/<Name>_Created/` (or `<Name>_Research/`) with requirements.md, spec.md, plan.md from the templates and an empty `decisions/`.
 
@@ -65,7 +65,7 @@ Copy `.flux/defaults/templates/sprints/kickoff.md` into the sprint directory as 
 - **Open Questions:** unresolved items to address during planning, each answerable through research or design work.
 - **References:** files, docs, artifacts, code paths referenced in conversation.
 
-Replace every `[...]` placeholder. Keep the headings as the template has them: `flux check` reports a missing or unlisted section against `flux/schemas/kickoff.yaml`.
+Replace every `[...]` placeholder. Keep the headings as the template has them: `uv run flux check` reports a missing or unlisted section against `flux/schemas/kickoff.yaml`.
 
 Apply the 5-minute read test: if the kickoff document takes more than 5 minutes to read, it's too long. Focus on decisions, not descriptions.
 
@@ -74,7 +74,7 @@ Apply the 5-minute read test: if the kickoff document takes more than 5 minutes 
 Report to user:
 - Sprint created: `<Name>_Created` or `<Name>_Research`
 - Kickoff captured at: `.flux/sprints/<Name>_<Status>/kickoff.md`
-- For a Research sprint: the open questions to answer before `flux sprint move <Name> Created`
+- For a Research sprint: the open questions to answer before `uv run flux sprint move <Name> Created`
 - Next step: fill in requirements.md (Background from the kickoff's Background and the user's own statement, a Why line per feature, Summary, Goals, Features, Success Criteria, Impact, Scope) from the kickoff, then run `/plan`.
 
 ## Output

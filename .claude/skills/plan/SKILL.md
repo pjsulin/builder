@@ -15,14 +15,14 @@ Turn a sprint's requirements into spec.md and plan.md. Two passes with a user ch
 
 ## Prerequisites
 
-- Sprint exists: `flux sprint list --status Created`
+- Sprint exists: `uv run flux sprint list --status Created`
 - requirements.md has Background, Summary, Goals, Features, Success Criteria, Impact and Scope filled in
 
 ## Workflow
 
 ### Step 1: Identify the sprint
 
-If the user names a sprint, use it. Otherwise run `flux sprint list --status Created`; if more than one, ask which.
+If the user names a sprint, use it. Otherwise run `uv run flux sprint list --status Created`; if more than one, ask which.
 
 ### Step 2: Read sprint documents
 
@@ -33,7 +33,7 @@ Read, in order:
 
 Background and kickoff.md say why the work exists. Every phase and task must serve that reason. When a feature reads two ways, choose the reading Background supports; when Background is empty or contradicts kickoff.md, stop and ask.
 
-Read the backlog: `flux backlog list`, then `flux backlog show #ID` for every item related to the work. Each related item is cited under requirements.md Impact Backlog marked closes, partly or out of scope; add the ones missing and raise with the user any that should be pulled into scope.
+Read the backlog: `uv run flux backlog list`, then `uv run flux backlog show #ID` for every item related to the work. Each related item is cited under requirements.md Impact Backlog marked closes, partly or out of scope; add the ones missing and raise with the user any that should be pulled into scope.
 
 Read `.flux/decisions/` and note every accepted ADR that touches the area. The spec must not contradict one without a proposed superseding ADR.
 
@@ -41,8 +41,8 @@ Read `.flux/decisions/` and note every accepted ADR that touches the area. The s
 
 Before writing anything:
 
-1. Run `flux repomap <files...>` for the modules the sprint touches. A focused map is unbudgeted and lists every definition in the named files. If the touched area is unclear, run `flux repomap --budget 4000` first to find it.
-2. For every existing symbol the sprint will change or remove, run `ast-grep run -p '<symbol>($$$)' --lang <lang>` (or the pattern that fits) to list call sites. Each call site is a file the plan must modify.
+1. Run `uv run flux repomap <files...>` for the modules the sprint touches. A focused map is unbudgeted and lists every definition in the named files. If the touched area is unclear, run `uv run flux repomap --budget 4000` first to find it.
+2. For every existing symbol the sprint will change or remove, run `uv run ast-grep run -p '<symbol>($$$)' --lang <lang>` (or the pattern that fits) to list call sites. Each call site is a file the plan must modify.
 3. Paste the focused repomap output into spec.md under `## Baseline`. This is what `/close` Gate 2 compares against; it must be the real output, not a summary.
 
 ### Step 4: Pass 1, phase structure
@@ -86,7 +86,7 @@ Present the structure. Do not write plan.md yet. Report missing inputs and anyth
 
 **spec.md.** Fill in, keeping the template's sections:
 - Summary
-- Decisions: Cited (accepted ADRs the spec relies on) and Proposed (ADRs to write with `flux adr new "<title>" --sprint`; write them now, status proposed)
+- Decisions: Cited (accepted ADRs the spec relies on) and Proposed (ADRs to write with `uv run flux adr new "<title>" --sprint`; write them now, status proposed)
 - Technical Specifications: Interfaces (signatures only), Data Models, Examples (call sites). Never function bodies.
 - Validation Criteria: the commands that prove it works
 
