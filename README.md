@@ -8,9 +8,10 @@ Early, but the core loop works on real geometry:
 
 - A Rust geometry kernel, compiled to WebAssembly, with **sticky geometry**. Lines weld and split each other, closed flat loops become faces, lines across faces split them, and shapes drawn inside faces become holes. Erasing a dividing edge merges faces.
 - **Push/Pull on any flat face**, including tilted roofs. Faces stretch or extrude, and pushing a door outline through a wall leaves an opening.
-- **Inference**: endpoints, midpoints, edges, faces and the red, green and blue axes. Arrow keys lock an axis, and Shift locks the current inference.
+- **Inference**: endpoints, midpoints, intersections, guide points, edges, guides, faces and the red, green and blue axes; parallel and perpendicular to the last edge hovered (magenta), and alignment with the last point hovered. Arrow keys lock an axis, Down cycles parallel, perpendicular, off, and Shift holds the current inference.
 - **Measurements box**: just type `10'`, `8' 6"`, `30 1/2"`, `2.4m`, or `10', 8'` for rectangles. Retype right after an operation to change it.
-- Tools: Select (click, Shift-toggle, window and crossing boxes), Line, Rectangle, Push/Pull, Move (tap Ctrl, Option on a Mac, to copy instead), Rotate, Offset, Eraser, Orbit and Pan.
+- Tools: Select (click, Shift-toggle, window and crossing boxes), Line, Rectangle, Push/Pull, Move (tap Ctrl, Option on a Mac, to copy instead), Rotate, Offset, Tape Measure, Eraser, Orbit and Pan.
+- **Tape Measure** lays out before you draw. Press T; the cursor carries a `+` because it places guides. Click an edge (or its midpoint) and move off it, then click or type `4'`, for an infinite guide line parallel to the edge at that distance, in the plane of the face you moved across; click a face and move along an axis for a guide line across that axis. Click an endpoint, then a second point or a typed `2'`, for a guide point that far along. Retype right after to move the guide. Tap Ctrl (Option on a Mac) for measure-only mode: two clicks show the length in the Measurements box and change nothing. Guides snap like geometry (`On Guide`, `Guide Point`, `Intersection` where they cross), the Eraser and Delete remove them, **Delete guides** removes them all in one undo step, and **Hide guides** hides them, saved with the model.
 - **Rotate** with an on-screen protractor, in three clicks. The first click is the pin the selection turns about: on the selection (a corner, an edge midpoint) it turns in place; away from it, it swings round that point like a chair on a carousel, keeping its distance. The second click points the protractor's 0° mark; along the selection is the usual choice, and nothing moves yet. Then sweep or type the angle: `37` on a stair stringer pinned at its bottom corner gives a 37° pitch, a minus turns the other way. The protractor lies on the face under the cursor, or on the ground; an arrow key locks it to the red, green or blue axis. Sweeping snaps to 15° steps unless the cursor is on a point or an edge. Retype the angle right after to change it.
 - **Offset** an outline: press F, click a wall face near one of its edges, move the cursor into the wall and type `4"`; the wall splits into a 4" ring and an inner face, and Push/Pull on the ring makes the wall thickness. Click a window rectangle, move outward and type `3"` for a ring to pull into trim. Select a chain of edges first to offset them without closing. A typed value follows the direction you moved, a minus reverses it, and an offset that would cross itself is refused.
 - **Copy and arrays**: tap Ctrl (Option on a Mac) before or during a Move or Rotate to copy instead, or hold it while you click; the cursor reads *copy*, and a second tap switches back. Then type a count into the Measurements box: after copying a joist 16" along red, `9x` makes ten joists at 16" centres, and after a 12' copy `/9` spreads ten end to end. The same works round a centre: rotate-copy a post 60° about the middle of a table and type `5x` for six posts around it, or rotate-copy it 180° and type `/6` to spread six evenly. Retype the count to change it; one Undo removes the whole array.
@@ -68,20 +69,22 @@ Use `make start PORT=8080` or `HOST=0.0.0.0` to change the address. Run `make` w
 
 | Key | Action |
 | --- | --- |
-| Space, L, R, P, M, Q, F, E, O, H | Select, Line, Rectangle, Push/Pull, Move, Rotate, Offset, Eraser, Orbit, Pan |
+| Space, L, R, P, M, Q, F, T, E, O, H | Select, Line, Rectangle, Push/Pull, Move, Rotate, Offset, Tape Measure, Eraser, Orbit, Pan |
 | Middle or right drag; Shift + middle drag; scroll | Orbit; pan; zoom to cursor |
-| Right / Left / Up arrow | Lock to the red / green / blue axis. Down clears the lock. |
-| Shift (while drawing) | Lock the current inference |
+| Right / Left / Up arrow | Lock to the red / green / blue axis. |
+| Down arrow | Cycle parallel, perpendicular, off against the last edge hovered; with no edge hovered, clear the lock. |
+| Shift (while drawing) | Hold the current inference, including a parallel or perpendicular cue |
+| Ctrl (Option on a Mac), tapped, in Tape Measure | Switch between placing guides and measuring only |
 | Ctrl (Option on a Mac), tapped or held while clicking, in Move or Rotate | Copy instead of move or rotate; the cursor reads *copy*. `5x` or `/5` typed next makes an array |
 | Digits | Type into the Measurements box. Enter applies. |
 | G | Make a group from the selection |
 | Double-click | Edit a group, select a face with its edges, or repeat the last push/pull |
 | Esc | Cancel, clear the selection, or close the group being edited |
-| Delete | Erase the selection |
+| Delete | Erase the selection, guides included |
 | Ctrl+Z, Ctrl+Y, Ctrl+S, Ctrl+O, Ctrl+A | Undo, redo, save, open, select all |
 | Shift+Z | Zoom extents |
 
-Toolbar commands without keys: **Intersect with model** draws the edges where the selected faces or groups cross everything in the open context, **Intersect selection** only where they cross each other (the edges land in the open context; a group's own faces are cut by repeating the command inside it), and **Check model** reports overlapping edges, non-planar faces, faceless edges and duplicate vertices, or flashes "Model check: clean".
+Toolbar commands without keys: **Intersect with model** draws the edges where the selected faces or groups cross everything in the open context, **Intersect selection** only where they cross each other (the edges land in the open context; a group's own faces are cut by repeating the command inside it), **Check model** reports overlapping edges, non-planar faces, faceless edges, duplicate vertices and bad guides, or flashes "Model check: clean", **Delete guides** erases every guide line and point as one undo step, and **Hide guides** / **Show guides** toggles them, saved in the file as `guides_visible`.
 
 ## Report a problem
 

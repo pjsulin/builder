@@ -8,6 +8,9 @@
   --ax-x: #c4463c; --ax-y: #3a8746; --ax-z: #3c5fb5;
   --snap-end: #2f9a46; --snap-mid: #1b98ab; --snap-edge: #c4463c; --snap-face: #3c5fb5;
   --snap-para: #c43cb0; --snap-guide: #8a8f99;
+  /* The Tape Measure's cursor: a crosshair, with a + badge in guide-create mode. */
+  --cursor-measure: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='28' viewBox='0 0 28 28'%3E%3Cpath d='M10 2v16M2 10h16' stroke='%23fff' stroke-width='3'/%3E%3Cpath d='M10 2v16M2 10h16' stroke='%23000' stroke-width='1.2'/%3E%3Cpath d='M21 16v8M17 20h8' stroke='%23fff' stroke-width='3.5'/%3E%3Cpath d='M21 16v8M17 20h8' stroke='%23000' stroke-width='1.6'/%3E%3C/svg%3E") 10 10, crosshair;
+  --cursor-measure-only: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='28' viewBox='0 0 28 28'%3E%3Cpath d='M10 2v16M2 10h16' stroke='%23fff' stroke-width='3'/%3E%3Cpath d='M10 2v16M2 10h16' stroke='%23000' stroke-width='1.2'/%3E%3C/svg%3E") 10 10, crosshair;
   --f-ui: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
   --f-brand: "IBM Plex Sans Condensed", "Arial Narrow", system-ui, sans-serif;
   --f-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;

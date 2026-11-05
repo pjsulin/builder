@@ -247,23 +247,23 @@ Sprint 2.3 of Milestone 2: guides as a kernel entity saved under an additive `gu
 
 ### Phase 6: Tape Measure Tool
 
-**Status:** pending
+**Status:** completed
 **Dependencies:** [Phase 5]
 
 #### Task 6.1: TapeMeasureTool
 
 - **Type:** implement
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [Phase 5]
 - **Files:**
   - Create: app/src/tools/measure.ts
 - **Context:** [spec.md§Interfaces](spec.md#interfaces)
-- **Description:** State record, the Ctrl tap toggle through `modifier` as `MoveTool` does, endpoint or guide point → guide point, midpoint, edge or face → parallel guide line at the dragged or typed distance, measure-only mode reports the length read-only, locked context refused before preview, `lastGuide` retype through undo and redo, Esc cancels.
+- **Description:** State record, the Ctrl tap toggle through `modifier` as `MoveTool` does, endpoint or guide point → guide point, midpoint, edge or face → parallel guide line at the dragged or typed distance, measure-only mode reports the length read-only, locked context refused before preview, `lastGuide` retype through undo and redo, Esc cancels. (2026-11-05: the guide line's drag plane is chosen by the first movement from the planes of the edge's faces, not the camera-facing face: the deck rim's top edge dragged across the deck must give a line in the top plane. The drag never snaps back onto the clicked edge. `protractorNormal` and `radius` moved to exported helpers in `rotate.ts` in this phase, ahead of Task 7.2, since the tool needed the shared code.)
 
 #### Task 6.2: Register the tool
 
 - **Type:** implement
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [6.1]
 - **Files:**
   - Modify: app/src/app.ts
@@ -275,7 +275,7 @@ Sprint 2.3 of Milestone 2: guides as a kernel entity saved under an additive `gu
 #### Task 6.3: Tape Measure tests
 
 - **Type:** test
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [6.2]
 - **Files:**
   - Create: app/test/measure.test.ts
@@ -286,7 +286,7 @@ Sprint 2.3 of Milestone 2: guides as a kernel entity saved under an additive `gu
 #### Task 6.4: README and features for Tape Measure
 
 - **Type:** document
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [6.2]
 - **Files:**
   - Modify: README.md

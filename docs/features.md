@@ -81,7 +81,7 @@ Users don't praise SketchUp for its feature count. They praise a small number of
 | Inference engine (point, linear and from-point inferences) | Core | Built now: endpoint, midpoint, on edge, on face, origin, axes from the anchor. Parallel, perpendicular and from-point come next. |
 | Inference locks (arrow keys, Shift) | Core | Built now. |
 | Measurements box with imperial and metric parsing and retyping | Core | Built now. |
-| Tape Measure and guide lines and points | Core | |
+| Tape Measure and guide lines and points | Core | Built now: T places guides by default (the cursor's `+`). An edge or midpoint clicked and dragged off, in the plane of the face dragged across, gives an infinite guide line parallel to the edge at the dragged or typed distance; a face clicked and dragged gives a line across the axis nearest the drag; an endpoint or guide point clicked then a second point or typed distance gives a guide point. Retype right after to move the guide. Ctrl (Option on Mac) tapped switches to measure-only: two points show the length and change nothing. Guides are kernel entities owned by their definition (`guides` in the file), snapped to (`On Guide`, `Guide Point`, `Intersection`), erased by the Eraser and Delete, all at once by Delete guides, hidden by Hide guides (saved as `guides_visible`). Resizing the model from a measurement waits for Scale. |
 | Protractor and angled guides | Core | |
 | Model units, precision and snapping settings | Core | |
 | Dimensions and text labels in 3D | Later | |

@@ -10,6 +10,7 @@ import { LineTool } from "./tools/line";
 import { MoveTool } from "./tools/move";
 import { NavTool } from "./tools/nav";
 import { OffsetTool } from "./tools/offset";
+import { TapeMeasureTool } from "./tools/measure";
 import { PushPullTool } from "./tools/pushpull";
 import { RectangleTool } from "./tools/rectangle";
 import { RotateTool } from "./tools/rotate";
@@ -38,6 +39,11 @@ function copyKey(ev: KeyboardEvent | MouseEvent): boolean {
   return MAC ? ev.altKey : ev.ctrlKey;
 }
 const COPY_KEY = MAC ? "Alt" : "Control";
+
+/** A tool's cursor as a CSS value: the stylesheet draws the Tape Measure's own. */
+function cursorStyle(cursor: string): string {
+  return cursor === "measure" || cursor === "measure-only" ? `var(--cursor-${cursor})` : cursor;
+}
 
 /** SketchUp's colour for the parallel and perpendicular cues. */
 const MAGENTA = "#c43cb0";
@@ -102,6 +108,7 @@ export class App implements ToolHost {
       move: new MoveTool(this),
       rotate: new RotateTool(this),
       offset: new OffsetTool(this),
+      measure: new TapeMeasureTool(this),
       erase: new EraseTool(this),
       orbit: new NavTool(this, "orbit", nav),
       pan: new NavTool(this, "pan", nav),
@@ -170,7 +177,7 @@ export class App implements ToolHost {
   hintChanged(): void {
     $("hint").textContent = this.tool.hint();
     $("vcbLabel").textContent = this.tool.vcbLabel();
-    this.view.canvas.style.cursor = this.tool.cursor;
+    this.view.canvas.style.cursor = cursorStyle(this.tool.cursor);
   }
 
   enterGroup(instance: number): void {
@@ -217,7 +224,7 @@ export class App implements ToolHost {
     this.tool = next;
     next.activate?.();
     document.querySelectorAll<HTMLButtonElement>(".tool").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.tool === id)));
-    this.view.canvas.style.cursor = next.cursor;
+    this.view.canvas.style.cursor = cursorStyle(next.cursor);
     this.overlay = {};
     this.drawOverlay();
     this.hintChanged();
@@ -739,7 +746,7 @@ export class App implements ToolHost {
     canvas.addEventListener("pointerup", (ev) => {
       const d = drag;
       drag = null;
-      canvas.style.cursor = this.tool.cursor;
+      canvas.style.cursor = cursorStyle(this.tool.cursor);
       if (d?.mode === "tool") this.tool.up(this.pointer(ev), d.moved);
     });
     canvas.addEventListener("dblclick", (ev) => this.tool.doubleClick?.(this.pointer(ev)));
@@ -918,7 +925,7 @@ export class App implements ToolHost {
       return;
     }
     const keys: Record<string, string> = {
-      " ": "select", l: "line", r: "rectangle", p: "pushpull", m: "move", q: "rotate", f: "offset", e: "erase", o: "orbit", h: "pan",
+      " ": "select", l: "line", r: "rectangle", p: "pushpull", m: "move", q: "rotate", f: "offset", t: "measure", e: "erase", o: "orbit", h: "pan",
     };
     if (k === " ") ev.preventDefault();
     if (k === "Z" && ev.shiftKey) return this.zoomExtents();
