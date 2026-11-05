@@ -607,3 +607,54 @@ describe("Linear arrays", () => {
     expect(h2.model.instances(ROOT).length).toBe(1);
   });
 });
+
+describe("Model guides", () => {
+  it("adds, lists, erases and erases all through the wrappers", () => {
+    const h = new TestHost();
+    box(h);
+    const faces = [...new Set(h.scene().triFace)];
+    const g = h.model.transact("Make Group", () => h.model.makeGroup(ROOT, faces, [...h.scene().segEdge], []));
+    const def = h.model.instanceInfo(g)!.definition;
+    const ids = h.model.transact("Guides", () => [
+      h.model.addGuideLine(ROOT, [48, 0, 0], [0, 2, 0]),
+      h.model.addGuidePoint(ROOT, [0, 24, 0]),
+      h.model.addGuidePoint(def, [5, 5, 10]),
+    ]);
+    expect(h.model.guides(ROOT)).toEqual([
+      { id: ids[0], kind: "line", origin: [48, 0, 0], dir: [0, 1, 0] },
+      { id: ids[1], kind: "point", origin: [0, 24, 0], dir: [0, 0, 0] },
+    ]);
+    expect(h.model.guides(def).map((x) => x.id)).toEqual([ids[2]]);
+    expect(h.model.exists({ kind: "guide", id: ids[0] })).toBe(true);
+    expect(h.model.guideOwner(ids[2])).toBe(def);
+
+    h.model.transact("Erase", () => h.model.eraseGuides([ids[0]]));
+    expect(h.model.exists({ kind: "guide", id: ids[0] })).toBe(false);
+    expect(h.model.guides(ROOT).map((x) => x.id)).toEqual([ids[1]]);
+    expect(() => h.model.transact("Erase", () => h.model.eraseGuides([ids[0]]))).toThrow("no longer exists");
+
+    expect(h.model.transact("Delete Guides", () => h.model.eraseAllGuides())).toBe(2);
+    expect(h.model.guides(ROOT)).toEqual([]);
+    expect(h.model.guides(def)).toEqual([]);
+    expect(h.model.undo()).toBe("Delete Guides");
+    expect(h.model.guides(ROOT).length + h.model.guides(def).length).toBe(2);
+    expect(() => h.model.transact("Guide", () => h.model.addGuideLine(ROOT, [0, 0, 0], [0, 0, 0]))).toThrow("guide direction");
+  });
+
+  it("toggles visibility as one undo step and prunes erased guides from the selection", () => {
+    const h = new TestHost();
+    const id = h.model.transact("Guide", () => h.model.addGuidePoint(ROOT, [1, 2, 3]));
+    expect(h.model.guidesVisible()).toBe(true);
+    h.model.transact("Guides", () => h.model.setGuidesVisible(false));
+    expect(h.model.guidesVisible()).toBe(false);
+    expect(h.model.undo()).toBe("Guides");
+    expect(h.model.guidesVisible()).toBe(true);
+    h.model.redo();
+    expect(h.model.guidesVisible()).toBe(false);
+
+    h.selection.set([{ kind: "guide", id }]);
+    h.model.transact("Erase", () => h.model.eraseGuides([id]));
+    h.selection.prune(h.model);
+    expect(h.selection.empty).toBe(true);
+  });
+});

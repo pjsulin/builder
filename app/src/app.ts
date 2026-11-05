@@ -894,6 +894,7 @@ export function describeFinding(f: Finding): string {
     f.faces.length ? `faces ${f.faces.join(", ")}` : "",
     f.edges.length ? `edges ${f.edges.join(", ")}` : "",
     f.vertices.length ? `vertices ${f.vertices.join(", ")}` : "",
+    f.guides.length ? `guides ${f.guides.join(", ")}` : "",
   ]
     .filter(Boolean)
     .join("; ");

@@ -102,13 +102,13 @@ Sprint 2.3 of Milestone 2: guides as a kernel entity saved under an additive `gu
 
 ### Phase 3: Wasm and Model Wrappers
 
-**Status:** pending
+**Status:** completed
 **Dependencies:** [Phase 2]
 
 #### Task 3.1: Wasm exports
 
 - **Type:** implement
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [Phase 2]
 - **Files:**
   - Modify: kernel-wasm/src/lib.rs
@@ -118,7 +118,7 @@ Sprint 2.3 of Milestone 2: guides as a kernel entity saved under an additive `gu
 #### Task 3.2: Model wrappers and the guide entity kind
 
 - **Type:** implement
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [3.1]
 - **Files:**
   - Modify: app/src/kernel/model.ts
@@ -129,7 +129,7 @@ Sprint 2.3 of Milestone 2: guides as a kernel entity saved under an additive `gu
 #### Task 3.3: Wrapper tests
 
 - **Type:** test
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [3.2]
 - **Files:**
   - Modify: app/test/tools.test.ts
