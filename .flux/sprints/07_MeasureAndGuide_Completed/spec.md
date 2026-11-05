@@ -702,3 +702,20 @@ uv run --project survey pytest survey/tests   # unchanged, still green
 ```
 
 Expected: all pass; `validate` holds after every fuzz step; a `.builder` with guides round-trips byte-identically; one without the keys loads with no guides and `guides_visible() == true`.
+
+## Added during implementation
+
+Recorded at close (2026-11-05). Private helpers and tests, one line each; no new public interface beyond § Interfaces except where noted.
+
+- `kernel/src/format.rs` `default_true` (serde default for `guides_visible`).
+- `kernel/src/check.rs` `Finding.guides: Vec<GuideId>` and the `"guides"` key of `Finding::to_json` (public field; the finding needs the guide id as the others carry face, edge and vertex ids).
+- `app/src/kernel/model.ts` `Model.guideOwner(id)` (public; `exists` and the survey panel's owner lookup need the owner of a guide, which `guides(def)` alone cannot give without a scan the callers would each repeat).
+- `app/src/view/scene.ts` `SceneIndex.defGuides`, `guideScreenDistance(cam, g, x, y)` (exported helper shared by `pick.ts` and the engine).
+- `app/src/tools/pick.ts` `pickGuide`, `POINT_PX`.
+- `app/src/inference/engine.ts` `EdgeRef`, `CROSS_TOL`, `edgeDir`, `intersectionSnap`, `edgeCue`, `fromPointCue`, `guideSnap`, `isPointSnap`, `crossing`; `lockCurrent` also holds a parallel or perpendicular cue and an On Guide direction.
+- `app/src/tools/rotate.ts` `protractorNormal(host, r, ray)`, `protractorRadius(host)` (exported, per Task 7.2; `RotateTool.radius` and `protractorNormal` wrap them).
+- `app/src/tools/measure.ts` `Measuring` (with `plane`, `planes`, `ignore`), `LastGuide`, `choosePlane`, `lineRun`, `stubSize`, `edgePlanes`, `faceEdge`, `place`, `commit`, `canonical`, `stub`.
+- `app/src/tools/protractor.ts` `Sweeping`, `LastGuide`, `TICK`, `FINE`, `radius`, `direction`, `showSweep`, `swept`, `place`, `commit`.
+- `app/src/app.ts` `cursorStyle`, `MAGENTA`, `toggleGuides`, `deleteGuides`; `MARKER_CLASS` entries `para`, `from`, `guide`; `--cursor-measure`, `--cursor-measure-only`, `--snap-para`, `--snap-guide` in `style.css`.
+- `kernel/tests/common/fuzz.rs` `Op::EraseGuide` erases the live guide of ROOT with the lowest id (the spec's "a random live guide" needs no parameter and must replay deterministically).
+- Tests: `kernel/tests/guides.rs` (six), `kernel/tests/format.rs` (three), `app/test/tools.test.ts` "Model guides" (two) and "Guides in the view" (three), `app/test/scene.test.ts` "SceneIndex guides", `app/test/inference.test.ts` "guides and reference edges" (four), `app/test/measure.test.ts` (four), `app/test/protractor.test.ts` (three), `app/test/units.test.ts` slope cases; `app/test/toolhost.ts` `click`, `copyClick` and `drag` call `inference.clicked()` as the app's pointerdown does (no `tapKey` helper was needed: tests call `modifier()`).

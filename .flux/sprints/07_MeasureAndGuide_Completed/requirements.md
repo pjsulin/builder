@@ -70,33 +70,33 @@ Positions can be laid out by snapping alone: the deck's posts at 4' from two edg
 
 ### For Feature 1
 
-- [ ] Kernel tests: create and erase a guide line and a guide point, undo and redo restore them, erase-all is one journal entry, a locked owner refuses, `validate` rejects a guide with a dead owner or a zero direction.
-- [ ] A file with guides round-trips byte-identically through save and load; a file without the keys loads with no guides and visible; a guide inside a group reads back in that definition.
+- [x] Kernel tests: create and erase a guide line and a guide point, undo and redo restore them, erase-all is one journal entry, a locked owner refuses, `validate` rejects a guide with a dead owner or a zero direction. Evidence: `kernel/tests/guides.rs` (six tests; `check_reports_a_planted_bad_guide` plants both bad shapes and `check` reports them; `validate` asserts the same in `kernel/tests/common/mod.rs`).
+- [x] A file with guides round-trips byte-identically through save and load; a file without the keys loads with no guides and visible; a guide inside a group reads back in that definition. Evidence: `kernel/tests/format.rs::guides_round_trip_byte_identical` against `fixtures/guides.builder`, `files_without_guide_keys_load_with_none_and_visible`, `bad_guides_are_rejected_with_their_path`.
 
 ### For Feature 2
 
-- [ ] Headless: click an edge of the deck rim, drag off it, type `4'`, a guide line parallel to the edge at 4' exists; retype `3'` moves it in one undo step.
-- [ ] Headless: click an endpoint, click a second point, type `2'`, a guide point 2' along that direction exists.
-- [ ] Headless: Ctrl, then two points, shows the length in the Measurements box and the model revision is unchanged.
-- [ ] Headless: a locked context refuses with the toast before preview.
+- [x] Headless: click an edge of the deck rim, drag off it, type `4'`, a guide line parallel to the edge at 4' exists; retype `3'` moves it in one undo step. Evidence: `app/test/measure.test.ts` "places a guide line 4' from the rim's front edge and retypes 3' in one undo step".
+- [x] Headless: click an endpoint, click a second point, type `2'`, a guide point 2' along that direction exists. Evidence: `measure.test.ts` "places a guide point 2' from an endpoint and a line parallel to a dragged edge" (guide point at `[144, 0, 12]`).
+- [x] Headless: Ctrl, then two points, shows the length in the Measurements box and the model revision is unchanged. Evidence: `measure.test.ts` "measures only after the Ctrl tap, leaving the model unchanged" (`10' 0"`, revision equal).
+- [x] Headless: a locked context refuses with the toast before preview. Evidence: `measure.test.ts` "refuses a locked context before any preview" (flash `Locked: Existing`, not busy, no guide).
 
 ### For Feature 3
 
-- [ ] Headless: centre, base along red, type `37`, a guide line at 37° exists; type `3:12`, it is at atan(3/12); sweep to 22° near the centre snaps to 15°.
-- [ ] Headless: plane follows the hovered face, the arrow keys lock an axis.
+- [x] Headless: centre, base along red, type `37`, a guide line at 37° exists; type `3:12`, it is at atan(3/12); sweep to 22° near the centre snaps to 15°. Evidence: `app/test/protractor.test.ts` "places a guide line at a typed angle, a typed slope, and retypes it as one undo step" and "snaps a sweep near the centre to 15°, measures finer farther out, and exactly on a point"; `app/test/units.test.ts` reads `3:12`, `12:12`, `-3:12` and rejects `3:0`.
+- [x] Headless: plane follows the hovered face, the arrow keys lock an axis. Evidence: `protractor.test.ts` "lies on the hovered face, follows an arrow-key axis lock, and sweeps in that plane".
 
 ### For Feature 4
 
-- [ ] Engine tests: hovering an edge then moving from an anchor gives `Parallel to Edge` and `Perpendicular to Edge` within the radius; Down cycles parallel, perpendicular, off; Shift holds.
-- [ ] Engine tests: two guide lines crossing give `Intersection`; a guide point gives `Guide Point`; a point on a guide line gives `On Guide`; from-point gives a dotted cue from the last hovered point.
-- [ ] Headless: two guides at 4' from two rim edges, then Rectangle snapping to their intersection draws a post footprint whose corner is exactly at the intersection, no typing.
+- [x] Engine tests: hovering an edge then moving from an anchor gives `Parallel to Edge` and `Perpendicular to Edge` within the radius; Down cycles parallel, perpendicular, off; Shift holds. Evidence: `app/test/inference.test.ts` "gives Parallel to Edge and Perpendicular to Edge from an anchor, within the radius only" and "Down cycles parallel, perpendicular, off; Shift holds the cue".
+- [x] Engine tests: two guide lines crossing give `Intersection`; a guide point gives `Guide Point`; a point on a guide line gives `On Guide`; from-point gives a dotted cue from the last hovered point. Evidence: `inference.test.ts` "snaps to guide intersections, guide points and guide lines" and "aligns with the last hovered point until a click, and reset clears everything" (the cue carries `ref` to the remembered point, which `drawGuide` draws dotted).
+- [x] Headless: two guides at 4' from two rim edges, then Rectangle snapping to their intersection draws a post footprint whose corner is exactly at the intersection, no typing. Evidence: `app/test/offset.test.ts` "Deck walkthrough" steps 7 and 9 (`Intersection` snap, footprint corner `48,48,0`).
 
 ### For Feature 5
 
-- [ ] Guides hidden, saved, reopened: still hidden. Delete Guides removes all in one undo step. Erase on a guide removes it.
-- [ ] The fuzz run with the new ops stays under a minute at the CI seed with no invariant failure.
-- [ ] Docs under Impact changed and checked against the code; the deck walkthrough's new step replays headlessly.
-- [ ] Browser check by Patrick: the walkthrough's layout step in the hosted build.
+- [x] Guides hidden, saved, reopened: still hidden. Delete Guides removes all in one undo step. Erase on a guide removes it. Evidence: `kernel/tests/format.rs::guides_round_trip_byte_identical` (`guides_visible: false` reloads false); `app/test/tools.test.ts` "Guides in the view" (Eraser removes a guide; Delete Guides is one undo step) and "Model guides" (visibility toggles as one undo step).
+- [x] The fuzz run with the new ops stays under a minute at the CI seed with no invariant failure. Evidence: `random_operations_keep_invariants` 27 s at the CI seed with 17 `Guide` and 34 `EraseGuide` ops (`BUILDER_FUZZ_TRACE=1`).
+- [x] Docs under Impact changed and checked against the code; the deck walkthrough's new step replays headlessly. Evidence: close.md Gate 4; `offset.test.ts` "Deck walkthrough" with the layout step and the updated counts.
+- [ ] Browser check by Patrick: the walkthrough's layout step in the hosted build. Waiting on Patrick after the merge (close.md Gate 5).
 
 ## Impact
 
