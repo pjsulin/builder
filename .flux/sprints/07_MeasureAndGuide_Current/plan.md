@@ -8,13 +8,13 @@ Sprint 2.3 of Milestone 2: guides as a kernel entity saved under an additive `gu
 
 ### Phase 1: Kernel Guides
 
-**Status:** pending
+**Status:** completed
 **Dependencies:** none
 
 #### Task 1.1: Guide entity, arena and journal
 
 - **Type:** implement
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** none
 - **Files:**
   - Modify: kernel/src/doc.rs
@@ -24,7 +24,7 @@ Sprint 2.3 of Milestone 2: guides as a kernel entity saved under an additive `gu
 #### Task 1.2: Guide operations with lock checks
 
 - **Type:** implement
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [1.1]
 - **Files:**
   - Create: kernel/src/guide.rs
@@ -35,7 +35,7 @@ Sprint 2.3 of Milestone 2: guides as a kernel entity saved under an additive `gu
 #### Task 1.3: Check and validate know guides
 
 - **Type:** implement
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [1.1]
 - **Files:**
   - Modify: kernel/src/check.rs
@@ -46,7 +46,7 @@ Sprint 2.3 of Milestone 2: guides as a kernel entity saved under an additive `gu
 #### Task 1.4: Kernel guide tests
 
 - **Type:** test
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [1.2, 1.3]
 - **Files:**
   - Create: kernel/tests/guides.rs
@@ -56,7 +56,7 @@ Sprint 2.3 of Milestone 2: guides as a kernel entity saved under an additive `gu
 #### Task 1.5: Architecture: guides are not topology
 
 - **Type:** document
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [1.2]
 - **Files:**
   - Modify: docs/architecture.md

@@ -67,6 +67,8 @@ Faces cache their triangulation (computed with `earcutr`, a port of Mapbox's ear
 
 Every entity carries an `owner`, which is the definition (the model root, a group or a component) it belongs to. All kernel operations take a context definition and only see entities in it. That is the whole mechanism behind "groups stop geometry sticking."
 
+**Guides are not topology.** A guide (`Guide { owner, shape: Line { origin, dir } | Point { pos } }`, `kernel/src/guide.rs`) is construction geometry in its owner's coordinates: an unbounded line or a point that exists only to be snapped to. Guides are a separate entity with their own arena. Welding, healing, push/pull, intersection and offset never see them, and they never split an edge or bound a face. `add_guide_line` normalises the direction and refuses a zero one; `erase_guides` removes a list, `erase_all_guides` every guide in an unlocked definition. Being owned by a definition, a guide drawn inside a group moves with the group's instances.
+
 ### Sticky geometry: the operations
 
 All editing goes through a few operations, and each one keeps the topology valid.
@@ -161,18 +163,20 @@ Document
  ├─ vertices / edges / faces: Arena<…>  (each with an owner definition;
  │                            Face also carries attributes)
  ├─ materials:   Arena<Material { name, color, opacity }>
- └─ tags:        Arena<Tag { name, visible, locked }>
+ ├─ tags:        Arena<Tag { name, visible, locked }>
+ ├─ guides:      Arena<Guide { owner, shape: Line { origin, dir } | Point { pos } }>
+ └─ guides_visible: bool                 one flag for every guide, saved with the file
 ```
 
 - A **group** is a definition with exactly one instance, like in SketchUp. A **component** is the same thing with many instances. Edit one, and every instance changes, because they all draw the same definition. Making a group unique, or a component from a group, only changes the definition kind.
 - **Tags** control visibility on instances. **Materials** go on faces (front and back) and on instances (inherited by faces with no material). Both are in the kernel and the file format now. Their panels are next.
 - Ids are indexes into arenas and are **never reused**. A deleted slot becomes a tombstone. That keeps ids stable across undo and redo, so the UI can hold a selection by id.
 - **Attributes** are namespaced key–value maps (`Attributes = BTreeMap<namespace, BTreeMap<key, scalar>>`) on definitions, instances and faces. `set_attribute(target, ns, key, value)` is a journaled write like any other, so attributes undo, redo and save with the geometry (`docs/file-format.md` § Attributes). A split face gives each half its attributes, push/pull copies them onto the faces it creates, and faces with different attributes do not weld. The survey toolkit is the first user (`survey:*` provenance). Building data (BIM) will use the same slot: a `classification` namespace with an IFC class such as `IfcWallStandardCase`, and plugin namespaces for parametric objects whose geometry a plugin generates from their parameters.
-- **Tag lock** is enforced by the kernel, not the UI: `Tag.locked` makes every edit entry point (`add_line`, `push_pull`, `transform_vertices`, `transform_and_integrate` and their `move_*` wrappers, `copy_geometry_transformed`, `copy_instance_transformed` and their offset wrappers, `offset_face`, `offset_edges`, `erase`, `erase_instance`, `make_group`, `explode`, `set_transform`) return `Error::Locked` when it would touch an instance on that tag, the geometry in its definition, or a group that contains one. `is_locked_def` answers the question for a definition; tools use it to skip locked geometry as an edit target while still snapping to it.
+- **Tag lock** is enforced by the kernel, not the UI: `Tag.locked` makes every edit entry point (`add_line`, `push_pull`, `transform_vertices`, `transform_and_integrate` and their `move_*` wrappers, `copy_geometry_transformed`, `copy_instance_transformed` and their offset wrappers, `offset_face`, `offset_edges`, `erase`, `erase_instance`, `make_group`, `explode`, `set_transform`, `add_guide_line`, `add_guide_point`, `erase_guides`) return `Error::Locked` when it would touch an instance on that tag, the geometry in its definition, or a group that contains one. `is_locked_def` answers the question for a definition; tools use it to skip locked geometry as an edit target while still snapping to it.
 
 ### Transactions and undo
 
-Every arena write goes through one journal. A write records `(arena, slot, before, after)`. A transaction is the list of writes between `begin(name)` and `commit()`.
+Every arena write goes through one journal. A write records `(arena, slot, before, after)`; the guides-visible flag is journaled the same way as `GuidesVisible(before, after)`. A transaction is the list of writes between `begin(name)` and `commit()`.
 
 - **Undo** restores the `before` values in reverse order. **Redo** applies the `after` values in order.
 - **Abort** undoes an uncommitted transaction. Tools use this for live previews. Each mouse move during push/pull aborts the previous preview and applies a new one, so dragging never piles up history and never rebuilds geometry from scratch.

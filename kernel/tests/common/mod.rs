@@ -179,4 +179,10 @@ pub fn validate(doc: &Document) {
             .sum();
         assert!((tri_area - doc.face_area(fid)).abs() < 1e-6, "face {fi} triangulation area mismatch");
     }
+    for (gi, g) in doc.guides.iter() {
+        assert!(doc.definition(g.owner).is_some(), "guide {gi} has no owner definition");
+        if let GuideShape::Line { dir, .. } = g.shape {
+            assert!((dir.len() - 1.0).abs() < 1e-9, "guide {gi} direction is not unit");
+        }
+    }
 }

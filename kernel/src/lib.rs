@@ -16,6 +16,8 @@
 //!   [`Document::copy_instance`] at an offset.
 //! * [`Document::offset_face`], [`Document::offset_edges`] draw an outline offset in
 //!   its plane, refusing one that would cross itself.
+//! * [`Document::add_guide_line`], [`Document::add_guide_point`], [`Document::erase_guides`]
+//!   place and remove construction guides that never join the topology.
 //! * [`Document::make_group`], [`Document::explode`] isolate geometry.
 //! * [`Document::set_attribute`], [`Document::set_tag_flags`] attach data and lock tags.
 //! * [`Document::begin`], [`Document::commit`], [`Document::abort`],
@@ -28,6 +30,7 @@ pub mod doc;
 pub mod edit;
 pub mod format;
 pub mod group;
+pub mod guide;
 pub mod heal;
 pub mod intersect;
 pub mod line;

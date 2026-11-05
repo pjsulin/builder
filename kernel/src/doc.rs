@@ -31,6 +31,7 @@ id_type!(DefId);
 id_type!(InstId);
 id_type!(MatId);
 id_type!(TagId);
+id_type!(GuideId);
 
 /// The model root's definition. Loose geometry lives here.
 pub const ROOT: DefId = DefId(0);
@@ -162,6 +163,27 @@ pub struct Tag {
     pub locked: bool,
 }
 
+/// The shape of a guide: construction geometry that takes no part in topology.
+#[derive(Clone, Debug, PartialEq)]
+pub enum GuideShape {
+    /// Unbounded line through `origin` along unit `dir`.
+    Line {
+        origin: V3,
+        dir: V3,
+    },
+    Point {
+        pos: V3,
+    },
+}
+
+/// A guide line or point in `owner`'s coordinates, drawn through every instance of
+/// the definition. Never welded, healed, pushed or pulled.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Guide {
+    pub owner: DefId,
+    pub shape: GuideShape,
+}
+
 /// Slot storage. Ids are indexes and are never reused; deleted slots are `None`.
 #[derive(Clone, Debug)]
 pub struct Arena<T> {
@@ -205,6 +227,9 @@ pub enum Change {
     Instance(u32, Option<Instance>, Option<Instance>),
     Material(u32, Option<Material>, Option<Material>),
     Tag(u32, Option<Tag>, Option<Tag>),
+    Guide(u32, Option<Guide>, Option<Guide>),
+    /// The guides-visible flag, before and after.
+    GuidesVisible(bool, bool),
 }
 
 #[derive(Clone, Debug)]
@@ -222,6 +247,9 @@ pub struct Document {
     pub instances: Arena<Instance>,
     pub materials: Arena<Material>,
     pub tags: Arena<Tag>,
+    pub guides: Arena<Guide>,
+    /// False hides every guide; saved with the file. `new` starts visible.
+    guides_visible: bool,
     /// Writes made since the open transaction began.
     pending: Vec<Change>,
     open: Option<String>,
@@ -245,7 +273,7 @@ macro_rules! setter {
 
 impl Document {
     pub fn new() -> Self {
-        let mut d = Document::default();
+        let mut d = Document { guides_visible: true, ..Document::default() };
         d.set_definition(
             DefId(0),
             Some(Definition { name: "Model".into(), kind: DefKind::Root, attributes: Attributes::new() }),
@@ -261,6 +289,7 @@ impl Document {
     setter!(set_instance, instance, instances, Instance, InstId, Instance);
     setter!(set_material, material, materials, Material, MatId, Material);
     setter!(set_tag_record, tag, tags, Tag, TagId, Tag);
+    setter!(set_guide, guide, guides, Guide, GuideId, Guide);
 
     pub fn next_vid(&self) -> VId {
         VId(self.vertices.len_slots() as u32)
@@ -279,6 +308,19 @@ impl Document {
     }
     pub fn next_mat(&self) -> MatId {
         MatId(self.materials.len_slots() as u32)
+    }
+    pub fn next_guide(&self) -> GuideId {
+        GuideId(self.guides.len_slots() as u32)
+    }
+
+    pub fn guides_visible(&self) -> bool {
+        self.guides_visible
+    }
+    /// Journaled, like every other write; the caller wraps it in a transaction.
+    pub fn set_guides_visible(&mut self, visible: bool) {
+        let before = self.guides_visible;
+        self.guides_visible = visible;
+        self.pending.push(Change::GuidesVisible(before, visible));
     }
 
     pub fn pos(&self, v: VId) -> V3 {
@@ -385,6 +427,8 @@ impl Document {
             Change::Instance(i, b, a) => restore!(instances, i, b, a),
             Change::Material(i, b, a) => restore!(materials, i, b, a),
             Change::Tag(i, b, a) => restore!(tags, i, b, a),
+            Change::Guide(i, b, a) => restore!(guides, i, b, a),
+            Change::GuidesVisible(b, a) => self.guides_visible = if backwards { *b } else { *a },
         }
     }
 
@@ -398,6 +442,9 @@ impl Document {
     }
     pub fn vertices_in(&self, ctx: DefId) -> impl Iterator<Item = (VId, &Vertex)> {
         self.vertices.iter().filter(move |(_, v)| v.owner == ctx).map(|(i, v)| (VId(i as u32), v))
+    }
+    pub fn guides_in(&self, ctx: DefId) -> impl Iterator<Item = (GuideId, &Guide)> {
+        self.guides.iter().filter(move |(_, g)| g.owner == ctx).map(|(i, g)| (GuideId(i as u32), g))
     }
     pub fn instances_in(&self, ctx: DefId) -> impl Iterator<Item = (InstId, &Instance)> {
         self.instances.iter().filter(move |(_, i)| i.parent == ctx).map(|(i, inst)| (InstId(i as u32), inst))
