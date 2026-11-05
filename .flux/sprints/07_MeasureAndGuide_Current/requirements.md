@@ -1,10 +1,11 @@
 ---
-sprint: MeasureAndGuide
 created: 2026-11-04
+sprint: MeasureAndGuide
+start: e025cc7
+started: '2026-11-05'
 step: '6'
-start: null    # commit; set by `flux sprint move <Name> Current`, close diffs against it
-started: null  # date; set by the same move
 ---
+
 # Requirements: MeasureAndGuide
 
 ## Background

@@ -36,7 +36,7 @@
 
 ### Step 6: Sprint 2.3 Measure and guide: Tape Measure, Protractor guides, parallel/perpendicular/from-point/intersection inference
 
-- **Status:** not started
+- **Status:** in progress
 - **Record:** sprint MeasureAndGuide
 
 ### Step 7: Sprint 2.4 Curves, Scale and Flip: circle, polygon, arc as edge curves, soft edges, scale, flip, rotated rectangle
