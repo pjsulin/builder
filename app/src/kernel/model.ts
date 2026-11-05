@@ -6,7 +6,7 @@ import type { Mat4, Vec3 } from "../math";
 
 export const ROOT = 0;
 
-export type EntityKind = "face" | "edge" | "instance";
+export type EntityKind = "face" | "edge" | "instance" | "guide";
 export interface Entity {
   kind: EntityKind;
   id: number;
@@ -57,13 +57,22 @@ export interface InstanceProps {
   locked: boolean;
 }
 
+/** A guide in its owner definition's coordinates. A point's `dir` is zero. */
+export interface GuideRecord {
+  id: number;
+  kind: "line" | "point";
+  origin: Vec3;
+  dir: Vec3;
+}
+
 /** One problem `checkModel()` found; ids are in the owner definition. */
 export interface Finding {
-  kind: "overlapping_edges" | "non_planar_face" | "faceless_edge" | "duplicate_vertices";
+  kind: "overlapping_edges" | "non_planar_face" | "faceless_edge" | "duplicate_vertices" | "bad_guide";
   owner: number;
   faces: number[];
   edges: number[];
   vertices: number[];
+  guides: number[];
   /** A point near the problem, in the owner definition's coordinates. */
   position: Vec3;
 }
@@ -223,6 +232,42 @@ export class Model {
     return this.changed(Array.from(this.k.offsetEdges(ctx, u32(edges), distance)));
   }
 
+  /** Add an unbounded guide line through `origin` along `dir` (context coordinates). */
+  addGuideLine(ctx: number, origin: Vec3, dir: Vec3): number {
+    return this.changed(this.k.addGuideLine(ctx, origin[0], origin[1], origin[2], dir[0], dir[1], dir[2]));
+  }
+  addGuidePoint(ctx: number, pos: Vec3): number {
+    return this.changed(this.k.addGuidePoint(ctx, pos[0], pos[1], pos[2]));
+  }
+  /** Refused as a whole if any guide's owner is locked. */
+  eraseGuides(ids: number[]): void {
+    this.changed(this.k.eraseGuides(u32(ids)));
+  }
+  /** Every guide in an unlocked definition. Returns how many were erased. */
+  eraseAllGuides(): number {
+    return this.changed(this.k.eraseAllGuides());
+  }
+  guides(def: number): GuideRecord[] {
+    const flat = this.k.guides(def);
+    const out: GuideRecord[] = [];
+    for (let i = 0; i < flat.length; i += 8) {
+      out.push({
+        id: flat[i],
+        kind: flat[i + 1] === 0 ? "line" : "point",
+        origin: [flat[i + 2], flat[i + 3], flat[i + 4]],
+        dir: [flat[i + 5], flat[i + 6], flat[i + 7]],
+      });
+    }
+    return out;
+  }
+  guidesVisible(): boolean {
+    return this.k.guidesVisible();
+  }
+  /** Journaled; the caller wraps it in a transaction. */
+  setGuidesVisible(v: boolean): void {
+    this.changed(this.k.setGuidesVisible(v));
+  }
+
   /** Intersect Faces: draw the edges where `faces` (and the faces inside `instances`)
    *  cross the model (`withModel`) or each other, into `ctx`. Returns the edges drawn. */
   intersectFaces(ctx: number, faces: number[], instances: number[], withModel: boolean): number[] {
@@ -325,7 +370,15 @@ export class Model {
   exists(e: Entity): boolean {
     if (e.kind === "face") return this.k.facePlane(e.id).length > 0;
     if (e.kind === "edge") return this.k.edgeInfo(e.id).length > 0;
+    if (e.kind === "guide") return this.guideOwner(e.id) !== null;
     return this.k.instanceInfo(e.id).length > 0;
+  }
+  /** The definition owning a guide, or null when it no longer exists. */
+  guideOwner(id: number): number | null {
+    for (const def of this.definitions()) {
+      if (this.guides(def).some((g) => g.id === id)) return def;
+    }
+    return null;
   }
   stats(): { faces: number; edges: number; vertices: number; instances: number } {
     const [faces, edges, vertices, instances] = this.k.stats();

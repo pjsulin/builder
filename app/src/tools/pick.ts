@@ -1,11 +1,12 @@
-// Picking whole entities (faces, edges, groups) for Select, Move and Erase.
+// Picking whole entities (faces, edges, groups, guides) for Select, Move and Erase.
 
 import type { Entity } from "../kernel/model";
 import { dist, lineRayParam, madd, sub } from "../math";
 import type { CameraModel } from "../view/camera";
-import type { SceneIndex } from "../view/scene";
+import { guideScreenDistance, type SceneIndex, type WorldGuide } from "../view/scene";
 
 const EDGE_PX = 5;
+const POINT_PX = 8;
 
 export interface EntityPick {
   entity: Entity;
@@ -16,7 +17,11 @@ export interface EntityPick {
   locked: boolean;
 }
 
-/** The entity under the cursor. Edges win when the cursor is right on one. */
+/**
+ * The entity under the cursor. Edges win when the cursor is right on one; a guide
+ * line within the edge radius or a guide point within the point radius comes next,
+ * then the face under the cursor. Anything behind the nearest face is skipped.
+ */
 export function pickEntity(scene: SceneIndex, cam: CameraModel, x: number, y: number): EntityPick | null {
   const ray = cam.ray(x, y);
   const hit = scene.pick(ray, () => true);
@@ -39,8 +44,23 @@ export function pickEntity(scene: SceneIndex, cam: CameraModel, x: number, y: nu
     best = { s, d };
   }
   if (best) return entityFor(scene, scene.segItem[best.s], { kind: "edge", id: scene.segEdge[best.s] });
+  const guide = pickGuide(scene, cam, x, y, visibleDepth);
+  if (guide) return entityFor(scene, guide.item, { kind: "guide", id: guide.id });
   if (hit) return entityFor(scene, hit.item, { kind: "face", id: hit.face });
   return null;
+}
+
+/** The nearest guide within radius of the cursor and not behind `visibleDepth`. */
+function pickGuide(scene: SceneIndex, cam: CameraModel, x: number, y: number, visibleDepth: number): WorldGuide | null {
+  const eye = cam.ray(x, y).origin;
+  let best: { g: WorldGuide; d: number } | null = null;
+  for (const g of scene.guides()) {
+    const r = guideScreenDistance(cam, g, x, y);
+    if (!r || r.d > (g.kind === "point" ? POINT_PX : EDGE_PX)) continue;
+    if (dist(eye, r.at) > visibleDepth) continue;
+    if (!best || r.d < best.d) best = { g, d: r.d };
+  }
+  return best?.g ?? null;
 }
 
 function entityFor(scene: SceneIndex, item: number, raw: Entity): EntityPick {

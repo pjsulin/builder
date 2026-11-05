@@ -4,7 +4,7 @@
 // separate objects.
 
 import * as THREE from "three";
-import type { SceneIndex } from "./scene";
+import type { SceneIndex, WorldGuide } from "./scene";
 import type { CameraModel } from "./camera";
 import type { Vec3 } from "../math";
 
@@ -55,6 +55,7 @@ export class Viewport {
     preview: new THREE.LineBasicMaterial({ depthTest: false, transparent: true }),
     previewFill: new THREE.MeshBasicMaterial({ transparent: true, opacity: 0.18, side: THREE.DoubleSide, depthWrite: false }),
     guide: new THREE.LineDashedMaterial({ dashSize: 6, gapSize: 4, depthTest: false, transparent: true }),
+    guides: new THREE.LineDashedMaterial({ color: 0x8a8f99, dashSize: 4, gapSize: 4, transparent: true, opacity: 0.9 }),
     box: new THREE.LineBasicMaterial({ depthTest: false, transparent: true, opacity: 0.8 }),
   };
 
@@ -249,6 +250,32 @@ export class Viewport {
     const l = new THREE.LineSegments(g, this.mat[style]);
     if (style === "guide") l.computeLineDistances();
     this.setLayer(name, l);
+  }
+
+  /**
+   * The model's guides as one dashed layer: a line runs to the camera's far plane
+   * each way from its origin, a point is a short stub with an x. Hidden guides
+   * (or none) clear the layer.
+   */
+  setGuides(guides: WorldGuide[], visible: boolean): void {
+    if (!visible || !guides.length) return this.setLayer("guides", null);
+    const far = this.camera.far;
+    const segs: number[] = [];
+    for (const g of guides) {
+      const [ox, oy, oz] = g.origin;
+      if (g.kind === "line") {
+        const [dx, dy, dz] = g.dir;
+        segs.push(ox - dx * far, oy - dy * far, oz - dz * far, ox + dx * far, oy + dy * far, oz + dz * far);
+      } else {
+        const r = Math.max(0.5, this.camera.position.distanceTo(new THREE.Vector3(ox, oy, oz)) * 0.012);
+        segs.push(ox - r, oy, oz, ox + r, oy, oz, ox, oy - r, oz, ox, oy + r, oz, ox, oy, oz - r, ox, oy, oz + r);
+      }
+    }
+    const geom = new THREE.BufferGeometry();
+    geom.setAttribute("position", new THREE.BufferAttribute(new Float32Array(segs), 3));
+    const l = new THREE.LineSegments(geom, this.mat.guides);
+    l.computeLineDistances();
+    this.setLayer("guides", l);
   }
 
   /** A guide line in one of the axis colors (or the preview color). */

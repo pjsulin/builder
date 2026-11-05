@@ -6,6 +6,7 @@ import { OffsetTool } from "../src/tools/offset";
 import { PushPullTool } from "../src/tools/pushpull";
 import { RectangleTool } from "../src/tools/rectangle";
 import { RotateTool } from "../src/tools/rotate";
+import { TapeMeasureTool } from "../src/tools/measure";
 import { TestHost } from "./toolhost";
 import type { Vec3 } from "../src/math";
 
@@ -273,12 +274,54 @@ describe("Deck walkthrough", () => {
     pp.vcb('9 1/4"');
     h.refresh();
     expect(stats()).toEqual({ faces: 10, groups: 0 });
-    // 6-7. Group the frame and raise it 3'.
+    // 6. Group the frame.
     const frame = group();
     expect(stats()).toEqual({ faces: 10, groups: 1 });
+    // 7. Lay out a mid-span post: guide lines 4' in from the front and left rim
+    // edges, dragged across the ground, with the frame still on it.
+    h.selection.clear();
+    const tape = new TapeMeasureTool(h);
+    h.click(tape, [72, 0, 0]);
+    expect(h.inference.last?.kind).toBe("midpoint");
+    h.hover(tape, [72, 48, 0]);
+    expect(h.inference.last?.label).toBe("From Point");
+    tape.vcb("4'");
+    h.click(tape, [0, 60, 0]);
+    expect(h.inference.last?.kind).toBe("midpoint");
+    h.hover(tape, [48, 60, 0]);
+    tape.vcb("4'");
+    h.refresh();
+    expect(h.flashes).toEqual([]);
+    // A line's origin is wherever its edge started; compare the line itself.
+    const layout = h.model.guides(ROOT).map((g) => ({ kind: g.kind, dir: g.dir.map((v) => +v.toFixed(6)), across: g.origin.map((v, i) => (g.dir[i] ? 0 : +v.toFixed(6))) }));
+    expect(layout).toEqual([
+      { kind: "line", dir: [1, 0, 0], across: [0, 48, 0] },
+      { kind: "line", dir: [0, 1, 0], across: [48, 0, 0] },
+    ]);
+    // 8. Raise the frame 3'; the guides are the model's, not the group's, and stay.
+    h.selection.set([{ kind: "instance", id: frame }]);
     moveAlong(2, [0, 0, 0], [0, 0, 20], "3'");
     expect(h.model.instances(ROOT).find((i) => i.id === frame)!.transform.slice(12, 15)).toEqual([0, 0, 36]);
-    // 8. A 4 x 4 post, 3' tall, grouped.
+    expect(h.model.guides(ROOT).length).toBe(2);
+    // 9. The mid-span post: a 4 x 4 drawn from the guides' intersection by snapping alone.
+    h.selection.clear();
+    h.hover(rect, [48.4, 47.6, 0]);
+    expect(h.inference.last?.kind).toBe("intersection");
+    h.click(rect, [48.4, 47.6, 0]);
+    h.hover(rect, [55, 55, 0]);
+    rect.vcb('3 1/2", 3 1/2"');
+    h.refresh();
+    const footprint = [...new Set(h.scene().triFace)].find((f) => Math.abs(h.model.facePlane(f)!.area - 3.5 * 3.5) < 1e-6)!;
+    const corner = h.model.faceOuter(footprint).map((p) => p.map((v) => +v.toFixed(9)).join(","));
+    expect(corner).toContain("48,48,0");
+    expect(corner).toContain("51.5,51.5,0");
+    h.click(pp, [49.75, 49.75, 0]);
+    h.hover(pp, [49.75, 49.75, 5]);
+    pp.vcb("3'");
+    h.refresh();
+    group((p) => p[0] >= 47.9 && p[0] <= 51.6 && p[1] >= 47.9 && p[1] <= 51.6);
+    expect(stats()).toEqual({ faces: 16, groups: 2 });
+    // 10. A 4 x 4 corner post, 3' tall, grouped.
     h.selection.clear();
     h.click(rect, [0, 0, 0]);
     h.hover(rect, [5, 5, 0]);
@@ -288,17 +331,18 @@ describe("Deck walkthrough", () => {
     h.hover(pp, [1.75, 1.75, 5]);
     pp.vcb("3'");
     h.refresh();
-    expect(stats()).toEqual({ faces: 16, groups: 1 });
+    expect(stats()).toEqual({ faces: 22, groups: 2 });
+    const mid = h.model.instances(ROOT).find((i) => i.id !== frame)!.id;
     group();
-    expect(stats()).toEqual({ faces: 16, groups: 2 });
-    // 9. Copies under the other corners.
+    expect(stats()).toEqual({ faces: 22, groups: 3 });
+    // 11. Copies under the other corners.
     copyAlong(0, [0, 0, 0], [50, 0, 0], "11' 8 1/2\"");
-    h.selection.set(h.model.instances(ROOT).filter((i) => i.id !== frame).map((i) => ({ kind: "instance" as const, id: i.id })));
+    h.selection.set(h.model.instances(ROOT).filter((i) => i.id !== frame && i.id !== mid).map((i) => ({ kind: "instance" as const, id: i.id })));
     copyAlong(1, [0, 0, 0], [0, 50, 0], "9' 8 1/2\"");
-    expect(stats()).toEqual({ faces: 34, groups: 5 });
-    const corners = h.model.instances(ROOT).filter((i) => i.id !== frame).map((i) => i.transform.slice(12, 14).join(",")).sort();
+    expect(stats()).toEqual({ faces: 40, groups: 6 });
+    const corners = h.model.instances(ROOT).filter((i) => i.id !== frame && i.id !== mid).map((i) => i.transform.slice(12, 14).join(",")).sort();
     expect(corners).toEqual(["0,0", "0,116.5", "140.5,0", "140.5,116.5"]);
-    // 10. A joist from the rim's inner top corner, 16" centres by 8x.
+    // 12. A joist from the rim's inner top corner, 16" centres by 8x.
     h.selection.clear();
     h.click(rect, [1.5, 1.5, 45.25]);
     expect(h.inference.last?.kind).toBe("endpoint");
@@ -314,8 +358,8 @@ describe("Deck walkthrough", () => {
     mv.vcb("8x");
     h.refresh();
     expect(h.flashes).toEqual([]);
-    expect(stats()).toEqual({ faces: 88, groups: 14 });
-    // 11. The stair stringer, drawn flat and pitched to 37° about red.
+    expect(stats()).toEqual({ faces: 94, groups: 15 });
+    // 13. The stair stringer, drawn flat and pitched to 37° about red.
     h.selection.clear();
     h.click(rect, [36, -72, 0]);
     h.hover(rect, [40, -30, 0]);
@@ -326,7 +370,7 @@ describe("Deck walkthrough", () => {
     pp.vcb('1 1/2"');
     h.refresh();
     const stringer = group((p) => p[1] < -1);
-    expect(stats()).toEqual({ faces: 94, groups: 15 });
+    expect(stats()).toEqual({ faces: 100, groups: 16 });
     h.inference.toggleAxisLock(0);
     h.click(rot, [36, -72, 0]);
     expect(h.overlay.protractor!.normal).toEqual([1, 0, 0]);
@@ -337,29 +381,29 @@ describe("Deck walkthrough", () => {
     const st = h.model.instances(ROOT).find((i) => i.id === stringer)!.transform;
     expect(st[5]).toBeCloseTo(Math.cos((37 * Math.PI) / 180), 9);
     expect(st[14]).toBeCloseTo(72 * Math.sin((37 * Math.PI) / 180), 6);
-    expect(stats()).toEqual({ faces: 94, groups: 15 });
-    // 12. The railing, built flat to the left of the deck.
+    expect(stats()).toEqual({ faces: 100, groups: 16 });
+    // 14. The railing, built flat to the left of the deck.
     h.selection.clear();
     const beforeRail = h.model.instances(ROOT).map((i) => i.id);
     h.click(rect, [-60, 0, 0]);
     h.hover(rect, [-50, 50, 0]);
     rect.vcb("3', 10'");
     h.refresh();
-    expect(stats()).toEqual({ faces: 95, groups: 15 });
+    expect(stats()).toEqual({ faces: 101, groups: 16 });
     h.click(off, [-58, 60, 0]);
     h.hover(off, [-50, 60, 0]);
     off.vcb('1 1/2"');
     h.refresh();
-    expect(stats()).toEqual({ faces: 96, groups: 15 });
+    expect(stats()).toEqual({ faces: 102, groups: 16 });
     const panel = [...new Set(h.scene().triFace)].find((f) => Math.abs(h.model.facePlane(f)!.area - 33 * 117) < 1e-6)!;
     h.model.transact("Erase", () => h.model.erase([panel], [], []));
     h.refresh();
-    expect(stats()).toEqual({ faces: 95, groups: 15 });
+    expect(stats()).toEqual({ faces: 101, groups: 16 });
     h.click(pp, [-59.25, 60, 0]);
     h.hover(pp, [-59.25, 60, 5]);
     pp.vcb('1 1/2"');
     h.refresh();
-    expect(stats()).toEqual({ faces: 104, groups: 15 });
+    expect(stats()).toEqual({ faces: 110, groups: 16 });
     // A baluster on empty ground, grouped, snapped into the opening's corner and nudged clear.
     h.click(rect, [-100, 0, 0]);
     h.hover(rect, [-80, 10, 0]);
@@ -370,7 +414,7 @@ describe("Deck walkthrough", () => {
     pp.vcb('1 1/2"');
     h.refresh();
     const baluster = group((p) => p[0] <= -67.9);
-    expect(stats()).toEqual({ faces: 110, groups: 16 });
+    expect(stats()).toEqual({ faces: 116, groups: 17 });
     h.click(mv, [-100, 0, 0]);
     h.click(mv, [-58.5, 1.5, 0]);
     expect(h.inference.last?.kind).toBe("endpoint");
@@ -381,7 +425,7 @@ describe("Deck walkthrough", () => {
     mv.vcb("/5");
     h.refresh();
     expect(h.flashes).toEqual([]);
-    expect(stats()).toEqual({ faces: 140, groups: 21 });
+    expect(stats()).toEqual({ faces: 146, groups: 22 });
     const balusters = h.model.instances(ROOT).filter((i) => !beforeRail.includes(i.id));
     expect(balusters.map((i) => +i.transform[13].toFixed(2))).toEqual([4.5, 26.4, 48.3, 70.2, 92.1, 114]);
     // Stand it up about green through its deck-side bottom edge, then onto the rim.
@@ -401,13 +445,13 @@ describe("Deck walkthrough", () => {
     rot.vcb("90");
     h.refresh();
     expect(h.flashes).toEqual([]);
-    expect(stats()).toEqual({ faces: 140, groups: 21 });
+    expect(stats()).toEqual({ faces: 146, groups: 22 });
     railing();
     moveAlong(2, [-24, 0, 0], [-24, 0, 30], "3' 9 1/4\"");
     railing();
     moveAlong(0, [-24, 0, 45.25], [0, 0, 45.25], "2'");
     expect(h.flashes).toEqual([]);
-    expect(stats()).toEqual({ faces: 140, groups: 21 });
+    expect(stats()).toEqual({ faces: 146, groups: 22 });
     const s = h.scene();
     expect(s.max[2]).toBeCloseTo(45.25 + 36, 3);
     expect(s.min[0]).toBeCloseTo(-1.5, 3);

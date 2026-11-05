@@ -72,7 +72,7 @@ fn problems_are_reported_with_their_ids_and_positions() {
         overlap.to_json(),
         serde_json::json!({
             "kind": "overlapping_edges", "owner": 0, "faces": [], "edges": [bottom_front.0, along.0],
-            "vertices": [], "position": [5.0, 0.0, 0.0]
+            "vertices": [], "guides": [], "position": [5.0, 0.0, 0.0]
         })
     );
 }

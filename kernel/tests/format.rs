@@ -151,3 +151,78 @@ fn bad_attributes_are_rejected_with_their_path() {
     let e = Document::from_json(&inst).unwrap_err().to_string();
     assert!(e.contains("instances[0].attributes.survey.phase"), "{e}");
 }
+
+/// A box with a guide line, a guide point inside a group and guides hidden.
+fn guided() -> Document {
+    let mut d = Document::new();
+    make_box(&mut d, 10.0, 10.0, 10.0);
+    let f = faces(&d, ROOT);
+    let g = d.make_group(ROOT, &f, &[], &[]).unwrap();
+    let def = d.instance(g).unwrap().definition;
+    d.add_guide_line(ROOT, v(48.0, 0.0, 0.0), v(0.0, 2.0, 0.0)).unwrap();
+    d.add_guide_point(def, v(0.0, 24.0, 0.0)).unwrap();
+    d.set_guides_visible(false);
+    d.commit();
+    d
+}
+
+#[test]
+fn guides_round_trip_byte_identical() {
+    let d = guided();
+    validate(&d);
+    let text = d.to_json();
+    assert_eq!(
+        text,
+        include_str!("fixtures/guides.builder"),
+        "regenerate kernel/tests/fixtures/guides.builder from guided"
+    );
+    assert!(text.contains(r#""guides":[{"kind":"line","definition":0,"origin":[48.0,0.0,0.0],"dir":[0.0,1.0,0.0]},{"kind":"point","definition":1,"pos":[0.0,24.0,0.0]}]"#));
+    assert!(text.contains(r#""guides_visible":false"#));
+    let back = Document::from_json(&text).unwrap();
+    validate(&back);
+    assert_eq!(back.to_json(), text);
+    assert!(!back.guides_visible());
+    assert_eq!(back.guides.count(), 2);
+    let def = back.instances_in(ROOT).map(|(_, i)| i.definition).next().unwrap();
+    let inside: Vec<_> = back.guides_in(def).map(|(_, g)| g.shape.clone()).collect();
+    assert_eq!(
+        inside,
+        vec![GuideShape::Point { pos: v(0.0, 24.0, 0.0) }],
+        "a guide inside a group reads back in that definition"
+    );
+    assert!(!back.can_undo(), "loading leaves no history");
+}
+
+#[test]
+fn files_without_guide_keys_load_with_none_and_visible() {
+    let v1 =
+        r#"{"format":"builder","version":1,"units":"inch","definitions":[{"name":"Model","kind":"root"}]}"#;
+    let d = Document::from_json(v1).unwrap();
+    assert_eq!(d.guides.count(), 0);
+    assert!(d.guides_visible());
+    let text = d.to_json();
+    assert!(!text.contains("guides"), "no guides and visible write neither key");
+}
+
+#[test]
+fn bad_guides_are_rejected_with_their_path() {
+    let head =
+        r#"{"format":"builder","version":1,"units":"inch","definitions":[{"name":"Model","kind":"root"}]"#;
+    let bad_def = format!(r#"{head},"guides":[{{"kind":"point","definition":3,"pos":[0,0,0]}}]}}"#);
+    let e = Document::from_json(&bad_def).unwrap_err().to_string();
+    assert!(e.contains("guides[0].definition"), "{e}");
+    let zero_dir = format!(
+        r#"{head},"guides":[{{"kind":"point","definition":0,"pos":[0,0,0]}},{{"kind":"line","definition":0,"origin":[0,0,0],"dir":[0,0,0]}}]}}"#
+    );
+    let e = Document::from_json(&zero_dir).unwrap_err().to_string();
+    assert!(e.contains("guides[1].dir"), "{e}");
+    let mm =
+        format!(r#"{head},"guides":[{{"kind":"line","definition":0,"origin":[254,0,0],"dir":[0,0,5]}}]}}"#)
+            .replace(r#""inch""#, r#""mm""#);
+    let d = Document::from_json(&mm).unwrap();
+    assert_eq!(
+        d.guide(GuideId(0)).unwrap().shape,
+        GuideShape::Line { origin: v(10.0, 0.0, 0.0), dir: V3::Z },
+        "origins scale with the units, directions are normalised"
+    );
+}

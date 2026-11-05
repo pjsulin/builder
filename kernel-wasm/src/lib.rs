@@ -278,6 +278,66 @@ impl Kernel {
         Ok(e.iter().map(|e| e.0).collect())
     }
 
+    /// Add an unbounded guide line through the origin along the direction to `ctx`.
+    /// Returns the guide id.
+    #[wasm_bindgen(js_name = addGuideLine)]
+    #[allow(clippy::too_many_arguments)]
+    pub fn add_guide_line(
+        &mut self,
+        ctx: u32,
+        ox: f64,
+        oy: f64,
+        oz: f64,
+        dx: f64,
+        dy: f64,
+        dz: f64,
+    ) -> Result<u32, JsError> {
+        Ok(self.doc.add_guide_line(DefId(ctx), V3::new(ox, oy, oz), V3::new(dx, dy, dz)).map_err(js)?.0)
+    }
+
+    /// Add a guide point to `ctx`. Returns the guide id.
+    #[wasm_bindgen(js_name = addGuidePoint)]
+    pub fn add_guide_point(&mut self, ctx: u32, x: f64, y: f64, z: f64) -> Result<u32, JsError> {
+        Ok(self.doc.add_guide_point(DefId(ctx), V3::new(x, y, z)).map_err(js)?.0)
+    }
+
+    /// Erase the given guides; refused as a whole if any owner is locked.
+    #[wasm_bindgen(js_name = eraseGuides)]
+    pub fn erase_guides(&mut self, guides: Vec<u32>) -> Result<(), JsError> {
+        self.doc.erase_guides(&ids(&guides, GuideId)).map_err(js)
+    }
+
+    /// Erase every guide in an unlocked definition. Returns how many.
+    #[wasm_bindgen(js_name = eraseAllGuides)]
+    pub fn erase_all_guides(&mut self) -> u32 {
+        self.doc.erase_all_guides() as u32
+    }
+
+    /// Guides owned by `def`, flattened as `[id, kind (0 line, 1 point), x, y, z,
+    /// dx, dy, dz]` per guide in definition coordinates; a point's direction is zero.
+    pub fn guides(&self, def: u32) -> Vec<f64> {
+        let mut out = Vec::new();
+        for (id, g) in self.doc.guides_in(DefId(def)) {
+            let (kind, p, d) = match g.shape {
+                GuideShape::Line { origin, dir } => (0.0, origin, dir),
+                GuideShape::Point { pos } => (1.0, pos, V3::ZERO),
+            };
+            out.extend_from_slice(&[id.0 as f64, kind, p.x, p.y, p.z, d.x, d.y, d.z]);
+        }
+        out
+    }
+
+    #[wasm_bindgen(js_name = guidesVisible)]
+    pub fn guides_visible(&self) -> bool {
+        self.doc.guides_visible()
+    }
+
+    /// Journaled; the caller wraps it in a transaction.
+    #[wasm_bindgen(js_name = setGuidesVisible)]
+    pub fn set_guides_visible(&mut self, visible: bool) {
+        self.doc.set_guides_visible(visible)
+    }
+
     /// Intersect `faces` (and the faces inside `instances`) in `ctx` with the model
     /// (`with_model`) or with each other. Returns the edges drawn.
     #[wasm_bindgen(js_name = intersectFaces)]

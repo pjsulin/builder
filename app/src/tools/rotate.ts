@@ -106,38 +106,12 @@ export class RotateTool implements Tool {
     this.host.show({});
   }
 
-  /** Radius that keeps the protractor about the same size on screen. */
   private radius(): number {
-    return this.host.camera.dist * 0.12;
+    return protractorRadius(this.host);
   }
 
-  /**
-   * The protractor's plane normal for an inference: a hovered face's normal, a
-   * hovered edge's camera-facing face's normal, else the ground; flipped to face
-   * the camera. An arrow-key lock overrides with its axis.
-   */
   private protractorNormal(r: Inference | null, ray: Ray): Vec3 {
-    const lock = this.host.inference.lockAxis;
-    if (lock !== null) return AXES[lock];
-    const toward = (n: Vec3): Vec3 => (dot(n, ray.dir) > 0 ? scale(n, -1) : n);
-    if (r?.face) return toward(r.face.normal);
-    if (r?.edge) {
-      const item = this.host.scene().items[r.edge.item];
-      let best: Vec3 | null = null;
-      let bestFacing = -1;
-      for (const f of this.host.model.edgeFaces(r.edge.id)) {
-        const plane = this.host.model.facePlane(f);
-        if (!plane) continue;
-        const n = norm(applyDir(item.matrix, plane.normal));
-        const facing = Math.abs(dot(n, ray.dir));
-        if (facing > bestFacing) {
-          bestFacing = facing;
-          best = n;
-        }
-      }
-      if (best) return toward(best);
-    }
-    return [0, 0, 1];
+    return protractorNormal(this.host, r, ray);
   }
 
   /** The unit direction from the centre to a point, in the protractor's plane. */
@@ -157,7 +131,7 @@ export class RotateTool implements Tool {
       const pick = this.host.selection.empty ? pickEntity(this.host.scene(), this.host.camera, p.x, p.y) : null;
       this.host.show({
         inference: r,
-        hoverEntity: pick && !pick.outside && !pick.locked ? pick.entity : null,
+        hoverEntity: pick && !pick.outside && !pick.locked && pick.entity.kind !== "guide" ? pick.entity : null,
         protractor: r ? { center: r.point, normal: this.hoverNormal, radius: this.radius() } : null,
       });
       return;
@@ -242,7 +216,7 @@ export class RotateTool implements Tool {
     const { selection, model } = this.host;
     if (selection.empty) {
       const pick = pickEntity(this.host.scene(), this.host.camera, p.x, p.y);
-      if (!pick || pick.outside || pick.locked) return;
+      if (!pick || pick.outside || pick.locked || pick.entity.kind === "guide") return;
       selection.set([pick.entity]);
     }
     if (!this.current) return;
@@ -407,4 +381,39 @@ export class RotateTool implements Tool {
     this.host.show({});
     this.host.hintChanged();
   }
+}
+
+/** Radius that keeps a protractor about the same size on screen. */
+export function protractorRadius(host: ToolHost): number {
+  return host.camera.dist * 0.12;
+}
+
+/**
+ * The protractor's plane normal for an inference: a hovered face's normal, a
+ * hovered edge's camera-facing face's normal, else the ground; flipped to face
+ * the camera. An arrow-key lock overrides with its axis. Shared by Rotate and the
+ * Protractor guide tool, and by Tape Measure for the plane a guide is dragged in.
+ */
+export function protractorNormal(host: ToolHost, r: Inference | null, ray: Ray): Vec3 {
+  const lock = host.inference.lockAxis;
+  if (lock !== null) return AXES[lock];
+  const toward = (n: Vec3): Vec3 => (dot(n, ray.dir) > 0 ? scale(n, -1) : n);
+  if (r?.face) return toward(r.face.normal);
+  if (r?.edge && r.guide === undefined) {
+    const item = host.scene().items[r.edge.item];
+    let best: Vec3 | null = null;
+    let bestFacing = -1;
+    for (const f of host.model.edgeFaces(r.edge.id)) {
+      const plane = host.model.facePlane(f);
+      if (!plane) continue;
+      const n = norm(applyDir(item.matrix, plane.normal));
+      const facing = Math.abs(dot(n, ray.dir));
+      if (facing > bestFacing) {
+        bestFacing = facing;
+        best = n;
+      }
+    }
+    if (best) return toward(best);
+  }
+  return [0, 0, 1];
 }

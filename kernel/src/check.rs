@@ -15,6 +15,8 @@ pub enum FindingKind {
     FacelessEdge,
     /// Two vertices of one definition are closer than `tol::LENGTH`.
     DuplicateVertices,
+    /// A guide whose owner definition is gone or whose line direction is not unit.
+    BadGuide,
 }
 
 impl FindingKind {
@@ -25,6 +27,7 @@ impl FindingKind {
             FindingKind::NonPlanarFace => "non_planar_face",
             FindingKind::FacelessEdge => "faceless_edge",
             FindingKind::DuplicateVertices => "duplicate_vertices",
+            FindingKind::BadGuide => "bad_guide",
         }
     }
 }
@@ -36,6 +39,7 @@ pub struct Finding {
     pub faces: Vec<FId>,
     pub edges: Vec<EId>,
     pub vertices: Vec<VId>,
+    pub guides: Vec<GuideId>,
     /// A point near the problem, in the owner definition's coordinates.
     pub position: V3,
 }
@@ -56,12 +60,15 @@ impl std::fmt::Display for Finding {
         if !self.vertices.is_empty() {
             parts.push(format!("vertices {}", list(self.vertices.iter().map(|x| x.0).collect())));
         }
+        if !self.guides.is_empty() {
+            parts.push(format!("guides {}", list(self.guides.iter().map(|x| x.0).collect())));
+        }
         write!(f, " {}", parts.join("; "))
     }
 }
 
 impl Finding {
-    /// Serialize as JSON `{kind, owner, faces, edges, vertices, position: [x, y, z]}`
+    /// Serialize as JSON `{kind, owner, faces, edges, vertices, guides, position: [x, y, z]}`
     /// (`kind` is the snake_case variant name).
     pub fn to_json(&self) -> serde_json::Value {
         serde_json::json!({
@@ -70,6 +77,7 @@ impl Finding {
             "faces": self.faces.iter().map(|x| x.0).collect::<Vec<_>>(),
             "edges": self.edges.iter().map(|x| x.0).collect::<Vec<_>>(),
             "vertices": self.vertices.iter().map(|x| x.0).collect::<Vec<_>>(),
+            "guides": self.guides.iter().map(|x| x.0).collect::<Vec<_>>(),
             "position": [self.position.x, self.position.y, self.position.z],
         })
     }
@@ -77,8 +85,8 @@ impl Finding {
 
 /// Report problems a loaded document may carry that the editing operations never
 /// create. Never writes. An empty vector means clean. Findings come in the order
-/// non-planar faces, faceless edges, overlapping edges, duplicate vertices, each by
-/// ascending id.
+/// non-planar faces, faceless edges, overlapping edges, duplicate vertices, bad
+/// guides, each by ascending id.
 pub fn check(doc: &Document) -> Vec<Finding> {
     let mut out = Vec::new();
 
@@ -96,6 +104,7 @@ pub fn check(doc: &Document) -> Vec<Finding> {
                     faces: vec![FId(i as u32)],
                     edges: Vec::new(),
                     vertices: Vec::new(),
+                    guides: Vec::new(),
                     position: doc.pos(v),
                 });
             }
@@ -110,6 +119,7 @@ pub fn check(doc: &Document) -> Vec<Finding> {
                 faces: Vec::new(),
                 edges: vec![EId(i as u32)],
                 vertices: Vec::new(),
+                guides: Vec::new(),
                 position: doc.pos(edge.v[0]).lerp(doc.pos(edge.v[1]), 0.5),
             });
         }
@@ -150,6 +160,7 @@ pub fn check(doc: &Document) -> Vec<Finding> {
                     faces: Vec::new(),
                     edges: vec![lo, hi],
                     vertices: Vec::new(),
+                    guides: Vec::new(),
                     position: mid,
                 });
             }
@@ -173,9 +184,28 @@ pub fn check(doc: &Document) -> Vec<Finding> {
                     faces: Vec::new(),
                     edges: Vec::new(),
                     vertices: vec![lo, hi],
+                    guides: Vec::new(),
                     position: p,
                 });
             }
+        }
+    }
+
+    for (i, g) in doc.guides.iter() {
+        let (position, bad_dir) = match g.shape {
+            GuideShape::Line { origin, dir } => (origin, (dir.len() - 1.0).abs() > 1e-9),
+            GuideShape::Point { pos } => (pos, false),
+        };
+        if doc.definition(g.owner).is_none() || bad_dir {
+            out.push(Finding {
+                kind: FindingKind::BadGuide,
+                owner: g.owner,
+                faces: Vec::new(),
+                edges: Vec::new(),
+                vertices: Vec::new(),
+                guides: vec![GuideId(i as u32)],
+                position,
+            });
         }
     }
     out

@@ -41,6 +41,8 @@ A `.builder` file is a UTF-8 JSON document. It stores the model as boundary geom
 | `instances` | array | no | Placements of definitions. |
 | `materials` | array | no | Referenced by index from faces and instances. |
 | `tags` | array | no | Referenced by index from instances. |
+| `guides` | array | no | Construction guide lines and points (§ Guides). Not written when empty. |
+| `guides_visible` | boolean | no | Whether guides are shown. Written only when `false`; absent means `true`. |
 
 Coordinates are right-handed with **Z up**.
 
@@ -115,6 +117,30 @@ A definition, instance or face may carry `attributes`: an object of **namespaces
 Readers keep every namespace, including ones they do not understand, and write them back unchanged. In Builder, attribute writes are journaled like geometry (undo and redo restore them), a split face gives each half its attributes, and push/pull copies the pulled face's attributes to the faces it creates. Attributes do not take part in welding; two coplanar faces with different attributes are not merged.
 
 Attributes are part of version 1 as an additive change: a version 1 file without them is unchanged, and a reader from before this section ignores the key under the compatibility rules below.
+
+## Guides
+
+A guide is construction geometry: an unbounded line or a point that exists only to be snapped to. Guides are listed at the top level, each naming the definition that owns it by index into `definitions`; coordinates are in that definition's own space, so a guide drawn inside a group is drawn through every instance of the group.
+
+```json
+"guides": [
+  { "kind": "line",  "definition": 0, "origin": [48, 0, 0], "dir": [0, 1, 0] },
+  { "kind": "point", "definition": 2, "pos": [0, 24, 0] }
+],
+"guides_visible": false
+```
+
+| Key | Type | Meaning |
+| --- | --- | --- |
+| `kind` | string | `"line"` or `"point"`. |
+| `definition` | integer | Index into `definitions`. A missing definition is refused, with the path named (`guides[1].definition`). |
+| `origin` | `[x, y, z]` | Line only: a point on the line, in the file's `units`. |
+| `dir` | `[x, y, z]` | Line only: the direction. Builder writes it unit; readers normalise it and refuse a zero direction (`guides[1].dir`). |
+| `pos` | `[x, y, z]` | Point only: the position, in the file's `units`. |
+
+Guides never take part in topology: they bound no face, split no edge and are not welded, healed, pushed or pulled. Builder writes them sorted by id, so a file saved twice is byte-identical. In Builder, guide writes are journaled like geometry, and `guides_visible` is one flag for all of them, journaled the same way.
+
+Guides are part of version 1 as an additive change: a version 1 file without the keys has no guides and shows them, and a reader from before this section ignores both keys under the compatibility rules below.
 
 ## Materials
 

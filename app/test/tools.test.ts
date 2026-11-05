@@ -6,6 +6,7 @@ import { MoveTool } from "../src/tools/move";
 import { PushPullTool } from "../src/tools/pushpull";
 import { RectangleTool } from "../src/tools/rectangle";
 import { SelectTool } from "../src/tools/select";
+import { pickEntity } from "../src/tools/pick";
 import { TestHost } from "./toolhost";
 
 /** Faces on the front wall plane (y = 0) facing out. */
@@ -605,5 +606,128 @@ describe("Linear arrays", () => {
     expect(h2.model.revision).toBeGreaterThan(before);
     expect(h2.model.undo()).toBe("Copy");
     expect(h2.model.instances(ROOT).length).toBe(1);
+  });
+});
+
+describe("Model guides", () => {
+  it("adds, lists, erases and erases all through the wrappers", () => {
+    const h = new TestHost();
+    box(h);
+    const faces = [...new Set(h.scene().triFace)];
+    const g = h.model.transact("Make Group", () => h.model.makeGroup(ROOT, faces, [...h.scene().segEdge], []));
+    const def = h.model.instanceInfo(g)!.definition;
+    const ids = h.model.transact("Guides", () => [
+      h.model.addGuideLine(ROOT, [48, 0, 0], [0, 2, 0]),
+      h.model.addGuidePoint(ROOT, [0, 24, 0]),
+      h.model.addGuidePoint(def, [5, 5, 10]),
+    ]);
+    expect(h.model.guides(ROOT)).toEqual([
+      { id: ids[0], kind: "line", origin: [48, 0, 0], dir: [0, 1, 0] },
+      { id: ids[1], kind: "point", origin: [0, 24, 0], dir: [0, 0, 0] },
+    ]);
+    expect(h.model.guides(def).map((x) => x.id)).toEqual([ids[2]]);
+    expect(h.model.exists({ kind: "guide", id: ids[0] })).toBe(true);
+    expect(h.model.guideOwner(ids[2])).toBe(def);
+
+    h.model.transact("Erase", () => h.model.eraseGuides([ids[0]]));
+    expect(h.model.exists({ kind: "guide", id: ids[0] })).toBe(false);
+    expect(h.model.guides(ROOT).map((x) => x.id)).toEqual([ids[1]]);
+    expect(() => h.model.transact("Erase", () => h.model.eraseGuides([ids[0]]))).toThrow("no longer exists");
+
+    expect(h.model.transact("Delete Guides", () => h.model.eraseAllGuides())).toBe(2);
+    expect(h.model.guides(ROOT)).toEqual([]);
+    expect(h.model.guides(def)).toEqual([]);
+    expect(h.model.undo()).toBe("Delete Guides");
+    expect(h.model.guides(ROOT).length + h.model.guides(def).length).toBe(2);
+    expect(() => h.model.transact("Guide", () => h.model.addGuideLine(ROOT, [0, 0, 0], [0, 0, 0]))).toThrow("guide direction");
+  });
+
+  it("toggles visibility as one undo step and prunes erased guides from the selection", () => {
+    const h = new TestHost();
+    const id = h.model.transact("Guide", () => h.model.addGuidePoint(ROOT, [1, 2, 3]));
+    expect(h.model.guidesVisible()).toBe(true);
+    h.model.transact("Guides", () => h.model.setGuidesVisible(false));
+    expect(h.model.guidesVisible()).toBe(false);
+    expect(h.model.undo()).toBe("Guides");
+    expect(h.model.guidesVisible()).toBe(true);
+    h.model.redo();
+    expect(h.model.guidesVisible()).toBe(false);
+
+    h.selection.set([{ kind: "guide", id }]);
+    h.model.transact("Erase", () => h.model.eraseGuides([id]));
+    h.selection.prune(h.model);
+    expect(h.selection.empty).toBe(true);
+  });
+});
+
+describe("Guides in the view", () => {
+  function guided(h: TestHost) {
+    box(h);
+    const ids = h.model.transact("Guides", () => [
+      h.model.addGuideLine(ROOT, [0, -60, 0], [1, 0, 0]),
+      h.model.addGuidePoint(ROOT, [60, -100, 0]),
+    ]);
+    h.refresh();
+    return { line: ids[0], point: ids[1] };
+  }
+
+  it("picks a guide line and a guide point, and prefers an edge over a guide", () => {
+    const h = new TestHost();
+    const { line, point } = guided(h);
+    const at = (p: [number, number, number]) => {
+      const s = h.at(p);
+      return pickEntity(h.scene(), h.camera, s.x, s.y);
+    };
+    expect(at([30, -60, 0])?.entity).toEqual({ kind: "guide", id: line });
+    expect(at([-40, -60, 0])?.entity).toEqual({ kind: "guide", id: line });
+    expect(at([60, -100, 0])?.entity).toEqual({ kind: "guide", id: point });
+    expect(at([60, -60, 80])?.entity.kind ?? null).not.toBe("guide");
+    // A guide through the box's front bottom edge: the edge wins at the same pixel.
+    const edge = h.model.transact("Guide", () => h.model.addGuideLine(ROOT, [0, 0, 0], [1, 0, 0]));
+    h.refresh();
+    expect(at([50, 0, 0])?.entity).toEqual({ kind: "edge", id: expect.any(Number) });
+    expect(at([-30, 0, 0])?.entity).toEqual({ kind: "guide", id: edge });
+    // A guide behind the box is hidden by its faces.
+    const behind = h.model.transact("Guide", () => h.model.addGuideLine(ROOT, [0, 80, 40], [1, 0, 0]));
+    h.refresh();
+    expect(at([60, 80, 40])?.entity).toEqual({ kind: "face", id: expect.any(Number) });
+    expect(at([-30, 80, 40])?.entity).toEqual({ kind: "guide", id: behind });
+  });
+
+  it("selects a guide with Select, erases it with Delete, and Move ignores a picked guide", () => {
+    const h = new TestHost();
+    const { line, point } = guided(h);
+    const sel = new SelectTool(h);
+    h.click(sel, [30, -60, 0]);
+    expect(h.selection.items).toEqual([{ kind: "guide", id: line }]);
+    const mv = new MoveTool(h);
+    h.selection.clear();
+    const before = h.model.revision;
+    h.click(mv, [60, -100, 0]);
+    expect(mv.busy()).toBe(false);
+    expect(h.selection.empty).toBe(true);
+    expect(h.model.revision).toBe(before);
+    h.click(sel, [60, -100, 0]);
+    expect(h.selection.items).toEqual([{ kind: "guide", id: point }]);
+    // The app's Delete key path: erase the selection's guides in one transaction.
+    h.model.transact("Erase", () => h.model.eraseGuides(h.selection.ids("guide")));
+    h.refresh();
+    expect(h.selection.empty).toBe(true);
+    expect(h.model.guides(ROOT).map((g) => g.id)).toEqual([line]);
+  });
+
+  it("erases a guide with the Eraser, and Delete Guides is one undo step", () => {
+    const h = new TestHost();
+    const { line, point } = guided(h);
+    const erase = new EraseTool(h);
+    h.click(erase, [30, -60, 0]);
+    expect(h.model.guides(ROOT).map((g) => g.id)).toEqual([point]);
+    expect(h.model.undo()).toBe("Erase");
+    expect(h.model.guides(ROOT).map((g) => g.id)).toEqual([line, point]);
+    expect(h.model.transact("Delete Guides", () => h.model.eraseAllGuides())).toBe(2);
+    expect(h.model.guides(ROOT)).toEqual([]);
+    expect(h.model.undo()).toBe("Delete Guides");
+    expect(h.model.guides(ROOT).length).toBe(2);
+    expect(h.model.stats().faces).toBe(6);
   });
 });

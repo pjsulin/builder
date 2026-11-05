@@ -33,9 +33,9 @@ The tools every real model uses, in order of how often they're needed.
 | --- | --- | --- | --- |
 | 2.1 | **Copy** (Ctrl with Move) and **arrays** (`5x`, `/5` in the Measurements box). Done, sprint CopyAndArrays, 2026-10: Option on a Mac, copies of groups are independent groups until 3.1. | S | Joists, rafters, deck boards, shelves, fence posts. The most-repeated action in building models. |
 | 2.2 | **Rotate** with a protractor, rotate-copy and radial arrays, **Offset** (faces and edge chains). Done, sprint RotateAndOffset, 2026-11: one transform path for Move and Rotate, a self-intersecting offset is refused. | M | Turning furniture, angled walls, roof pitches; wall thickness, window frames, trim, table aprons. |
-| 2.3 | **Tape Measure and guides** (guide lines and points, measured distances) | M | How SketchUp users lay out positions before drawing. |
+| 2.3 | **Tape Measure and guides** (guide lines and points, measured distances), the **Protractor**, and the parallel, perpendicular, from-point, intersection and guide inferences. Done, sprint MeasureAndGuide, 2026-11: guides are a kernel entity under an additive `guides` key; row 2.5's inference folded in, since guides are useless unless they snap. | M | How SketchUp users lay out positions before drawing. |
 | 2.4 | **Circle, Polygon and Arc**, stored as curves that select as one | L | Round posts, arched doors, table tops. Needs an edge-curve attribute in the kernel. |
-| 2.5 | **More inference**: parallel, perpendicular, from-point alignment, intersections, guide snaps | M | Makes everything above precise without typing. |
+| 2.5 | **More inference**: parallel, perpendicular, from-point alignment, intersections, guide snaps | M | Delivered with 2.3. |
 | 2.6 | **Scale** (uniform and per axis, typed factors) | M | Resizing components and quick shape edits. |
 | 2.7 | **Flip and orient faces** | S | Fixes inside-out faces, which matter for exports and 3D printing. |
 

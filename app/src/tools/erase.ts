@@ -14,7 +14,7 @@ export class EraseTool implements Tool {
   constructor(private host: ToolHost) {}
 
   hint(): string {
-    return "Click an edge, face or group to erase it, or drag across several. Erasing a dividing edge merges faces.";
+    return "Click an edge, face, group or guide to erase it, or drag across several. Erasing a dividing edge merges faces.";
   }
   vcbLabel(): string {
     return "Measurements";
@@ -51,7 +51,11 @@ export class EraseTool implements Tool {
     const { model } = this.host;
     const ids = (k: Entity["kind"]) => items.filter((e) => e.kind === k).map((e) => e.id);
     try {
-      model.transact("Erase", () => model.erase(ids("face"), ids("edge"), ids("instance")));
+      model.transact("Erase", () => {
+        model.erase(ids("face"), ids("edge"), ids("instance"));
+        const guides = ids("guide");
+        if (guides.length) model.eraseGuides(guides);
+      });
     } catch (e) {
       this.host.flash(errorMessage(e));
     }

@@ -150,3 +150,130 @@ describe("scene index", () => {
     expect(inside.items[inside.editableItem()].def).toBe(model.instanceInfo(g)!.definition);
   });
 });
+
+describe("guides and reference edges", () => {
+  /** An edge at 45° on the ground in front of the box, hovered so it is referenced. */
+  function referenceAngledEdge() {
+    model.transact("Line", () => model.addLine(ROOT, [200, -100, 0], [260, -40, 0]));
+    scene = SceneIndex.build(model, ROOT);
+    const s = at([215, -85, 0]);
+    const r = engine.infer(s.x, s.y)!;
+    expect(r.kind).toBe("onEdge");
+    expect(engine.referencedEdge()?.a).toEqual([200, -100, 0]);
+  }
+  const SQ = Math.SQRT1_2;
+
+  it("gives Parallel to Edge and Perpendicular to Edge from an anchor, within the radius only", () => {
+    referenceAngledEdge();
+    const anchor: Vec3 = [200, -200, 0];
+    const para = at([200 + 60 * SQ, -200 + 60 * SQ, 0]);
+    let r = engine.infer(para.x + 2, para.y - 2, { anchor })!;
+    expect(r.kind).toBe("parallel");
+    expect(r.label).toBe("Parallel to Edge");
+    expect(r.from).toEqual(anchor);
+    expect(r.point[0] - 200).toBeCloseTo(r.point[1] + 200, 6);
+    const perp = at([200 - 60 * SQ, -200 + 60 * SQ, 0]);
+    r = engine.infer(perp.x - 2, perp.y + 2, { anchor })!;
+    expect(r.kind).toBe("perpendicular");
+    expect(r.label).toBe("Perpendicular to Edge");
+    expect(r.point[0] - 200).toBeCloseTo(-(r.point[1] + 200), 6);
+    expect(r.point[2]).toBeCloseTo(0, 6);
+    const off = at([200 + 60, -200 + 20, 0]);
+    r = engine.infer(off.x, off.y, { anchor })!;
+    expect(r.kind).toBe("ground");
+  });
+
+  it("Down cycles parallel, perpendicular, off; Shift holds the cue", () => {
+    expect(engine.cycleEdgeLock()).toBeNull();
+    referenceAngledEdge();
+    const anchor: Vec3 = [200, -200, 0];
+    const away = at([300, -150, 0]);
+    expect(engine.cycleEdgeLock()).toBe("parallel");
+    let r = engine.infer(away.x, away.y, { anchor })!;
+    expect(r.kind).toBe("parallel");
+    expect(r.locked).toBe(true);
+    expect(r.point[0] - 200).toBeCloseTo(r.point[1] + 200, 6);
+    expect(engine.cycleEdgeLock()).toBe("perpendicular");
+    r = engine.infer(away.x, away.y, { anchor })!;
+    expect(r.kind).toBe("perpendicular");
+    expect(r.point[0] - 200).toBeCloseTo(-(r.point[1] + 200), 6);
+    expect(engine.cycleEdgeLock()).toBeNull();
+    expect(engine.locked).toBe(false);
+    r = engine.infer(away.x, away.y, { anchor })!;
+    expect(r.kind).toBe("ground");
+
+    const para = at([200 + 60 * SQ, -200 + 60 * SQ, 0]);
+    engine.infer(para.x, para.y, { anchor });
+    expect(engine.lockCurrent()).toBe(true);
+    expect(engine.edgeLock()).toBe("parallel");
+    r = engine.infer(away.x, away.y, { anchor })!;
+    expect(r.kind).toBe("parallel");
+    expect(r.locked).toBe(true);
+    engine.unlock();
+    expect(engine.edgeLock()).toBeNull();
+  });
+
+  it("snaps to guide intersections, guide points and guide lines", () => {
+    model.transact("Guides", () => {
+      model.addGuideLine(ROOT, [200, -150, 0], [1, 0, 0]);
+      model.addGuideLine(ROOT, [230, -200, 0], [0, 1, 0]);
+      model.addGuidePoint(ROOT, [260, -150, 0]);
+    });
+    scene = SceneIndex.build(model, ROOT);
+    const x = at([230, -150, 0]);
+    let r = engine.infer(x.x + 3, x.y - 2)!;
+    expect(r.kind).toBe("intersection");
+    expect(r.label).toBe("Intersection");
+    r.point.forEach((v, i) => expect(v).toBeCloseTo([230, -150, 0][i], 6));
+    const gp = at([260, -150, 0]);
+    r = engine.infer(gp.x - 3, gp.y + 2)!;
+    expect(r.kind).toBe("guidePoint");
+    expect(r.label).toBe("Guide Point");
+    expect(r.point).toEqual([260, -150, 0]);
+    expect(r.guide?.id).toBe(2);
+    const on = at([205, -150, 0]);
+    r = engine.infer(on.x, on.y + 2)!;
+    expect(r.kind).toBe("onGuide");
+    expect(r.label).toBe("On Guide");
+    expect(r.point[1]).toBeCloseTo(-150, 6);
+    expect(r.guide?.id).toBe(0);
+    // An edge crossing a guide is an intersection too.
+    model.transact("Line", () => model.addLine(ROOT, [250, -200, 0], [250, -120, 0]));
+    scene = SceneIndex.build(model, ROOT);
+    const ex = at([250, -150, 0]);
+    r = engine.infer(ex.x + 2, ex.y)!;
+    expect(r.kind).toBe("intersection");
+    r.point.forEach((v, i) => expect(v).toBeCloseTo([250, -150, 0][i], 6));
+    // Hidden guides snap to nothing.
+    model.transact("Guides", () => model.setGuidesVisible(false));
+    scene = SceneIndex.build(model, ROOT);
+    expect(engine.infer(gp.x, gp.y)!.kind).not.toBe("guidePoint");
+  });
+
+  it("aligns with the last hovered point until a click, and reset clears everything", () => {
+    const corner = at([120, 0, 96]);
+    expect(engine.infer(corner.x, corner.y)!.kind).toBe("endpoint");
+    const above = at([120, 0, 150]);
+    let r = engine.infer(above.x + 3, above.y)!;
+    expect(r.kind).toBe("fromPoint");
+    expect(r.label).toBe("From Point");
+    expect(r.axis).toBe(2);
+    expect(r.from).toEqual([120, 0, 96]);
+    expect(r.ref).toEqual({ point: [120, 0, 96], kind: "endpoint" });
+    expect(r.point[0]).toBeCloseTo(120, 6);
+    expect(r.point[1]).toBeCloseTo(0, 6);
+    engine.clicked();
+    r = engine.infer(above.x + 3, above.y)!;
+    expect(r.kind).not.toBe("fromPoint");
+
+    referenceAngledEdge();
+    engine.cycleEdgeLock();
+    engine.infer(corner.x, corner.y);
+    engine.reset();
+    expect(engine.referencedEdge()).toBeNull();
+    expect(engine.edgeLock()).toBeNull();
+    expect(engine.locked).toBe(false);
+    expect(engine.last).toBeNull();
+    expect(engine.infer(above.x + 3, above.y)!.kind).not.toBe("fromPoint");
+  });
+});

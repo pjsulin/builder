@@ -127,3 +127,34 @@ describe("Model attributes", () => {
     expect(() => m.setTransform(g, m.worldTransform(def))).toThrow(/locked/);
   });
 });
+
+describe("SceneIndex guides", () => {
+  it("flattens a guide in a moved group through the instance matrix, and hides them all", () => {
+    const m = newModel();
+    const g = box(m, 0);
+    const def = m.instanceInfo(g)!.definition;
+    m.addGuideLine(def, [0, 0, 10], [0, 1, 0]);
+    m.addGuidePoint(def, [5, 5, 10]);
+    m.addGuidePoint(ROOT, [1, 2, 3]);
+    m.commit();
+    // Rotate the group 90° about Z at the origin, then translate it: y → -x.
+    m.setTransform(g, [0, 1, 0, 0, -1, 0, 0, 0, 0, 0, 1, 0, 100, 0, 0, 1]);
+    m.commit();
+    const s = SceneIndex.build(m, ROOT);
+    const inside = s.guides().filter((x) => s.items[x.item].def === def);
+    expect(inside.length).toBe(2);
+    const line = inside.find((x) => x.kind === "line")!;
+    expect(line.origin.map((v) => Math.round(v * 1e9) / 1e9)).toEqual([100, 0, 10]);
+    expect(line.dir.map((v) => Math.round(v * 1e9) / 1e9)).toEqual([-1, 0, 0]);
+    const point = inside.find((x) => x.kind === "point")!;
+    expect(point.origin.map((v) => Math.round(v * 1e9) / 1e9)).toEqual([95, 5, 10]);
+    expect(point.dir).toEqual([0, 0, 0]);
+    expect(s.guides().filter((x) => x.item === 0)).toEqual([{ item: 0, id: expect.any(Number), kind: "point", origin: [1, 2, 3], dir: [0, 0, 0] }]);
+
+    m.setGuidesVisible(false);
+    m.commit();
+    const hidden = SceneIndex.build(m, ROOT);
+    expect(hidden.guides()).toEqual([]);
+    expect(hidden.defGuides.get(def)).toEqual([]);
+  });
+});

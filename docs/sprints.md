@@ -129,6 +129,8 @@ Done when:
 
 Open questions: how long guides show (always vs. on a guides tag); whether the file format gets a `guides` key now (yes, likely, a backward-compatible addition).
 
+Resolved in the sprint (MeasureAndGuide, 2026-11, from SketchUp's defaults): guides are a kernel entity in their own journaled arena, owned by a definition, outside welding, healing and push/pull, saved under an additive `guides` key with one `guides_visible` flag (View › Hide guides, saved with the model; a guides tag waits for the tag panel); guide lines are infinite. Tape Measure starts in guide-create mode (a `+` cursor) and a Ctrl tap switches to measure-only; an endpoint makes a guide point, a midpoint, edge or face dragged off makes a parallel line in the plane of the face dragged across. The Protractor places an angled guide, 15° ticks inside the protractor and 1° outside, and takes slopes such as `3:12` (as does Rotate). The engine keeps one referenced edge (the last hovered with On Edge) and a from-point memory ended by each click; Down cycles parallel, perpendicular, off; the from-point cue ranks below On Edge and On Guide so a cursor on an edge keeps its meaning. Resizing the model from a measurement waits for Scale (2.4). Guides got `Op::Guide` and `Op::EraseGuide` in the randomized test.
+
 ### Sprint 2.4: Curves, Scale and Flip
 
 **Goal:** round shapes, resizing, and fixing face direction.

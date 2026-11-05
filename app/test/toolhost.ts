@@ -76,10 +76,12 @@ export class TestHost implements ToolHost {
     if (!s) throw new Error(`point ${p} is behind the camera`);
     return { x: s.x, y: s.y, shift: false, ctrl: false, alt: false, copy: opts.copy ?? false };
   }
-  /** Hover then click at a world point. */
+  /** Hover then click at a world point. Like the app's pointerdown handler, the
+   *  click ends the inference engine's from-point memory before the tool sees it. */
   click(tool: Tool, p: Vec3): void {
     const ptr = this.at(p);
     tool.move(ptr);
+    this.inference.clicked();
     tool.down(ptr);
     tool.up(ptr, false);
   }
@@ -87,6 +89,7 @@ export class TestHost implements ToolHost {
   copyClick(tool: Tool, p: Vec3): void {
     const ptr = this.at(p, { copy: true });
     tool.move(ptr);
+    this.inference.clicked();
     tool.down(ptr);
     tool.up(ptr, false);
   }
@@ -96,6 +99,7 @@ export class TestHost implements ToolHost {
   /** Press, drag through points, release. */
   drag(tool: Tool, from: Vec3, to: Vec3): void {
     tool.move(this.at(from));
+    this.inference.clicked();
     tool.down(this.at(from));
     for (let i = 1; i <= 4; i++) {
       const p: Vec3 = [from[0] + ((to[0] - from[0]) * i) / 4, from[1] + ((to[1] - from[1]) * i) / 4, from[2] + ((to[2] - from[2]) * i) / 4];

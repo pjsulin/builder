@@ -3,13 +3,15 @@
 
 import { AXES, InferenceEngine, type Inference } from "./inference/engine";
 import { Model, ROOT, type Entity, type Finding } from "./kernel/model";
-import { add, applyDir, apply, cross, invert, IDENTITY, madd, planeBasis, scale, type Mat4, type Vec3 } from "./math";
+import { add, applyDir, apply, cross, dist, invert, IDENTITY, madd, norm, planeBasis, scale, sub, type Mat4, type Vec3 } from "./math";
 import { buildSample, buildStressTest } from "./samples";
 import { EraseTool } from "./tools/erase";
 import { LineTool } from "./tools/line";
 import { MoveTool } from "./tools/move";
 import { NavTool } from "./tools/nav";
 import { OffsetTool } from "./tools/offset";
+import { TapeMeasureTool } from "./tools/measure";
+import { ProtractorTool } from "./tools/protractor";
 import { PushPullTool } from "./tools/pushpull";
 import { RectangleTool } from "./tools/rectangle";
 import { RotateTool } from "./tools/rotate";
@@ -39,6 +41,14 @@ function copyKey(ev: KeyboardEvent | MouseEvent): boolean {
 }
 const COPY_KEY = MAC ? "Alt" : "Control";
 
+/** A tool's cursor as a CSS value: the stylesheet draws the Tape Measure's own. */
+function cursorStyle(cursor: string): string {
+  return cursor === "measure" || cursor === "measure-only" ? `var(--cursor-${cursor})` : cursor;
+}
+
+/** SketchUp's colour for the parallel and perpendicular cues. */
+const MAGENTA = "#c43cb0";
+
 const MARKER_CLASS: Record<string, string> = {
   endpoint: "end",
   origin: "end",
@@ -49,6 +59,12 @@ const MARKER_CLASS: Record<string, string> = {
   line: "face",
   plane: "face",
   ground: "face",
+  parallel: "para",
+  perpendicular: "para",
+  fromPoint: "from",
+  intersection: "end",
+  guidePoint: "guide",
+  onGuide: "guide",
 };
 
 export class App implements ToolHost {
@@ -93,6 +109,8 @@ export class App implements ToolHost {
       move: new MoveTool(this),
       rotate: new RotateTool(this),
       offset: new OffsetTool(this),
+      measure: new TapeMeasureTool(this),
+      protractor: new ProtractorTool(this),
       erase: new EraseTool(this),
       orbit: new NavTool(this, "orbit", nav),
       pan: new NavTool(this, "pan", nav),
@@ -161,7 +179,7 @@ export class App implements ToolHost {
   hintChanged(): void {
     $("hint").textContent = this.tool.hint();
     $("vcbLabel").textContent = this.tool.vcbLabel();
-    this.view.canvas.style.cursor = this.tool.cursor;
+    this.view.canvas.style.cursor = cursorStyle(this.tool.cursor);
   }
 
   enterGroup(instance: number): void {
@@ -204,11 +222,11 @@ export class App implements ToolHost {
     const next = this.tools[id];
     if (!next) return;
     this.tool?.deactivate();
-    this.inference.unlock();
+    this.inference.reset();
     this.tool = next;
     next.activate?.();
     document.querySelectorAll<HTMLButtonElement>(".tool").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.tool === id)));
-    this.view.canvas.style.cursor = next.cursor;
+    this.view.canvas.style.cursor = cursorStyle(next.cursor);
     this.overlay = {};
     this.drawOverlay();
     this.hintChanged();
@@ -311,11 +329,31 @@ export class App implements ToolHost {
     if (this.selection.empty) return;
     const s = this.selection;
     try {
-      this.model.transact("Erase", () => this.model.erase(s.ids("face"), s.ids("edge"), s.ids("instance")));
+      this.model.transact("Erase", () => {
+        this.model.erase(s.ids("face"), s.ids("edge"), s.ids("instance"));
+        if (s.ids("guide").length) this.model.eraseGuides(s.ids("guide"));
+      });
     } catch (e) {
       this.offerReport(e);
     }
     this.selection.clear();
+    this.refresh();
+  }
+
+  /** View › Guides: show or hide every guide, saved with the file, as one undo step. */
+  private toggleGuides(): void {
+    const visible = !this.model.guidesVisible();
+    this.model.transact("Guides", () => this.model.setGuidesVisible(visible));
+    this.flash(visible ? "Guides shown" : "Guides hidden");
+    this.refresh();
+  }
+
+  /** Edit › Delete Guides: every guide in an unlocked context, as one undo step. */
+  private deleteGuides(): void {
+    this.tool.deactivate();
+    const n = this.model.transact("Delete Guides", () => this.model.eraseAllGuides());
+    this.flash(n ? `Deleted ${n} guide${n === 1 ? "" : "s"}` : "No guides to delete");
+    this.selection.prune(this.model);
     this.refresh();
   }
 
@@ -503,6 +541,17 @@ export class App implements ToolHost {
     const segs: number[] = [];
     if (e.kind === "face") {
       tris.push(...s.faceTriangles(s.editableItem(), e.id));
+    } else if (e.kind === "guide") {
+      // The guide's visible run (a line is clipped to the far plane), or a point's stub.
+      const g = s.guides().find((x) => x.id === e.id && s.items[x.item].editable);
+      if (g && g.kind === "line") {
+        const far = this.camera.far;
+        segs.push(...add(g.origin, scale(g.dir, -far)), ...add(g.origin, scale(g.dir, far)));
+      } else if (g) {
+        const r = Math.max(0.5, dist(this.camera.eye, g.origin) * 0.012);
+        const o = g.origin;
+        segs.push(o[0] - r, o[1], o[2], o[0] + r, o[1], o[2], o[0], o[1] - r, o[2], o[0], o[1] + r, o[2], o[0], o[1], o[2] - r, o[0], o[1], o[2] + r);
+      }
     } else if (e.kind === "edge") {
       for (let i = 0; i < s.segEdge.length; i++) {
         if (s.segEdge[i] === e.id && s.items[s.segItem[i]].editable) for (let k = 0; k < 6; k++) segs.push(s.seg[i * 6 + k]);
@@ -554,6 +603,7 @@ export class App implements ToolHost {
       v.setSegments("hoverEdges", g.segs, "box");
     } else v.clearLayer("hover");
     if (!o.hoverEntity) v.clearLayer("hoverEdges");
+    v.setGuides(this.drawScene.guides(), this.model.guidesVisible());
     v.setSegments("preview", (o.segments ?? []).flat(), "preview");
     v.setSegments("protractor", o.protractor ? protractorSegments(o.protractor) : [], "preview");
     if (o.fill && o.fill.length >= 3) {
@@ -570,7 +620,12 @@ export class App implements ToolHost {
     // A dotted line from a matched point to where it was projected.
     if (r?.ref) this.view.setGuide("refGuide", r.ref.point, r.point, this.previewColor);
     else this.view.clearLayer("refGuide");
-    if (r && r.from && (r.kind === "axis" || r.kind === "line")) {
+    if (r && r.from && (r.kind === "parallel" || r.kind === "perpendicular")) {
+      // The magenta line from the anchor along the referenced edge's direction.
+      const dir = norm(sub(r.point, r.from));
+      const far = this.camera.dist * 4;
+      this.view.setGuide("guide", add(r.from, scale(dir, -far)), add(r.from, scale(dir, far)), MAGENTA);
+    } else if (r && r.from && (r.kind === "axis" || r.kind === "line" || r.kind === "fromPoint")) {
       const color = r.axis !== undefined ? this.axisColors[r.axis] : this.previewColor;
       const dir = r.axis !== undefined ? AXES[r.axis] : null;
       if (dir) {
@@ -641,6 +696,7 @@ export class App implements ToolHost {
     $<HTMLButtonElement>("redoBtn").disabled = !this.model.canRedo();
     $<HTMLButtonElement>("groupBtn").disabled = this.selection.empty;
     $<HTMLButtonElement>("explodeBtn").disabled = !this.selection.ids("instance").length;
+    $("guidesBtn").textContent = this.model.guidesVisible() ? "Hide guides" : "Show guides";
     const nothingToCut = !this.selection.ids("face").length && !this.selection.ids("instance").length;
     $<HTMLButtonElement>("intersectModelBtn").disabled = nothingToCut;
     $<HTMLButtonElement>("intersectSelBtn").disabled = nothingToCut;
@@ -662,6 +718,8 @@ export class App implements ToolHost {
       if (document.activeElement === $("vcb")) $("vcb").blur();
       const p = this.pointer(ev);
       this.copyTap = false;
+      // A click ends the from-point memory before the tool sees it.
+      this.inference.clicked();
       if (ev.button === 1 || ev.button === 2) {
         drag = { mode: ev.shiftKey ? "pan" : "orbit", x: p.x, y: p.y, moved: false };
         canvas.style.cursor = "grabbing";
@@ -690,7 +748,7 @@ export class App implements ToolHost {
     canvas.addEventListener("pointerup", (ev) => {
       const d = drag;
       drag = null;
-      canvas.style.cursor = this.tool.cursor;
+      canvas.style.cursor = cursorStyle(this.tool.cursor);
       if (d?.mode === "tool") this.tool.up(this.pointer(ev), d.moved);
     });
     canvas.addEventListener("dblclick", (ev) => this.tool.doubleClick?.(this.pointer(ev)));
@@ -737,6 +795,8 @@ export class App implements ToolHost {
     button("intersectModelBtn", () => this.intersect(true));
     button("intersectSelBtn", () => this.intersect(false));
     button("checkBtn", () => this.checkModel());
+    button("deleteGuidesBtn", () => this.deleteGuides());
+    button("guidesBtn", () => this.toggleGuides());
     button("findingsClose", () => $<HTMLDialogElement>("findings").close());
     button("saveBtn", () => this.save());
     button("versionsBtn", () => void this.showVersions());
@@ -851,7 +911,9 @@ export class App implements ToolHost {
     }
     if (k === "ArrowDown") {
       ev.preventDefault();
-      this.inference.unlock();
+      // Parallel, perpendicular, off against the referenced edge; with nothing
+      // referenced, Down clears whatever lock is on.
+      if (this.inference.cycleEdgeLock() === null && !this.inference.referencedEdge()) this.inference.unlock();
       this.positionLabels();
       return;
     }
@@ -859,12 +921,13 @@ export class App implements ToolHost {
       if (this.inference.lockCurrent()) this.positionLabels();
       return;
     }
+    if (k === "Escape") this.inference.reset();
     if (this.tool.key?.(k, ev.shiftKey)) {
       this.hintChanged();
       return;
     }
     const keys: Record<string, string> = {
-      " ": "select", l: "line", r: "rectangle", p: "pushpull", m: "move", q: "rotate", f: "offset", e: "erase", o: "orbit", h: "pan",
+      " ": "select", l: "line", r: "rectangle", p: "pushpull", m: "move", q: "rotate", f: "offset", t: "measure", e: "erase", o: "orbit", h: "pan",
     };
     if (k === " ") ev.preventDefault();
     if (k === "Z" && ev.shiftKey) return this.zoomExtents();
@@ -894,6 +957,7 @@ export function describeFinding(f: Finding): string {
     f.faces.length ? `faces ${f.faces.join(", ")}` : "",
     f.edges.length ? `edges ${f.edges.join(", ")}` : "",
     f.vertices.length ? `vertices ${f.vertices.join(", ")}` : "",
+    f.guides.length ? `guides ${f.guides.join(", ")}` : "",
   ]
     .filter(Boolean)
     .join("; ");
