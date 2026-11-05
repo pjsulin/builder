@@ -1,11 +1,12 @@
-// Picking whole entities (faces, edges, groups) for Select, Move and Erase.
+// Picking whole entities (faces, edges, groups, guides) for Select, Move and Erase.
 
 import type { Entity } from "../kernel/model";
-import { dist, lineRayParam, madd, sub } from "../math";
+import { dist, lineRayParam, madd, sub, type Vec3 } from "../math";
 import type { CameraModel } from "../view/camera";
-import type { SceneIndex } from "../view/scene";
+import type { SceneIndex, WorldGuide } from "../view/scene";
 
 const EDGE_PX = 5;
+const POINT_PX = 8;
 
 export interface EntityPick {
   entity: Entity;
@@ -16,7 +17,11 @@ export interface EntityPick {
   locked: boolean;
 }
 
-/** The entity under the cursor. Edges win when the cursor is right on one. */
+/**
+ * The entity under the cursor. Edges win when the cursor is right on one; a guide
+ * line within the edge radius or a guide point within the point radius comes next,
+ * then the face under the cursor. Anything behind the nearest face is skipped.
+ */
 export function pickEntity(scene: SceneIndex, cam: CameraModel, x: number, y: number): EntityPick | null {
   const ray = cam.ray(x, y);
   const hit = scene.pick(ray, () => true);
@@ -39,8 +44,45 @@ export function pickEntity(scene: SceneIndex, cam: CameraModel, x: number, y: nu
     best = { s, d };
   }
   if (best) return entityFor(scene, scene.segItem[best.s], { kind: "edge", id: scene.segEdge[best.s] });
+  const guide = pickGuide(scene, cam, x, y, visibleDepth);
+  if (guide) return entityFor(scene, guide.item, { kind: "guide", id: guide.id });
   if (hit) return entityFor(scene, hit.item, { kind: "face", id: hit.face });
   return null;
+}
+
+/** The nearest guide within radius of the cursor and not behind `visibleDepth`. */
+function pickGuide(scene: SceneIndex, cam: CameraModel, x: number, y: number, visibleDepth: number): WorldGuide | null {
+  const ray = cam.ray(x, y);
+  let best: { g: WorldGuide; d: number } | null = null;
+  for (const g of scene.guides()) {
+    let d: number;
+    let at: Vec3;
+    if (g.kind === "point") {
+      const s = cam.project(g.origin);
+      if (!s) continue;
+      d = Math.hypot(x - s.x, y - s.y);
+      if (d > POINT_PX) continue;
+      at = g.origin;
+    } else {
+      // The screen line through the projection of the guide's closest approach to
+      // the pick ray and a point a little further along; the guide is unbounded.
+      const k = lineRayParam(g.origin, g.dir, ray);
+      if (k === null) continue;
+      at = madd(g.origin, g.dir, k);
+      const a = cam.project(at);
+      const b = cam.project(madd(at, g.dir, cam.dist * 0.01));
+      if (!a || !b) continue;
+      const dx = b.x - a.x;
+      const dy = b.y - a.y;
+      const l2 = dx * dx + dy * dy;
+      const t = l2 > 0 ? ((x - a.x) * dx + (y - a.y) * dy) / l2 : 0;
+      d = Math.hypot(x - (a.x + dx * t), y - (a.y + dy * t));
+      if (d > EDGE_PX) continue;
+    }
+    if (dist(ray.origin, at) > visibleDepth) continue;
+    if (!best || d < best.d) best = { g, d };
+  }
+  return best?.g ?? null;
 }
 
 function entityFor(scene: SceneIndex, item: number, raw: Entity): EntityPick {

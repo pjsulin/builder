@@ -138,13 +138,13 @@ Sprint 2.3 of Milestone 2: guides as a kernel entity saved under an additive `gu
 
 ### Phase 4: Guide Layer, Picking and Housekeeping
 
-**Status:** pending
+**Status:** completed
 **Dependencies:** [Phase 3]
 
 #### Task 4.1: Guides in the scene index and viewport
 
 - **Type:** implement
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [Phase 3]
 - **Files:**
   - Modify: app/src/view/scene.ts
@@ -155,7 +155,7 @@ Sprint 2.3 of Milestone 2: guides as a kernel entity saved under an additive `gu
 #### Task 4.2: Pick guides, erase guides
 
 - **Type:** implement
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [4.1]
 - **Files:**
   - Modify: app/src/tools/pick.ts
@@ -165,12 +165,12 @@ Sprint 2.3 of Milestone 2: guides as a kernel entity saved under an additive `gu
   - Modify: app/src/tools/rotate.ts
   - Modify: app/src/survey/mode.ts
 - **Context:** [spec.md§Interfaces](spec.md#interfaces)
-- **Description:** `pickEntity` returns a guide within the edge radius of a line or the point radius of a point, after geometry; `EraseTool.up` erases `ids("guide")` through `eraseGuides` in the same transaction; Select highlights a guide and Delete erases it with the selection. Call sites that switch on the entity kind learn the new one: Move and Rotate ignore a picked guide with an empty selection (`move.ts:97`, `rotate.ts:157`), and the survey panel's owner lookup (`survey/mode.ts:36`) reads a guide's owner from `Model.guides` rather than `edgeInfo`.
+- **Description:** `pickEntity` returns a guide within the edge radius of a line or the point radius of a point, after geometry; `EraseTool.up` erases `ids("guide")` through `eraseGuides` in the same transaction; Select highlights a guide and Delete erases it with the selection. Call sites that switch on the entity kind learn the new one: Move and Rotate ignore a picked guide with an empty selection (`move.ts:97`, `rotate.ts:157`), and the survey panel's owner lookup (`survey/mode.ts:36`) reads a guide's owner from `Model.guides` rather than `edgeInfo`. (2026-11-05: `pickEntity` returns a guide after the edge scan but before the face under it, since a guide drawn on a face must stay pickable; a guide behind the nearest face is skipped like an edge.)
 
 #### Task 4.3: View › Guides and Edit › Delete Guides
 
 - **Type:** implement
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [4.1]
 - **Files:**
   - Modify: app/src/app.ts
@@ -181,7 +181,7 @@ Sprint 2.3 of Milestone 2: guides as a kernel entity saved under an additive `gu
 #### Task 4.4: Scene and housekeeping tests
 
 - **Type:** test
-- **Status:** pending
+- **Status:** completed
 - **Dependencies:** [4.2, 4.3]
 - **Files:**
   - Modify: app/test/scene.test.ts

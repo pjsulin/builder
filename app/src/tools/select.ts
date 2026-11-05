@@ -82,6 +82,10 @@ export class SelectTool implements Tool {
       this.host.enterGroup(e.id);
       return;
     }
+    if (e.kind === "guide") {
+      selection.set([e]);
+      return;
+    }
     const more: Entity[] =
       e.kind === "face"
         ? model.faceEdges(e.id).map((id) => ({ kind: "edge", id }))

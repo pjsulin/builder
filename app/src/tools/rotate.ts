@@ -157,7 +157,7 @@ export class RotateTool implements Tool {
       const pick = this.host.selection.empty ? pickEntity(this.host.scene(), this.host.camera, p.x, p.y) : null;
       this.host.show({
         inference: r,
-        hoverEntity: pick && !pick.outside && !pick.locked ? pick.entity : null,
+        hoverEntity: pick && !pick.outside && !pick.locked && pick.entity.kind !== "guide" ? pick.entity : null,
         protractor: r ? { center: r.point, normal: this.hoverNormal, radius: this.radius() } : null,
       });
       return;
@@ -242,7 +242,7 @@ export class RotateTool implements Tool {
     const { selection, model } = this.host;
     if (selection.empty) {
       const pick = pickEntity(this.host.scene(), this.host.camera, p.x, p.y);
-      if (!pick || pick.outside || pick.locked) return;
+      if (!pick || pick.outside || pick.locked || pick.entity.kind === "guide") return;
       selection.set([pick.entity]);
     }
     if (!this.current) return;

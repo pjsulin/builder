@@ -3,7 +3,7 @@
 
 import { AXES, InferenceEngine, type Inference } from "./inference/engine";
 import { Model, ROOT, type Entity, type Finding } from "./kernel/model";
-import { add, applyDir, apply, cross, invert, IDENTITY, madd, planeBasis, scale, type Mat4, type Vec3 } from "./math";
+import { add, applyDir, apply, cross, dist, invert, IDENTITY, madd, planeBasis, scale, type Mat4, type Vec3 } from "./math";
 import { buildSample, buildStressTest } from "./samples";
 import { EraseTool } from "./tools/erase";
 import { LineTool } from "./tools/line";
@@ -311,11 +311,31 @@ export class App implements ToolHost {
     if (this.selection.empty) return;
     const s = this.selection;
     try {
-      this.model.transact("Erase", () => this.model.erase(s.ids("face"), s.ids("edge"), s.ids("instance")));
+      this.model.transact("Erase", () => {
+        this.model.erase(s.ids("face"), s.ids("edge"), s.ids("instance"));
+        if (s.ids("guide").length) this.model.eraseGuides(s.ids("guide"));
+      });
     } catch (e) {
       this.offerReport(e);
     }
     this.selection.clear();
+    this.refresh();
+  }
+
+  /** View › Guides: show or hide every guide, saved with the file, as one undo step. */
+  private toggleGuides(): void {
+    const visible = !this.model.guidesVisible();
+    this.model.transact("Guides", () => this.model.setGuidesVisible(visible));
+    this.flash(visible ? "Guides shown" : "Guides hidden");
+    this.refresh();
+  }
+
+  /** Edit › Delete Guides: every guide in an unlocked context, as one undo step. */
+  private deleteGuides(): void {
+    this.tool.deactivate();
+    const n = this.model.transact("Delete Guides", () => this.model.eraseAllGuides());
+    this.flash(n ? `Deleted ${n} guide${n === 1 ? "" : "s"}` : "No guides to delete");
+    this.selection.prune(this.model);
     this.refresh();
   }
 
@@ -503,6 +523,17 @@ export class App implements ToolHost {
     const segs: number[] = [];
     if (e.kind === "face") {
       tris.push(...s.faceTriangles(s.editableItem(), e.id));
+    } else if (e.kind === "guide") {
+      // The guide's visible run (a line is clipped to the far plane), or a point's stub.
+      const g = s.guides().find((x) => x.id === e.id && s.items[x.item].editable);
+      if (g && g.kind === "line") {
+        const far = this.camera.far;
+        segs.push(...add(g.origin, scale(g.dir, -far)), ...add(g.origin, scale(g.dir, far)));
+      } else if (g) {
+        const r = Math.max(0.5, dist(this.camera.eye, g.origin) * 0.012);
+        const o = g.origin;
+        segs.push(o[0] - r, o[1], o[2], o[0] + r, o[1], o[2], o[0], o[1] - r, o[2], o[0], o[1] + r, o[2], o[0], o[1], o[2] - r, o[0], o[1], o[2] + r);
+      }
     } else if (e.kind === "edge") {
       for (let i = 0; i < s.segEdge.length; i++) {
         if (s.segEdge[i] === e.id && s.items[s.segItem[i]].editable) for (let k = 0; k < 6; k++) segs.push(s.seg[i * 6 + k]);
@@ -554,6 +585,7 @@ export class App implements ToolHost {
       v.setSegments("hoverEdges", g.segs, "box");
     } else v.clearLayer("hover");
     if (!o.hoverEntity) v.clearLayer("hoverEdges");
+    v.setGuides(this.drawScene.guides(), this.model.guidesVisible());
     v.setSegments("preview", (o.segments ?? []).flat(), "preview");
     v.setSegments("protractor", o.protractor ? protractorSegments(o.protractor) : [], "preview");
     if (o.fill && o.fill.length >= 3) {
@@ -641,6 +673,7 @@ export class App implements ToolHost {
     $<HTMLButtonElement>("redoBtn").disabled = !this.model.canRedo();
     $<HTMLButtonElement>("groupBtn").disabled = this.selection.empty;
     $<HTMLButtonElement>("explodeBtn").disabled = !this.selection.ids("instance").length;
+    $("guidesBtn").textContent = this.model.guidesVisible() ? "Hide guides" : "Show guides";
     const nothingToCut = !this.selection.ids("face").length && !this.selection.ids("instance").length;
     $<HTMLButtonElement>("intersectModelBtn").disabled = nothingToCut;
     $<HTMLButtonElement>("intersectSelBtn").disabled = nothingToCut;
@@ -737,6 +770,8 @@ export class App implements ToolHost {
     button("intersectModelBtn", () => this.intersect(true));
     button("intersectSelBtn", () => this.intersect(false));
     button("checkBtn", () => this.checkModel());
+    button("deleteGuidesBtn", () => this.deleteGuides());
+    button("guidesBtn", () => this.toggleGuides());
     button("findingsClose", () => $<HTMLDialogElement>("findings").close());
     button("saveBtn", () => this.save());
     button("versionsBtn", () => void this.showVersions());

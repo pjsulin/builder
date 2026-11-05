@@ -33,7 +33,8 @@ export function groupSelection(model: Model, ctx: number, selection: Selection, 
 /** The draw item an entity belongs to, in the scene's items. */
 function itemOf(scene: SceneIndex, model: Model, e: Entity): number {
   if (e.kind === "instance") return scene.items.findIndex((it) => it.path[it.path.length - 1] === e.id);
-  const owner = e.kind === "face" ? model.facePlane(e.id)?.owner : model.edgeInfo(e.id)?.owner;
+  const owner =
+    e.kind === "face" ? model.facePlane(e.id)?.owner : e.kind === "edge" ? model.edgeInfo(e.id)?.owner : model.guideOwner(e.id) ?? undefined;
   return owner === undefined ? -1 : scene.items.findIndex((it) => it.def === owner);
 }
 

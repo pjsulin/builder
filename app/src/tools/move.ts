@@ -95,7 +95,7 @@ export class MoveTool implements Tool {
     this.current = r;
     if (!this.moving) {
       const pick = this.host.selection.empty ? pickEntity(this.host.scene(), this.host.camera, p.x, p.y) : null;
-      this.host.show({ inference: r, hoverEntity: pick && !pick.outside && !pick.locked ? pick.entity : null });
+      this.host.show({ inference: r, hoverEntity: pick && !pick.outside && !pick.locked && pick.entity.kind !== "guide" ? pick.entity : null });
       return;
     }
     if (!r) return;
@@ -137,7 +137,7 @@ export class MoveTool implements Tool {
     const { selection, model } = this.host;
     if (selection.empty) {
       const pick = pickEntity(this.host.scene(), this.host.camera, p.x, p.y);
-      if (!pick || pick.outside || pick.locked) return;
+      if (!pick || pick.outside || pick.locked || pick.entity.kind === "guide") return;
       selection.set([pick.entity]);
     }
     if (!this.current) return;

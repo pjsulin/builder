@@ -2,10 +2,10 @@
 // per-definition buffers. Rendering uses the same buffers; this is kept separate so
 // it can be tested in Node and queried without touching the GPU.
 
-import type { DefBuffers, MaterialInfo, Model } from "../kernel/model";
+import type { DefBuffers, GuideRecord, MaterialInfo, Model } from "../kernel/model";
 import type { CameraModel } from "./camera";
 import { ROOT } from "../kernel/model";
-import { applyDir, IDENTITY, mul, norm, type Mat4, type Ray, type Vec3 } from "../math";
+import { apply, applyDir, IDENTITY, mul, norm, type Mat4, type Ray, type Vec3 } from "../math";
 
 export interface DrawItem {
   def: number;
@@ -28,6 +28,15 @@ export interface DrawItem {
 }
 
 export type RGBA = [number, number, number, number];
+
+/** A guide placed by a draw item, in world space. A point's `dir` is zero. */
+export interface WorldGuide {
+  item: number;
+  id: number;
+  kind: "line" | "point";
+  origin: Vec3;
+  dir: Vec3;
+}
 
 export interface FaceHit {
   item: number;
@@ -58,6 +67,9 @@ export class SceneIndex {
   empty = true;
   /** Path of instances leading to the active context ([] for the root). */
   activePath: number[] = [];
+  /** Guides per definition, as the kernel holds them; empty when guides are hidden. */
+  defGuides = new Map<number, GuideRecord[]>();
+  private worldGuides: WorldGuide[] = [];
 
   static build(model: Model, activeCtx: number): SceneIndex {
     const s = new SceneIndex();
@@ -101,9 +113,11 @@ export class SceneIndex {
         pickInstance: inside && !editable ? r.path[ap.length] : null,
       });
     }
+    const visible = model.guidesVisible();
     for (const def of new Set(raw.map((r) => r.def))) {
       s.buffers.set(def, model.buffers(def));
       s.faceMaterials.set(def, model.faceMaterials(def));
+      s.defGuides.set(def, visible ? model.guides(def) : []);
     }
     s.flatten();
     return s;
@@ -150,6 +164,18 @@ export class SceneIndex {
     this.empty = nt + ns === 0;
     this.min = this.empty ? [0, 0, 0] : min;
     this.max = this.empty ? [0, 0, 0] : max;
+    this.worldGuides = [];
+    this.items.forEach((it, idx) => {
+      for (const g of this.defGuides.get(it.def) ?? []) {
+        const dir = g.kind === "line" ? norm(applyDir(it.matrix, g.dir)) : ([0, 0, 0] as Vec3);
+        this.worldGuides.push({ item: idx, id: g.id, kind: g.kind, origin: apply(it.matrix, g.origin), dir });
+      }
+    });
+  }
+
+  /** Every guide of every item, flattened through the item's matrix; empty when hidden. */
+  guides(): WorldGuide[] {
+    return this.worldGuides;
   }
 
   /**
